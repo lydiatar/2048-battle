@@ -629,6 +629,52 @@ if (restartButton) {
         "Opponent disconnected.";
     }
   });
+
+  socket.on("rematchWaiting", function () {
+  console.log(
+    "Waiting for opponent to accept rematch."
+  );
+});
+
+socket.on("rematchStart", function () {
+  window.multiplayerGameOver = false;
+
+  var result = document.getElementById("battle-result");
+
+  if (result) {
+    result.remove();
+  }
+
+  latestOpponentState = null;
+
+  if (opponentScore) {
+    opponentScore.textContent = "0";
+  }
+
+  if (opponentStatus) {
+    opponentStatus.textContent =
+      "Waiting for opponent to make a move...";
+  }
+
+  if (opponentGrid) {
+    var cells = opponentGrid.children;
+
+    for (var i = 0; i < cells.length; i++) {
+      cells[i].className = "opponent-cell";
+      cells[i].textContent = "";
+    }
+  }
+
+  var restartButton =
+    document.querySelector(".restart-button");
+
+  if (restartButton) {
+    window.multiplayerAllowRestart = true;
+    restartButton.click();
+    window.multiplayerAllowRestart = false;
+  }
+});
+  
 socket.on("gameWinner", function (data) {
   window.multiplayerGameOver = true;
 
@@ -692,6 +738,26 @@ socket.on("gameWinner", function (data) {
   description.style.lineHeight = "1.5";
   description.style.margin = "0 0 28px";
 
+  var rematchButton = document.createElement("button");
+rematchButton.textContent = "Rematch";
+
+rematchButton.style.border = "0";
+rematchButton.style.borderRadius = "6px";
+rematchButton.style.padding = "14px 24px";
+rematchButton.style.background = "#edc22e";
+rematchButton.style.color = "#ffffff";
+rematchButton.style.fontSize = "17px";
+rematchButton.style.fontWeight = "bold";
+rematchButton.style.cursor = "pointer";
+rematchButton.style.marginRight = "10px";
+
+rematchButton.addEventListener("click", function () {
+  rematchButton.disabled = true;
+  rematchButton.textContent = "Waiting...";
+
+  socket.emit("requestRematch");
+});
+  
   var button = document.createElement("button");
   button.textContent = "Back to Lobby";
 
@@ -709,10 +775,11 @@ socket.on("gameWinner", function (data) {
       "https://lydiatar.github.io/2048-battle/?v=7";
   });
 
-  box.appendChild(icon);
-  box.appendChild(title);
-  box.appendChild(description);
-  box.appendChild(button);
+ box.appendChild(icon);
+box.appendChild(title);
+box.appendChild(description);
+box.appendChild(rematchButton);
+box.appendChild(button);
 
   overlay.appendChild(box);
   document.body.appendChild(overlay);
