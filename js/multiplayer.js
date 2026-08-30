@@ -66,9 +66,6 @@
   var lastOwnOneAway = false;
   var lastOpponentOneAway = false;
   var audioContext = null;
-  var raceMusic = null;
-  var musicFadeFrame = null;
-  var audioUnlocked = false;
   var opponentPanelElement = null;
 
   if (TARGETS.indexOf(selectedTarget) === -1) {
@@ -125,8 +122,6 @@
       soloUndo: false,
       soundEffects: true,
       sfxVolume: 0.75,
-      backgroundMusic: true,
-      musicVolume: 0.32,
       nickname: "",
       controlScheme: "arrows"
     };
@@ -148,13 +143,6 @@
         defaults.sfxVolume = Math.max(0, Math.min(1, saved.sfxVolume));
       }
 
-      if (typeof saved.backgroundMusic === "boolean") {
-        defaults.backgroundMusic = saved.backgroundMusic;
-      }
-
-      if (typeof saved.musicVolume === "number") {
-        defaults.musicVolume = Math.max(0, Math.min(1, saved.musicVolume));
-      }
 
       if (typeof saved.nickname === "string") {
         defaults.nickname = sanitizeNickname(saved.nickname);
@@ -292,110 +280,12 @@
 
   window.rinasPlaySound = playSound;
 
-  function ensureRaceMusic() {
-    if (!raceMusic) {
-      raceMusic = new Audio("audio/rinas-race-loop.mp3");
-      raceMusic.loop = true;
-      raceMusic.preload = "auto";
-      raceMusic.volume = 0;
-    }
-    return raceMusic;
-  }
-
-  function unlockAudio() {
-    if (audioUnlocked) return;
-    audioUnlocked = true;
-
-    var music = ensureRaceMusic();
-    var previousVolume = music.volume;
-    music.volume = 0;
-    var promise = music.play();
-
-    if (promise && promise.then) {
-      promise.then(function () {
-        music.pause();
-        music.currentTime = 0;
-        music.volume = previousVolume;
-      }).catch(function () {
-        music.volume = previousVolume;
-      });
-    }
-  }
-
-  document.addEventListener("pointerdown", unlockAudio, { once: true, capture: true });
-  document.addEventListener("keydown", unlockAudio, { once: true, capture: true });
-
-  function currentMusicTargetVolume() {
-    if (!window.rinasSettings.backgroundMusic || !window.multiplayerMatchActive) return 0;
-    var base = Math.max(0, Math.min(1, Number(typeof window.rinasSettings.musicVolume === "number" ? window.rinasSettings.musicVolume : 0.32)));
-    var intense = lastOwnOneAway || lastOpponentOneAway;
-    var modeScale = window.multiplayerModeName === "freeplay" ? 0.72 : 1;
-    return Math.min(1, base * modeScale * (intense ? 1.14 : 1));
-  }
-
-  function fadeMusicTo(target, duration, pauseWhenDone) {
-    var music = ensureRaceMusic();
-    target = Math.max(0, Math.min(1, Number(target || 0)));
-    duration = Math.max(0, Number(duration || 0));
-
-    if (musicFadeFrame) cancelAnimationFrame(musicFadeFrame);
-
-    var startVolume = Number(music.volume || 0);
-    var startTime = performance.now();
-
-    function step(now) {
-      var progress = duration ? Math.min(1, (now - startTime) / duration) : 1;
-      var eased = 1 - Math.pow(1 - progress, 3);
-      music.volume = startVolume + (target - startVolume) * eased;
-
-      if (progress < 1) {
-        musicFadeFrame = requestAnimationFrame(step);
-      } else {
-        musicFadeFrame = null;
-        music.volume = target;
-        if (pauseWhenDone && target <= 0.001) {
-          music.pause();
-        }
-      }
-    }
-
-    musicFadeFrame = requestAnimationFrame(step);
-  }
-
-  function startCompetitiveMusic() {
-    if (!window.rinasSettings.backgroundMusic) return;
-    var music = ensureRaceMusic();
-    music.playbackRate = lastOwnOneAway || lastOpponentOneAway ? 1.055 : 1;
-    var promise = music.play();
-    if (promise && promise.catch) promise.catch(function () {});
-    fadeMusicTo(currentMusicTargetVolume(), 650, false);
-  }
-
-  function stopCompetitiveMusic(duration) {
-    if (!raceMusic) return;
-    fadeMusicTo(0, duration == null ? 350 : duration, true);
-  }
-
-  function updateCompetitiveMusicIntensity() {
-    if (!raceMusic || !window.multiplayerMatchActive) return;
-    raceMusic.playbackRate = lastOwnOneAway || lastOpponentOneAway ? 1.055 : 1;
-    if (window.rinasSettings.backgroundMusic) {
-      var promise = raceMusic.play();
-      if (promise && promise.catch) promise.catch(function () {});
-      fadeMusicTo(currentMusicTargetVolume(), 260, false);
-    }
-  }
-
-  function duckCompetitiveMusic() {
-    if (!raceMusic || raceMusic.paused) return;
-    fadeMusicTo(currentMusicTargetVolume() * 0.28, 180, false);
-  }
-
-  window.rinasAudio = {
-    startMusic: startCompetitiveMusic,
-    stopMusic: stopCompetitiveMusic,
-    refreshMusic: updateCompetitiveMusicIntensity
-  };
+  // Background music was intentionally removed in v40.
+  // These no-op helpers keep older gameplay call sites harmless.
+  function startCompetitiveMusic() {}
+  function stopCompetitiveMusic() {}
+  function updateCompetitiveMusicIntensity() {}
+  function duckCompetitiveMusic() {}
 
   document.addEventListener("click", function (event) {
     var button = event.target.closest ? event.target.closest("button") : null;
@@ -4864,6 +4754,639 @@
   `;
   document.head.appendChild(v39Style);
 
+  // =========================================================
+  // V40 — ONE GAME, ONE VISUAL SYSTEM
+  // =========================================================
+
+  var v40Style = document.createElement("style");
+  v40Style.textContent = `
+    /* The UI gets its personality from type, color, motion and the boards — not extra shapes. */
+
+    .solo-launch-screen {
+      width: min(690px, 100%);
+      margin: 70px auto 0;
+      text-align: center;
+    }
+
+    .solo-launch-rule {
+      display: flex;
+      align-items: baseline;
+      justify-content: center;
+      gap: 14px;
+      margin-bottom: 32px;
+      color: var(--app-muted);
+    }
+
+    .solo-launch-rule span {
+      color: var(--app-accent);
+      font-family: var(--hud-display);
+      font-size: 12px;
+      font-weight: 900;
+      letter-spacing: .16em;
+    }
+
+    .solo-launch-rule strong {
+      color: var(--app-text);
+      font-size: 15px;
+      font-weight: 600;
+    }
+
+    .solo-launch-stats {
+      display: grid;
+      grid-template-columns: 1fr 1px 1fr;
+      align-items: stretch;
+      margin: 0 auto 38px;
+      border-top: 1px solid var(--game-line);
+      border-bottom: 1px solid var(--game-line);
+    }
+
+    .solo-launch-stats::before {
+      content: "";
+      grid-column: 2;
+      grid-row: 1;
+      background: var(--game-line);
+    }
+
+    .solo-launch-stat {
+      min-height: 132px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 7px;
+      padding: 18px 28px;
+    }
+
+    .solo-launch-stat:first-child { grid-column: 1; }
+    .solo-launch-stat:last-child { grid-column: 3; }
+
+    .solo-launch-stat span {
+      font-family: var(--hud-display);
+      font-size: 11px;
+      font-weight: 800;
+      letter-spacing: .14em;
+      color: var(--app-muted);
+    }
+
+    .solo-launch-stat strong {
+      font-family: var(--tile-font);
+      font-size: clamp(42px, 6vw, 64px);
+      line-height: .95;
+      font-weight: 900;
+      letter-spacing: -.045em;
+      color: var(--app-text);
+    }
+
+    .solo-launch-actions {
+      width: min(370px, 100%);
+      margin: 0 auto;
+      display: grid;
+      gap: 12px;
+    }
+
+    .solo-main-action {
+      min-height: 54px !important;
+      font-size: 17px !important;
+    }
+
+    .solo-text-action,
+    .nickname-link {
+      border: 0;
+      background: transparent;
+      color: var(--app-muted);
+      cursor: pointer;
+      font: 800 12px/1 var(--hud-display);
+      letter-spacing: .08em;
+      text-transform: uppercase;
+      padding: 10px;
+    }
+
+    .solo-text-action:hover,
+    .nickname-link:hover { color: var(--app-accent); }
+
+    /* Multiplayer selection is a game mode rail, not a dashboard of cards. */
+    .multiplayer-entry-head {
+      display: flex;
+      justify-content: flex-end;
+      align-items: center;
+      gap: 8px;
+      margin: 22px 0 20px;
+      color: var(--app-muted);
+      font-size: 13px;
+    }
+
+    .multiplayer-entry-head > span {
+      font-family: var(--hud-display);
+      font-size: 10px;
+      font-weight: 800;
+      letter-spacing: .13em;
+    }
+
+    .multiplayer-entry-head > strong {
+      color: var(--app-text);
+      font-size: 15px;
+    }
+
+    .mode-selector-shell {
+      display: grid;
+      grid-template-columns: minmax(210px, .78fr) minmax(0, 1.4fr);
+      gap: 44px;
+      align-items: stretch;
+      margin-top: 10px;
+      border-top: 1px solid var(--game-line);
+      border-bottom: 1px solid var(--game-line);
+      padding: 24px 0 28px;
+    }
+
+    .mode-rail {
+      display: grid;
+      align-content: start;
+    }
+
+    .mode-rail-item {
+      width: 100%;
+      min-height: 68px;
+      display: grid;
+      grid-template-columns: 38px 1fr;
+      gap: 12px;
+      align-items: center;
+      padding: 11px 12px;
+      border: 0;
+      border-bottom: 1px solid var(--game-line);
+      background: transparent;
+      color: var(--app-text);
+      text-align: left;
+      cursor: pointer;
+      transition: padding-left 160ms ease, color 160ms ease, background 160ms ease;
+    }
+
+    .mode-rail-item:first-child { border-top: 1px solid var(--game-line); }
+
+    .mode-rail-item:hover:not(:disabled),
+    .mode-rail-item.selected {
+      padding-left: 18px;
+      color: var(--app-accent);
+      background: linear-gradient(90deg, color-mix(in srgb, var(--app-accent) 7%, transparent), transparent 76%);
+    }
+
+    .mode-rail-item.selected {
+      box-shadow: inset 3px 0 0 var(--app-accent);
+    }
+
+    .mode-index {
+      font-family: var(--tile-font);
+      font-size: 18px;
+      font-weight: 900;
+      color: color-mix(in srgb, currentColor 60%, transparent);
+    }
+
+    .mode-rail-item strong,
+    .mode-rail-item small {
+      display: block;
+    }
+
+    .mode-rail-item strong {
+      font-family: var(--hud-display);
+      font-size: 17px;
+      font-weight: 900;
+      letter-spacing: -.01em;
+    }
+
+    .mode-rail-item small {
+      margin-top: 3px;
+      color: var(--app-muted);
+      font-size: 11px;
+    }
+
+    .mode-rail-item.locked {
+      cursor: default;
+      opacity: .36;
+    }
+
+    .mode-stage {
+      min-height: 430px;
+      display: flex;
+      flex-direction: column;
+      align-items: flex-start;
+      justify-content: center;
+      padding: 18px clamp(10px, 4vw, 50px);
+      border-left: 1px solid var(--game-line);
+    }
+
+    .mode-stage-pop { animation: v40ModePop 180ms ease-out; }
+
+    @keyframes v40ModePop {
+      from { opacity: .45; transform: translateX(9px); }
+      to { opacity: 1; transform: translateX(0); }
+    }
+
+    .mode-stage-eyebrow {
+      color: var(--app-accent);
+      font: 900 11px/1 var(--hud-display);
+      letter-spacing: .16em;
+    }
+
+    .mode-stage h2 {
+      margin: 12px 0 12px;
+      font-family: var(--hud-display);
+      font-size: clamp(38px, 5vw, 64px);
+      line-height: .95;
+      letter-spacing: -.045em;
+      color: var(--app-text);
+    }
+
+    .mode-stage > p {
+      max-width: 520px;
+      margin: 0;
+      color: var(--app-muted);
+      font-size: 17px;
+      line-height: 1.55;
+    }
+
+    .mode-stage-facts {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 18px;
+      margin: 26px 0 34px;
+      padding-top: 18px;
+      border-top: 1px solid var(--game-line);
+      color: var(--app-text);
+      font-family: var(--hud-display);
+      font-size: 11px;
+      font-weight: 800;
+      letter-spacing: .06em;
+      text-transform: uppercase;
+    }
+
+    .mode-stage-facts span::before {
+      content: "•";
+      margin-right: 8px;
+      color: var(--app-accent);
+    }
+
+    .mode-stage-action { min-width: 220px; }
+
+    /* Solo and multiplayer now share the same visual rhythm. */
+    body.solo-active #solo-toolbar {
+      width: min(1040px, calc(100% - 36px)) !important;
+      margin: 20px auto 14px !important;
+    }
+
+    .solo-floating-header,
+    .battle-topbar {
+      min-height: 64px !important;
+      padding: 0 !important;
+      border-bottom: 1px solid var(--game-line) !important;
+    }
+
+    body.solo-active .container {
+      width: min(560px, calc(100% - 28px)) !important;
+      margin: 24px auto 48px !important;
+      padding: 16px !important;
+      border: 0 !important;
+      border-left: 3px solid var(--app-accent) !important;
+      border-top: 4px solid var(--app-accent) !important;
+      border-radius: 0 !important;
+      clip-path: none !important;
+      background: transparent !important;
+      box-shadow: none !important;
+    }
+
+    body.solo-active .container::before,
+    body.solo-active .container::after { display: none !important; }
+
+    body.solo-active .container .heading {
+      min-height: 92px;
+      display: flex !important;
+      align-items: center !important;
+      justify-content: space-between !important;
+      gap: 20px;
+      margin: 0 0 14px !important;
+      padding: 0 0 14px !important;
+      border-bottom: 1px solid var(--game-line) !important;
+    }
+
+    body.solo-active .container .title {
+      margin: 0 !important;
+      font-family: var(--hud-display) !important;
+      font-size: 34px !important;
+      font-weight: 900 !important;
+      letter-spacing: -.025em !important;
+    }
+
+    body.solo-active .scores-container {
+      display: flex !important;
+      align-items: stretch !important;
+      gap: 14px !important;
+      margin: 0 !important;
+    }
+
+    body.solo-active .score-container,
+    body.solo-active .best-container {
+      width: 104px !important;
+      min-width: 104px !important;
+      min-height: 72px !important;
+      margin: 0 !important;
+      padding: 28px 12px 9px !important;
+      border: 0 !important;
+      border-radius: 4px !important;
+      background: var(--app-stat) !important;
+      font-family: var(--tile-font) !important;
+      font-size: 29px !important;
+      font-weight: 900 !important;
+      line-height: 1.05 !important;
+      text-align: center !important;
+      box-shadow: none !important;
+    }
+
+    body.solo-active .score-container::after,
+    body.solo-active .best-container::after {
+      top: 9px !important;
+      width: 100% !important;
+      left: 0 !important;
+      font-family: var(--hud-display) !important;
+      font-size: 9px !important;
+      font-weight: 800 !important;
+      letter-spacing: .12em !important;
+    }
+
+    .solo-card-actions {
+      margin: 0 0 12px !important;
+      padding: 0 !important;
+    }
+
+    body.solo-active .game-container,
+    .battle-layout .game-container {
+      overflow: visible !important;
+      border-radius: 6px !important;
+      clip-path: none !important;
+      background-clip: padding-box !important;
+    }
+
+    body.solo-active .grid-container,
+    .battle-layout .grid-container,
+    .opponent-grid {
+      overflow: hidden !important;
+      border-radius: 6px !important;
+      clip-path: none !important;
+    }
+
+    .tile,
+    .tile .tile-inner,
+    .grid-cell,
+    .opponent-cell {
+      clip-path: none !important;
+      background-clip: padding-box !important;
+    }
+
+    .tile .tile-inner,
+    .grid-cell,
+    .opponent-cell {
+      border-radius: 4px !important;
+    }
+
+    .tile .tile-inner::before,
+    .tile .tile-inner::after,
+    .grid-cell::before,
+    .grid-cell::after,
+    .opponent-cell::before,
+    .opponent-cell::after {
+      display: none !important;
+      content: none !important;
+    }
+
+    .tile .tile-inner {
+      font-family: var(--tile-font) !important;
+      font-weight: 900 !important;
+      letter-spacing: -.035em !important;
+    }
+
+    /* Multiplayer: two arenas, one match. No floating VS column. */
+    .battle-shell { max-width: 1120px !important; }
+
+    .battle-layout {
+      position: relative;
+      grid-template-columns: minmax(0, 560px) minmax(0, 350px) !important;
+      column-gap: clamp(48px, 7vw, 92px) !important;
+      align-items: start !important;
+      justify-content: center !important;
+    }
+
+    .battle-layout::before { display: none !important; }
+
+    .battle-vs { display: none !important; }
+
+    .own-panel {
+      width: 560px !important;
+      border-left-width: 3px !important;
+    }
+
+    .opponent-panel {
+      width: 350px !important;
+      min-height: 0 !important;
+    }
+
+    .battle-player-card {
+      padding: 18px 14px 18px !important;
+    }
+
+    .player-card-header {
+      min-height: 86px !important;
+      align-items: flex-start !important;
+      gap: 18px !important;
+    }
+
+    .highest-box {
+      min-width: 86px !important;
+      padding: 9px 12px 10px !important;
+    }
+
+    .highest-box span {
+      display: block;
+      margin-bottom: 4px;
+    }
+
+    .highest-box strong { font-size: 28px !important; line-height: 1 !important; }
+
+    .opponent-grid {
+      width: 280px !important;
+      margin: 18px auto 0 !important;
+    }
+
+    #opponent-status {
+      margin-top: 10px !important;
+      text-align: center !important;
+    }
+
+    .settings-grid-v40 {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 14px;
+    }
+
+    .single-audio-group { margin-bottom: 0 !important; }
+
+    @media (max-width: 900px) {
+      .mode-selector-shell {
+        grid-template-columns: 1fr;
+        gap: 20px;
+      }
+
+      .mode-stage {
+        min-height: 330px;
+        border-left: 0;
+        border-top: 1px solid var(--game-line);
+        padding: 30px 14px;
+      }
+
+      .battle-layout {
+        grid-template-columns: minmax(0, 560px) !important;
+        row-gap: 30px !important;
+      }
+
+      .battle-layout::before { display: none; }
+
+      .opponent-panel {
+        width: min(560px, 100%) !important;
+      }
+
+      .opponent-grid { width: 280px !important; }
+
+      .settings-grid-v40 { grid-template-columns: 1fr; }
+    }
+
+    @media (max-width: 600px) {
+      .solo-launch-screen { margin-top: 38px; }
+      .solo-launch-rule { display: grid; gap: 6px; }
+      .solo-launch-stats { margin-bottom: 26px; }
+      .solo-launch-stat { min-height: 106px; padding: 14px 10px; }
+      .solo-launch-stat strong { font-size: 38px; }
+      .mode-selector-shell { padding-top: 14px; }
+      .mode-stage h2 { font-size: 38px; }
+
+      body.solo-active .container .heading {
+        align-items: flex-start !important;
+        flex-direction: column !important;
+      }
+
+      body.solo-active .scores-container { width: 100% !important; }
+      body.solo-active .score-container,
+      body.solo-active .best-container { flex: 1 !important; width: auto !important; }
+    }
+  `;
+  document.head.appendChild(v40Style);
+
+  // =========================================================
+  // v41: theme-aware home screen + Solo live theme switching
+  // =========================================================
+
+  var v41Style = document.createElement("style");
+  v41Style.textContent = `
+    /*
+     * The home screen now inherits the active theme instead of
+     * always using the same teal/coral palette. These variables
+     * also keep the visual accents coherent throughout the UI.
+     */
+    body.theme-classic {
+      --fun-teal: #d7a24b;
+      --fun-coral: #e96f3d;
+      --fun-yellow: #edc22e;
+      --home-solo-a: #e4bd70;
+      --home-solo-b: #f0d59c;
+      --home-solo-c: #d3a255;
+      --home-multi-a: #e96f3d;
+      --home-multi-b: #f38c62;
+      --home-multi-c: #d85d31;
+    }
+
+    body.theme-pastel {
+      --fun-teal: #9b8cff;
+      --fun-coral: #ff9fc7;
+      --fun-yellow: #ffd09d;
+      --home-solo-a: #a99cff;
+      --home-solo-b: #c8beff;
+      --home-solo-c: #8d7cf2;
+      --home-multi-a: #ff9fc7;
+      --home-multi-b: #ffc1da;
+      --home-multi-c: #ef86b2;
+    }
+
+    body.theme-ocean {
+      --fun-teal: #28d7df;
+      --fun-coral: #4d89ff;
+      --fun-yellow: #64f0b8;
+      --home-solo-a: #28d7df;
+      --home-solo-b: #62e6ea;
+      --home-solo-c: #1fb9c0;
+      --home-multi-a: #4d89ff;
+      --home-multi-b: #73a5ff;
+      --home-multi-c: #326bd7;
+    }
+
+    body.theme-candy {
+      --fun-teal: #9b7bff;
+      --fun-coral: #ff5d9e;
+      --fun-yellow: #ffd054;
+      --home-solo-a: #9b7bff;
+      --home-solo-b: #b99fff;
+      --home-solo-c: #805fdc;
+      --home-multi-a: #ff5d9e;
+      --home-multi-b: #ff83b6;
+      --home-multi-c: #df3f82;
+    }
+
+    body.theme-midnight {
+      --fun-teal: #8d7cff;
+      --fun-coral: #44ddff;
+      --fun-yellow: #ff5ca8;
+      --home-solo-a: #7666e8;
+      --home-solo-b: #9b8dff;
+      --home-solo-c: #6254c9;
+      --home-multi-a: #2cc8e8;
+      --home-multi-b: #56e0f8;
+      --home-multi-c: #219ebc;
+    }
+
+    .solo-brush {
+      background: linear-gradient(105deg,
+        var(--home-solo-a),
+        var(--home-solo-b) 72%,
+        var(--home-solo-c)) !important;
+    }
+
+    .multiplayer-brush {
+      background: linear-gradient(105deg,
+        var(--home-multi-a),
+        var(--home-multi-b) 70%,
+        var(--home-multi-c)) !important;
+    }
+
+    .game-logo-number em {
+      color: var(--fun-coral) !important;
+    }
+
+    /* Keep button copy readable on both light and dark themes. */
+    body.theme-ocean .home-brush-button,
+    body.theme-candy .home-brush-button,
+    body.theme-midnight .home-brush-button {
+      color: #ffffff !important;
+    }
+
+    body.theme-ocean .brush-copy small,
+    body.theme-candy .brush-copy small,
+    body.theme-midnight .brush-copy small {
+      color: rgba(255,255,255,.78) !important;
+    }
+
+    body.theme-ocean .brush-icon,
+    body.theme-candy .brush-icon,
+    body.theme-midnight .brush-icon {
+      border-color: rgba(255,255,255,.24) !important;
+      background: rgba(255,255,255,.10) !important;
+    }
+  `;
+  document.head.appendChild(v41Style);
+
 
   // =========================================================
   // COMMON UI
@@ -5185,20 +5708,24 @@
         "Solo 2048",
         showMainMenu,
         `
-          <div class="solo-menu-intro">
-            <span class="solo-menu-kicker">ENDLESS SOLO</span>
-            <p>Your run saves automatically. Reach 2048, keep going, and chase a bigger board every session.</p>
-            ${window.rinasSettings.soloUndo ? '<span class="solo-undo-note">Undo is enabled: one rewind after each successful move.</span>' : ''}
-          </div>
+          <div class="solo-launch-screen">
+            <div class="solo-launch-rule"><span>ENDLESS</span><strong>2048 is the milestone. Your run keeps going.</strong></div>
 
-          <div class="solo-stats">
-            <div class="stat-card"><span>Best Score</span><strong>${best}</strong></div>
-            <div class="stat-card"><span>Highest Tile Ever</span><strong>${highest || 0}</strong></div>
-          </div>
+            <div class="solo-launch-stats" aria-label="Solo records">
+              <div class="solo-launch-stat">
+                <span>BEST SCORE</span>
+                <strong>${best}</strong>
+              </div>
+              <div class="solo-launch-stat">
+                <span>HIGHEST TILE</span>
+                <strong>${highest || 0}</strong>
+              </div>
+            </div>
 
-          <div class="button-stack">
-            ${hasSave ? '<button class="primary-button" id="continue-solo">Continue Game</button>' : '<button class="primary-button" id="start-solo">Start Game</button>'}
-            ${hasSave ? '<button class="secondary-button" id="new-solo">New Game</button>' : ""}
+            <div class="solo-launch-actions">
+              ${hasSave ? '<button class="primary-button solo-main-action" id="continue-solo">Continue Run</button>' : '<button class="primary-button solo-main-action" id="start-solo">Start Run</button>'}
+              ${hasSave ? '<button class="solo-text-action" id="new-solo">Start a new run</button>' : ''}
+            </div>
           </div>
         `
       );
@@ -5211,7 +5738,7 @@
       if (startButton) startButton.addEventListener("click", function () { startSolo(true); });
       if (newButton) {
         newButton.addEventListener("click", function () {
-          if (window.confirm("Start a new Solo game? Your current saved board will be replaced.")) {
+          if (window.confirm("Start a new Solo run? Your current saved board will be replaced.")) {
             startSolo(true);
           }
         });
@@ -5423,63 +5950,89 @@
       "Multiplayer",
       showMainMenu,
       `
-        <div class="identity-line">
-          Playing as <strong>${escapeHtml(sanitizeNickname(window.rinasSettings.nickname) || "Player")}</strong>
-          <button class="small-button" id="change-nickname">Change</button>
+        <div class="multiplayer-entry-head">
+          <span>PLAYING AS</span>
+          <strong>${escapeHtml(sanitizeNickname(window.rinasSettings.nickname) || "Player")}</strong>
+          <button class="nickname-link" id="change-nickname">Change</button>
         </div>
 
-        <div class="mode-grid">
-          <button class="mode-card mode-live" id="mode-tile-race">
-            <span class="mode-icon">🏁</span>
-            <h3>Tile Race</h3>
-            <p>Pure competitive 2048. First to the target tile wins; a stuck board loses.</p>
-            <span class="mode-kicker">Competitive</span>
-          </button>
+        <div class="mode-selector-shell">
+          <nav class="mode-rail" aria-label="Multiplayer modes">
+            <button class="mode-rail-item selected" data-mode="tile-race">
+              <span class="mode-index">01</span><span><strong>Tile Race</strong><small>Competitive</small></span>
+            </button>
+            <button class="mode-rail-item" data-mode="freeplay">
+              <span class="mode-index">02</span><span><strong>Freeplay Duel</strong><small>Casual</small></span>
+            </button>
+            <button class="mode-rail-item" data-mode="custom-race">
+              <span class="mode-index">03</span><span><strong>Custom Race</strong><small>Handicap</small></span>
+            </button>
+            <button class="mode-rail-item locked" disabled><span class="mode-index">04</span><span><strong>Score Sprint</strong><small>Coming soon</small></span></button>
+            <button class="mode-rail-item locked" disabled><span class="mode-index">05</span><span><strong>Blitz</strong><small>Coming soon</small></span></button>
+            <button class="mode-rail-item locked" disabled><span class="mode-index">06</span><span><strong>Survival</strong><small>Coming soon</small></span></button>
+          </nav>
 
-          <button class="mode-card mode-live" id="mode-freeplay">
-            <span class="mode-icon">🎮</span>
-            <h3>Freeplay Duel</h3>
-            <p>Relaxed side-by-side play. No winner, no elimination, and one-step Undo after each move.</p>
-            <span class="mode-kicker">Casual</span>
-          </button>
-
-          <button class="mode-card mode-live" id="mode-custom-race">
-            <span class="mode-icon">⚙️</span>
-            <h3>Custom Race</h3>
-            <p>Give each player a different finish tile. Perfect for beginner-vs-expert handicaps.</p>
-            <span class="mode-kicker">Handicap</span>
-          </button>
-
-          <div class="mode-card coming-soon">
-            <span class="coming-soon-badge">Coming Soon</span>
-            <span class="mode-icon">🏆</span>
-            <h3>Score Sprint</h3>
-            <p>First player to reach the target score wins.</p>
-          </div>
-
-          <div class="mode-card coming-soon">
-            <span class="coming-soon-badge">Coming Soon</span>
-            <span class="mode-icon">⚡</span>
-            <h3>Blitz</h3>
-            <p>Highest tile when the timer ends wins.</p>
-          </div>
-
-          <div class="mode-card coming-soon">
-            <span class="coming-soon-badge">Coming Soon</span>
-            <span class="mode-icon">☠️</span>
-            <h3>Survival</h3>
-            <p>Last player with a playable board wins.</p>
-          </div>
+          <section class="mode-stage" id="mode-stage" aria-live="polite"></section>
         </div>
       `
     );
 
+    var modes = {
+      "tile-race": {
+        eyebrow: "PURE 2048 RACE",
+        title: "Tile Race",
+        description: "First player to reach the target tile wins. If your board gets stuck, the race is over.",
+        facts: ["Same rules", "Live position", "No Undo"],
+        action: "Choose Tile Race",
+        next: showTileRaceLobby
+      },
+      "freeplay": {
+        eyebrow: "PLAY SIDE BY SIDE",
+        title: "Freeplay Duel",
+        description: "No winner and no elimination. Build freely beside a friend, compare progress, and use one-step Undo after each move.",
+        facts: ["No finish line", "One-step Undo", "Restart anytime"],
+        action: "Choose Freeplay",
+        next: showFreeplayLobby
+      },
+      "custom-race": {
+        eyebrow: "BALANCE THE MATCH",
+        title: "Custom Race",
+        description: "Give each player a different target. A newer player can race to 2048 while an expert races to 4096 or higher.",
+        facts: ["Different targets", "Live position", "No hidden handicap"],
+        action: "Choose Custom Race",
+        next: showCustomRaceLobby
+      }
+    };
+
+    function chooseMode(name) {
+      var mode = modes[name] || modes["tile-race"];
+      Array.prototype.forEach.call(document.querySelectorAll(".mode-rail-item[data-mode]"), function (button) {
+        button.classList.toggle("selected", button.getAttribute("data-mode") === name);
+      });
+
+      var stage = document.getElementById("mode-stage");
+      stage.classList.remove("mode-stage-pop");
+      void stage.offsetWidth;
+      stage.classList.add("mode-stage-pop");
+      stage.innerHTML = `
+        <span class="mode-stage-eyebrow">${mode.eyebrow}</span>
+        <h2>${mode.title}</h2>
+        <p>${mode.description}</p>
+        <div class="mode-stage-facts">${mode.facts.map(function (fact) { return '<span>' + fact + '</span>'; }).join("")}</div>
+        <button class="primary-button mode-stage-action" id="mode-stage-action">${mode.action}</button>
+      `;
+      document.getElementById("mode-stage-action").addEventListener("click", mode.next);
+    }
+
     document.getElementById("change-nickname").addEventListener("click", function () {
       openNicknamePrompt(showMultiplayerMenu);
     });
-    document.getElementById("mode-tile-race").addEventListener("click", showTileRaceLobby);
-    document.getElementById("mode-freeplay").addEventListener("click", showFreeplayLobby);
-    document.getElementById("mode-custom-race").addEventListener("click", showCustomRaceLobby);
+
+    Array.prototype.forEach.call(document.querySelectorAll(".mode-rail-item[data-mode]"), function (button) {
+      button.addEventListener("click", function () { chooseMode(button.getAttribute("data-mode")); });
+    });
+
+    chooseMode("tile-race");
   }
 
   function roomJoinMarkup() {
@@ -5865,8 +6418,6 @@
           </div>
           ${isFreeplay ? "" : createProgressHtml("own", ownTarget)}
         </section>
-
-        <div class="battle-vs" aria-hidden="true"><span>VS</span></div>
 
         <section class="battle-player-card opponent-panel" id="opponent-panel" data-opponent-theme="${escapeHtml(opponentTheme)}" aria-label="Opponent board">
           <div class="player-card-header">
@@ -6375,15 +6926,14 @@
     var old = document.getElementById("settings-overlay");
     if (old) old.remove();
 
-    var themeLocked = window.currentGameMode === "solo" || !!window.multiplayerMatchActive;
-    var musicPercent = Math.round(Number(typeof window.rinasSettings.musicVolume === "number" ? window.rinasSettings.musicVolume : 0.32) * 100);
+    var themeLocked = !!window.multiplayerMatchActive;
     var sfxPercent = Math.round(Number(typeof window.rinasSettings.sfxVolume === "number" ? window.rinasSettings.sfxVolume : 0.75) * 100);
 
     var overlay = document.createElement("div");
     overlay.id = "settings-overlay";
     overlay.className = "settings-overlay";
     overlay.innerHTML = `
-      <div class="settings-dialog settings-dialog-v39">
+      <div class="settings-dialog settings-dialog-v40">
         <div class="settings-dialog-header">
           <div>
             <span class="settings-kicker">RINA'S 2048</span>
@@ -6392,7 +6942,7 @@
           <button class="close-settings" id="close-settings" aria-label="Close">×</button>
         </div>
 
-        <div class="settings-grid-v39">
+        <div class="settings-grid-v40">
           <section class="settings-section settings-profile-section">
             <h3>Profile</h3>
             <label class="field-label" for="settings-nickname">Nickname</label>
@@ -6402,7 +6952,7 @@
 
           <section class="settings-section">
             <h3>Controls</h3>
-            <p class="settings-help">Choose one keyboard movement scheme. Touch devices can always swipe.</p>
+            <p class="settings-help">Choose one keyboard movement scheme. Touch controls always use swipe.</p>
             <div class="control-choice-row">
               <button class="control-choice ${window.rinasSettings.controlScheme === "arrows" ? "selected" : ""}" data-controls="arrows">Arrow Keys</button>
               <button class="control-choice ${window.rinasSettings.controlScheme === "wasd" ? "selected" : ""}" data-controls="wasd">WASD</button>
@@ -6418,24 +6968,8 @@
           </section>
 
           <section class="settings-section settings-audio-section">
-            <h3>Audio</h3>
-
-            <div class="audio-control-group">
-              <div class="toggle-row">
-                <div>
-                  <h4>Background Music</h4>
-                  <p class="settings-help">Competitive music fades in during multiplayer matches.</p>
-                </div>
-                <button id="background-music-toggle" class="toggle-button ${window.rinasSettings.backgroundMusic ? "on" : "off"}">${window.rinasSettings.backgroundMusic ? "ON" : "OFF"}</button>
-              </div>
-              <label class="volume-row" for="music-volume">
-                <span>Music volume</span>
-                <input id="music-volume" type="range" min="0" max="100" step="1" value="${musicPercent}">
-                <output id="music-volume-output">${musicPercent}%</output>
-              </label>
-            </div>
-
-            <div class="audio-control-group">
+            <h3>Sound</h3>
+            <div class="audio-control-group single-audio-group">
               <div class="toggle-row">
                 <div>
                   <h4>Sound Effects</h4>
@@ -6455,9 +6989,9 @@
             <div class="settings-section-heading-row">
               <div>
                 <h3>Theme</h3>
-                <p class="settings-help">Your theme also styles your board when an opponent sees it.</p>
+                <p class="settings-help">Choose your visual theme. In multiplayer, your opponent can see your board theme.</p>
               </div>
-              ${themeLocked ? '<span class="locked-badge">Locked in game</span>' : ''}
+              ${themeLocked ? '<span class="locked-badge">Locked during multiplayer match</span>' : ''}
             </div>
             <div class="theme-grid">
               ${THEMES.map(function (theme) {
@@ -6513,27 +7047,6 @@
         });
         window.refreshSoloControls();
       });
-    });
-
-    document.getElementById("background-music-toggle").addEventListener("click", function () {
-      window.rinasSettings.backgroundMusic = !window.rinasSettings.backgroundMusic;
-      saveSettings();
-      this.className = "toggle-button " + (window.rinasSettings.backgroundMusic ? "on" : "off");
-      this.textContent = window.rinasSettings.backgroundMusic ? "ON" : "OFF";
-
-      if (window.rinasSettings.backgroundMusic && window.multiplayerMatchActive) {
-        startCompetitiveMusic();
-      } else {
-        stopCompetitiveMusic(220);
-      }
-    });
-
-    document.getElementById("music-volume").addEventListener("input", function () {
-      var value = Math.max(0, Math.min(100, Number(this.value || 0)));
-      window.rinasSettings.musicVolume = value / 100;
-      document.getElementById("music-volume-output").textContent = value + "%";
-      saveSettings();
-      updateCompetitiveMusicIntensity();
     });
 
     document.getElementById("sound-effects-toggle").addEventListener("click", function () {
