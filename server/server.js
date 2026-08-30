@@ -56,11 +56,12 @@ io.on("connection", (socket) => {
 
     const roomCode = createRoomCode();
 
-    rooms.set(roomCode, {
-      players: [socket.id],
-      status: "waiting",
-      winner: null
-    });
+  rooms.set(roomCode, {
+  players: [socket.id],
+  status: "waiting",
+  winner: null,
+  rematchVotes: []
+});
 
     socket.join(roomCode);
 
@@ -183,6 +184,49 @@ io.on("connection", (socket) => {
       return;
     }
   });
+
+  socket.on("requestRematch", () => {
+  for (const [roomCode, room] of rooms.entries()) {
+    if (!room.players.includes(socket.id)) {
+      continue;
+    }
+
+    if (room.status !== "finished") {
+      return;
+    }
+
+    if (!room.rematchVotes) {
+      room.rematchVotes = [];
+    }
+
+    if (!room.rematchVotes.includes(socket.id)) {
+      room.rematchVotes.push(socket.id);
+    }
+
+    console.log(
+      "Rematch vote in room",
+      roomCode,
+      room.rematchVotes.length + "/2"
+    );
+
+    if (room.rematchVotes.length < 2) {
+      socket.emit("rematchWaiting");
+      return;
+    }
+
+    room.status = "playing";
+    room.winner = null;
+    room.rematchVotes = [];
+
+    console.log(
+      "Rematch starting in room",
+      roomCode
+    );
+
+    io.to(roomCode).emit("rematchStart");
+    return;
+  }
+});
 
   socket.on("disconnect", () => {
     console.log("Player disconnected:", socket.id);
