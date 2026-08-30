@@ -1,0 +1,13 @@
+{
+  "name": "2048-battle",
+  "version": "1.0.0",
+  "description": "Multiplayer 2048 Battle",
+  "main": "server/server.js",
+  "scripts": {
+    "start": "node server/server.js"
+  },
+  "dependencies": {
+    "express": "^4.21.2",
+    "socket.io": "^4.8.1"
+  }
+}
