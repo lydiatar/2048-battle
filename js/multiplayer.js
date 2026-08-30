@@ -1,16 +1,16 @@
 (function () {
   "use strict";
 
-  // =========================================================
-  // MULTIPLAYER SETUP
-  // =========================================================
-
   window.multiplayerMode = true;
 
-  var socket = io("https://two048-battle-oc8k.onrender.com");
+  var socket = io(
+    "https://two048-battle-oc8k.onrender.com"
+  );
+
   window.multiplayerSocket = socket;
 
-  var gameContainer = document.querySelector(".container");
+  var gameContainer =
+    document.querySelector(".container");
 
   var battleShell = null;
   var opponentGrid = null;
@@ -30,18 +30,24 @@
 
   function resetMultiplayerGame() {
     if (!window.multiplayerGame) {
-      setTimeout(resetMultiplayerGame, 50);
+      setTimeout(
+        resetMultiplayerGame,
+        50
+      );
+
       return;
     }
 
     window.multiplayerAllowRestart = true;
+
     window.multiplayerGame.restart();
+
     window.multiplayerAllowRestart = false;
   }
 
 
   // =========================================================
-  // SECOND CHANCE UI
+  // SECOND CHANCE
   // =========================================================
 
   function updateOwnSecondChanceUI() {
@@ -49,7 +55,9 @@
       return;
     }
 
-    if (window.multiplayerSecondChanceUsed) {
+    if (
+      window.multiplayerSecondChanceUsed
+    ) {
       ownSecondChance.textContent =
         "🛟 Second Chance: USED";
 
@@ -65,7 +73,9 @@
   }
 
 
-  function updateOpponentSecondChanceUI(used) {
+  function updateOpponentSecondChanceUI(
+    used
+  ) {
     if (!opponentSecondChance) {
       return;
     }
@@ -86,33 +96,47 @@
   }
 
 
-  window.showSecondChanceUsed = function () {
-    updateOwnSecondChanceUI();
+  window.showSecondChanceUsed =
+    function (removedValue) {
 
-    var existing =
-      document.getElementById("second-chance-toast");
+      updateOwnSecondChanceUI();
 
-    if (existing) {
-      existing.remove();
-    }
+      var existing =
+        document.getElementById(
+          "second-chance-toast"
+        );
 
-    var toast =
-      document.createElement("div");
-
-    toast.id = "second-chance-toast";
-
-    toast.innerHTML =
-      "<strong>🛟 SECOND CHANCE USED</strong><br>" +
-      "Your board was restored one move.";
-
-    document.body.appendChild(toast);
-
-    setTimeout(function () {
-      if (toast.parentNode) {
-        toast.remove();
+      if (existing) {
+        existing.remove();
       }
-    }, 2500);
-  };
+
+      var toast =
+        document.createElement("div");
+
+      toast.id =
+        "second-chance-toast";
+
+      var detail =
+        removedValue
+          ? "A " +
+            removedValue +
+            " tile was cleared. Keep going!"
+          : "One of your lowest tiles was cleared. Keep going!";
+
+      toast.innerHTML =
+        "<strong>🛟 SECOND CHANCE ACTIVATED</strong><br>" +
+        detail;
+
+      document.body.appendChild(
+        toast
+      );
+
+      setTimeout(function () {
+        if (toast.parentNode) {
+          toast.remove();
+        }
+      }, 3000);
+    };
 
 
   // =========================================================
@@ -126,11 +150,23 @@
 
     var highest = 0;
 
-    for (var x = 0; x < grid.cells.length; x++) {
-      for (var y = 0; y < grid.cells[x].length; y++) {
-        var tile = grid.cells[x][y];
+    for (
+      var x = 0;
+      x < grid.cells.length;
+      x++
+    ) {
+      for (
+        var y = 0;
+        y < grid.cells[x].length;
+        y++
+      ) {
+        var tile =
+          grid.cells[x][y];
 
-        if (tile && tile.value > highest) {
+        if (
+          tile &&
+          tile.value > highest
+        ) {
           highest = tile.value;
         }
       }
@@ -150,7 +186,6 @@
   lobby.id =
     "multiplayer-lobby";
 
-
   lobby.innerHTML = `
     <div class="lobby-box">
 
@@ -161,9 +196,13 @@
       </p>
 
       <div class="rules-card">
-        <strong>Race Rules</strong>
+
+        <strong>
+          Race Rules
+        </strong>
 
         <ul>
+
           <li>
             First player to make a 2048 tile wins.
           </li>
@@ -173,18 +212,21 @@
           </li>
 
           <li>
-            Your first game-over restores the board to before
-            the fatal move.
+            If your board gets stuck, your Second Chance
+            clears one of your lowest-value tiles.
           </li>
 
           <li>
-            Run out of moves again and you're eliminated.
+            If you run out of moves again,
+            you're eliminated.
           </li>
 
           <li>
             Score does not decide the winner.
           </li>
+
         </ul>
+
       </div>
 
       <button
@@ -219,10 +261,6 @@
     </div>
   `;
 
-
-  // IMPORTANT:
-  // Add the LOBBY here, not battleShell.
-
   document.body.insertBefore(
     lobby,
     document.body.firstChild
@@ -236,7 +274,6 @@
   var style =
     document.createElement("style");
 
-
   style.textContent = `
 
     #multiplayer-lobby {
@@ -244,13 +281,17 @@
       display: flex;
       align-items: center;
       justify-content: center;
+
       background: #faf8ef;
+
       font-family:
         "Clear Sans",
         "Helvetica Neue",
         Arial,
         sans-serif;
+
       box-sizing: border-box;
+
       padding: 20px;
     }
 
@@ -258,11 +299,17 @@
     .lobby-box {
       width: 100%;
       max-width: 470px;
+
       text-align: center;
+
       background: #ffffff;
+
       padding: 36px 30px;
+
       border-radius: 12px;
+
       box-sizing: border-box;
+
       box-shadow:
         0 4px 20px
         rgba(0, 0, 0, 0.08);
@@ -271,68 +318,94 @@
 
     .lobby-box h1 {
       margin: 0 0 8px;
+
       font-size: 50px;
       font-weight: bold;
+
       color: #776e65;
     }
 
 
     .lobby-subtitle {
       margin: 0 0 20px;
+
       font-size: 18px;
+
       color: #776e65;
     }
 
 
     .rules-card {
       margin: 0 0 24px;
+
       padding: 16px 18px;
+
       background: #f3efe6;
+
       border-radius: 8px;
+
       text-align: left;
+
       color: #776e65;
+
       font-size: 14px;
+
       line-height: 1.45;
     }
 
 
     .rules-card strong {
       display: block;
+
       margin-bottom: 6px;
+
       font-size: 16px;
     }
 
 
     .rules-card ul {
       margin: 0;
+
       padding-left: 20px;
     }
 
 
     .lobby-button {
       display: block;
+
       width: 100%;
+
       border: 0;
+
       border-radius: 6px;
+
       padding: 15px;
+
       margin: 10px 0;
+
       font-size: 18px;
       font-weight: bold;
+
       cursor: pointer;
+
       background: #8f7a66;
+
       color: white;
     }
 
 
     .lobby-button:disabled {
       opacity: 0.6;
+
       cursor: default;
     }
 
 
     .lobby-divider {
       margin: 18px 0;
+
       color: #999;
+
       font-size: 13px;
       font-weight: bold;
     }
@@ -340,14 +413,23 @@
 
     .room-input {
       width: 100%;
+
       box-sizing: border-box;
+
       padding: 14px;
+
       border: 2px solid #ddd;
+
       border-radius: 6px;
+
       font-size: 20px;
+
       text-align: center;
+
       letter-spacing: 4px;
+
       text-transform: uppercase;
+
       outline: none;
     }
 
@@ -359,11 +441,18 @@
 
     #lobby-status {
       min-height: 24px;
+
       margin-top: 18px;
+
       font-weight: bold;
+
       color: #776e65;
     }
 
+
+    /* =======================================================
+       BATTLE SCREEN
+       ======================================================= */
 
     .battle-shell,
     .battle-shell * {
@@ -377,32 +466,43 @@
 
     .battle-shell {
       max-width: 920px;
+
       margin: 24px auto;
+
       padding: 0 18px;
+
       box-sizing: border-box;
     }
 
 
     .battle-heading {
       text-align: center;
+
       margin-bottom: 20px;
+
       color: #776e65;
     }
 
 
     .battle-heading h1 {
       margin: 0;
+
       font-size: 42px;
     }
 
 
     .battle-meta {
       display: flex;
+
       justify-content: center;
       align-items: center;
+
       gap: 10px;
+
       flex-wrap: wrap;
+
       margin-top: 8px;
+
       font-size: 14px;
       font-weight: bold;
     }
@@ -410,81 +510,67 @@
 
     .room-badge {
       background: #bbada0;
+
       color: #ffffff;
+
       border-radius: 6px;
+
       padding: 7px 10px;
+
       letter-spacing: 1px;
     }
 
 
     .mode-badge {
       background: #eee4da;
+
       color: #776e65;
+
       border-radius: 6px;
+
       padding: 7px 10px;
     }
 
 
     .battle-rule-line {
-      margin: 9px 0 0;
+      max-width: 720px;
+
+      margin: 9px auto 0;
+
       font-size: 14px;
+
       font-weight: normal;
+
+      line-height: 1.4;
     }
 
 
     .battle-layout {
       display: flex;
+
       justify-content: center;
       align-items: flex-start;
+
       gap: 24px;
     }
 
 
+    /* =======================================================
+       YOUR SIDE
+       ======================================================= */
+
     .own-panel {
       width: 500px;
       max-width: 100%;
+
       min-width: 0;
-    }
-
-
-    .own-status-row {
-      display: flex;
-      justify-content: flex-end;
-      margin-bottom: 8px;
-    }
-
-
-    .chance-badge {
-      display: inline-block;
-      border-radius: 999px;
-      padding: 7px 10px;
-      font-size: 12px;
-      font-weight: bold;
-      white-space: nowrap;
-    }
-
-
-    .chance-badge.available {
-      background: #eee4da;
-      color: #776e65;
-    }
-
-
-    .chance-badge.used {
-      background: #bbada0;
-      color: #ffffff;
-    }
-
-
-    .chance-badge.compact {
-      padding: 6px 8px;
-      font-size: 11px;
     }
 
 
     .battle-layout .container {
       width: 500px;
       max-width: 100%;
+
       margin: 0;
     }
 
@@ -499,110 +585,224 @@
 
     .battle-layout .container .heading {
       display: flex;
+
       align-items: center;
       justify-content: space-between;
-      margin-bottom: 15px;
+
+      margin-bottom: 8px;
     }
 
 
     .battle-layout .container .heading:before {
       content: "You";
+
       font-size: 30px;
       font-weight: bold;
+
       color: #776e65;
     }
 
 
     .battle-layout .container .scores-container {
       float: none;
+
       margin-top: 0;
     }
 
 
-    /* SMALLER OPPONENT PANEL */
+    /*
+     * Change original 2048 BEST
+     * label to HIGHEST.
+     */
+
+    .battle-layout .container .best-container:after {
+      content: "Highest" !important;
+
+      font-size: 10px;
+    }
+
+
+    /*
+     * Your Second Chance sits
+     * directly below YOU + stats.
+     */
+
+    .own-status-row {
+      display: flex;
+
+      justify-content: flex-start;
+
+      margin: 0 0 12px;
+    }
+
+
+    /* =======================================================
+       SECOND CHANCE BADGES
+       ======================================================= */
+
+    .chance-badge {
+      display: inline-block;
+
+      border-radius: 999px;
+
+      padding: 7px 10px;
+
+      font-size: 12px;
+      font-weight: bold;
+
+      white-space: nowrap;
+    }
+
+
+    .chance-badge.available {
+      background: #eee4da;
+
+      color: #776e65;
+    }
+
+
+    .chance-badge.used {
+      background: #bbada0;
+
+      color: #ffffff;
+    }
+
+
+    .chance-badge.compact {
+      padding: 6px 8px;
+
+      font-size: 11px;
+    }
+
+
+    /* =======================================================
+       OPPONENT
+       ======================================================= */
 
     .opponent-panel {
       width: 280px;
       max-width: 100%;
+
       box-sizing: border-box;
+
       color: #776e65;
     }
 
 
     .opponent-header {
       display: flex;
+
       justify-content: space-between;
       align-items: flex-start;
+
       gap: 8px;
+
       margin-bottom: 10px;
     }
 
 
     .opponent-header h2 {
       margin: 0;
+
       font-size: 24px;
     }
 
 
     .opponent-stats {
       display: flex;
+
       gap: 6px;
     }
 
 
     .opponent-stat-box {
       min-width: 58px;
+
       background: #bbada0;
+
       color: white;
+
       padding: 7px 8px;
+
       border-radius: 4px;
+
       font-weight: bold;
+
       text-align: center;
+
       box-sizing: border-box;
     }
 
 
     .opponent-stat-label {
       display: block;
+
       font-size: 9px;
+
       text-transform: uppercase;
     }
 
 
     .opponent-stat-value {
       display: block;
+
       font-size: 17px;
     }
 
 
+    /*
+     * Opponent's Second Chance
+     * sits directly under Opponent.
+     */
+
     .opponent-chance-row {
       display: flex;
-      justify-content: flex-end;
+
+      justify-content: flex-start;
+
       margin-bottom: 8px;
     }
 
 
     .opponent-grid {
       display: grid;
-      grid-template-columns: repeat(4, 1fr);
+
+      grid-template-columns:
+        repeat(4, 1fr);
+
       gap: 8px;
+
       padding: 8px;
+
       background: #bbada0;
+
       border-radius: 6px;
+
       box-sizing: border-box;
     }
 
 
     .opponent-cell {
       aspect-ratio: 1 / 1;
+
       background:
-        rgba(238, 228, 218, 0.35);
+        rgba(
+          238,
+          228,
+          218,
+          0.35
+        );
+
       border-radius: 3px;
+
       display: flex;
+
       align-items: center;
       justify-content: center;
+
       font-size: 20px;
       font-weight: bold;
+
       color: #776e65;
     }
 
@@ -644,6 +844,7 @@
     .opponent-cell.tile-128 {
       background: #edcf72;
       color: #f9f6f2;
+
       font-size: 17px;
     }
 
@@ -651,6 +852,7 @@
     .opponent-cell.tile-256 {
       background: #edcc61;
       color: #f9f6f2;
+
       font-size: 17px;
     }
 
@@ -658,6 +860,7 @@
     .opponent-cell.tile-512 {
       background: #edc850;
       color: #f9f6f2;
+
       font-size: 17px;
     }
 
@@ -665,6 +868,7 @@
     .opponent-cell.tile-1024 {
       background: #edc53f;
       color: #f9f6f2;
+
       font-size: 14px;
     }
 
@@ -672,51 +876,83 @@
     .opponent-cell.tile-2048 {
       background: #edc22e;
       color: #f9f6f2;
+
       font-size: 14px;
     }
 
 
     #opponent-status {
       text-align: center;
+
       margin-top: 9px;
+
       font-weight: bold;
+
       min-height: 20px;
+
       font-size: 12px;
     }
 
 
-    /* SECOND CHANCE TOAST */
+    /* =======================================================
+       SECOND CHANCE POPUP
+       ======================================================= */
 
     #second-chance-toast {
       position: fixed;
+
       top: 25px;
       left: 50%;
-      transform: translateX(-50%);
+
+      transform:
+        translateX(-50%);
+
       z-index: 100000;
+
       background: #8f7a66;
+
       color: white;
+
       padding: 14px 22px;
+
       border-radius: 8px;
+
       text-align: center;
+
       font-weight: bold;
+
       box-shadow:
         0 6px 20px
         rgba(0, 0, 0, 0.25);
     }
 
 
-    /* WIN / LOSE POPUP */
+    /* =======================================================
+       RESULT POPUP
+       ======================================================= */
 
     #battle-result {
       position: fixed;
+
       inset: 0;
+
       z-index: 99999;
+
       display: flex;
+
       align-items: center;
       justify-content: center;
+
       background:
-        rgba(40, 36, 32, 0.72);
+        rgba(
+          40,
+          36,
+          32,
+          0.72
+        );
+
       padding: 20px;
+
       box-sizing: border-box;
     }
 
@@ -724,53 +960,73 @@
     .battle-result-box {
       width: 100%;
       max-width: 420px;
+
       background: #faf8ef;
+
       border-radius: 12px;
+
       padding: 42px 30px;
+
       box-sizing: border-box;
+
       text-align: center;
+
       box-shadow:
         0 16px 50px
         rgba(0, 0, 0, 0.30);
+
       color: #776e65;
     }
 
 
     .battle-result-icon {
       font-size: 64px;
+
       margin-bottom: 12px;
     }
 
 
     .battle-result-box h1 {
       font-size: 44px;
+
       margin: 0 0 14px;
+
       color: #776e65;
     }
 
 
     .battle-result-box p {
       font-size: 18px;
+
       line-height: 1.5;
+
       margin: 0 0 28px;
     }
 
 
     .battle-result-actions {
       display: flex;
+
       justify-content: center;
+
       gap: 10px;
+
       flex-wrap: wrap;
     }
 
 
     .battle-result-actions button {
       border: 0;
+
       border-radius: 6px;
+
       padding: 14px 22px;
+
       color: #ffffff;
+
       font-size: 17px;
       font-weight: bold;
+
       cursor: pointer;
     }
 
@@ -785,12 +1041,18 @@
     }
 
 
+    /* =======================================================
+       RESPONSIVE
+       ======================================================= */
+
     @media (max-width: 850px) {
 
       .battle-layout {
         flex-direction: column;
+
         align-items: center;
       }
+
 
       .opponent-panel {
         width: 280px;
@@ -805,26 +1067,32 @@
         padding: 28px 18px;
       }
 
+
       .lobby-box h1 {
         font-size: 42px;
       }
+
 
       .battle-shell {
         padding: 0 10px;
       }
 
+
       .battle-heading h1 {
         font-size: 34px;
       }
+
 
       .own-panel,
       .battle-layout .container {
         width: 100%;
       }
 
+
       .opponent-panel {
         width: 235px;
       }
+
 
       .opponent-cell {
         font-size: 17px;
@@ -835,7 +1103,9 @@
   `;
 
 
-  document.head.appendChild(style);
+  document.head.appendChild(
+    style
+  );
 
 
   // =========================================================
@@ -843,16 +1113,24 @@
   // =========================================================
 
   var createButton =
-    document.getElementById("create-game");
+    document.getElementById(
+      "create-game"
+    );
 
   var joinButton =
-    document.getElementById("join-game");
+    document.getElementById(
+      "join-game"
+    );
 
   var roomInput =
-    document.getElementById("room-code");
+    document.getElementById(
+      "room-code"
+    );
 
   var status =
-    document.getElementById("lobby-status");
+    document.getElementById(
+      "lobby-status"
+    );
 
 
   // =========================================================
@@ -863,6 +1141,7 @@
 
     if (battleShell) {
       updateOwnSecondChanceUI();
+
       return;
     }
 
@@ -883,7 +1162,9 @@
 
     heading.innerHTML = `
 
-      <h1>Rina's 2048</h1>
+      <h1>
+        Rina's 2048
+      </h1>
 
       <div class="battle-meta">
 
@@ -898,9 +1179,11 @@
       </div>
 
       <p class="battle-rule-line">
+
         First to 2048 wins.
-        One automatic Second Chance each.
-        Second game-over = elimination.
+        If you get stuck, your Second Chance clears one low tile.
+        Get stuck again = elimination.
+
       </p>
 
     `;
@@ -940,11 +1223,6 @@
     );
 
 
-    ownPanel.appendChild(
-      ownStatusRow
-    );
-
-
     // -------------------------
     // OPPONENT PANEL
     // -------------------------
@@ -960,7 +1238,9 @@
 
       <div class="opponent-header">
 
-        <h2>Opponent</h2>
+        <h2>
+          Opponent
+        </h2>
 
         <div class="opponent-stats">
 
@@ -1018,13 +1298,17 @@
 
 
       <div id="opponent-status">
+
         Waiting for opponent to make a move...
+
       </div>
 
     `;
 
 
-    // Build the shell.
+    /*
+     * Build shell first.
+     */
 
     battleShell.appendChild(
       heading
@@ -1034,21 +1318,8 @@
       layout
     );
 
-
-    // IMPORTANT FIX:
-    // Just append battleShell to body.
-    // Do NOT use insertBefore with gameContainer.
-
     document.body.appendChild(
       battleShell
-    );
-
-
-    // Move original 2048 board
-    // into the left panel.
-
-    ownPanel.appendChild(
-      gameContainer
     );
 
 
@@ -1059,6 +1330,52 @@
     layout.appendChild(
       opponentPanel
     );
+
+
+    /*
+     * Move original 2048 game
+     * into your panel.
+     */
+
+    ownPanel.appendChild(
+      gameContainer
+    );
+
+
+    /*
+     * Put Second Chance directly
+     * below the YOU + stats heading.
+     */
+
+    var ownHeading =
+      gameContainer.querySelector(
+        ".heading"
+      );
+
+
+    if (
+      ownHeading &&
+      ownHeading.nextSibling
+    ) {
+
+      gameContainer.insertBefore(
+        ownStatusRow,
+        ownHeading.nextSibling
+      );
+
+    } else if (ownHeading) {
+
+      gameContainer.appendChild(
+        ownStatusRow
+      );
+
+    } else {
+
+      ownPanel.insertBefore(
+        ownStatusRow,
+        gameContainer
+      );
+    }
 
 
     opponentGrid =
@@ -1087,9 +1404,12 @@
       );
 
 
-    // Make 16 opponent cells.
+    for (
+      var i = 0;
+      i < 16;
+      i++
+    ) {
 
-    for (var i = 0; i < 16; i++) {
       var cell =
         document.createElement("div");
 
@@ -1110,6 +1430,7 @@
 
 
     if (latestOpponentState) {
+
       renderOpponentState(
         latestOpponentState
       );
@@ -1118,10 +1439,12 @@
 
 
   // =========================================================
-  // DRAW OPPONENT
+  // RENDER OPPONENT
   // =========================================================
 
-  function renderOpponentState(state) {
+  function renderOpponentState(
+    state
+  ) {
 
     if (
       !opponentGrid ||
@@ -1138,9 +1461,17 @@
     var cellIndex = 0;
 
 
-    for (var y = 0; y < 4; y++) {
+    for (
+      var y = 0;
+      y < 4;
+      y++
+    ) {
 
-      for (var x = 0; x < 4; x++) {
+      for (
+        var x = 0;
+        x < 4;
+        x++
+      ) {
 
         var cellElement =
           cells[cellIndex];
@@ -1157,6 +1488,7 @@
 
 
         if (tile) {
+
           cellElement.textContent =
             tile.value;
 
@@ -1176,6 +1508,7 @@
 
 
     opponentHighest.textContent =
+      state.highestTile ||
       getHighestTile(
         state.grid
       );
@@ -1200,18 +1533,18 @@
 
       opponentStatus.textContent =
         "Opponent is playing...";
-
     }
   }
 
 
   // =========================================================
-  // RESET OPPONENT VIEW
+  // RESET OPPONENT
   // =========================================================
 
   function resetOpponentView() {
 
-    latestOpponentState = null;
+    latestOpponentState =
+      null;
 
 
     if (opponentScore) {
@@ -1227,6 +1560,7 @@
 
 
     if (opponentStatus) {
+
       opponentStatus.textContent =
         "Waiting for opponent to make a move...";
     }
@@ -1243,7 +1577,11 @@
         opponentGrid.children;
 
 
-      for (var i = 0; i < cells.length; i++) {
+      for (
+        var i = 0;
+        i < cells.length;
+        i++
+      ) {
 
         cells[i].className =
           "opponent-cell";
@@ -1256,7 +1594,7 @@
 
 
   // =========================================================
-  // CREATE GAME
+  // CREATE ROOM
   // =========================================================
 
   createButton.addEventListener(
@@ -1277,7 +1615,7 @@
 
 
   // =========================================================
-  // JOIN GAME
+  // JOIN ROOM
   // =========================================================
 
   joinButton.addEventListener(
@@ -1291,7 +1629,9 @@
           .toUpperCase();
 
 
-      if (roomCode.length !== 6) {
+      if (
+        roomCode.length !== 6
+      ) {
 
         status.textContent =
           "Please enter a 6-character room code.";
@@ -1339,6 +1679,7 @@
 
 
       status.innerHTML =
+
         "Your room code is:<br>" +
 
         '<strong style="' +
@@ -1402,8 +1743,11 @@
 
 
       status.textContent =
+
         "Opponent found! You are Player " +
+
         data.playerNumber +
+
         ". Starting game...";
 
 
@@ -1421,7 +1765,7 @@
             "";
 
         },
-        1000
+        700
       );
     }
   );
@@ -1446,7 +1790,7 @@
 
 
   // =========================================================
-  // OPPONENT DISCONNECTED
+  // DISCONNECT
   // =========================================================
 
   socket.on(
@@ -1454,6 +1798,7 @@
     function () {
 
       if (opponentStatus) {
+
         opponentStatus.textContent =
           "Opponent disconnected.";
       }
@@ -1575,7 +1920,8 @@
 
 
       if (
-        data.reason === "elimination"
+        data.reason ===
+        "elimination"
       ) {
 
         description.textContent =
@@ -1596,10 +1942,6 @@
       }
 
 
-      // -------------------------
-      // ACTIONS
-      // -------------------------
-
       var actions =
         document.createElement("div");
 
@@ -1608,7 +1950,9 @@
 
 
       var rematchButton =
-        document.createElement("button");
+        document.createElement(
+          "button"
+        );
 
       rematchButton.className =
         "rematch-button";
@@ -1635,7 +1979,9 @@
 
 
       var lobbyButton =
-        document.createElement("button");
+        document.createElement(
+          "button"
+        );
 
       lobbyButton.className =
         "lobby-return-button";
@@ -1702,7 +2048,7 @@
     function () {
 
       console.log(
-        "Connected to 2048 Battle server."
+        "Connected to Rina's 2048 server."
       );
     }
   );
@@ -1713,7 +2059,7 @@
     function () {
 
       console.log(
-        "Disconnected from 2048 Battle server."
+        "Disconnected from Rina's 2048 server."
       );
     }
   );
