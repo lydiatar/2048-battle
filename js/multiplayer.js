@@ -2301,6 +2301,1485 @@
   `;
   document.head.appendChild(v37Style);
 
+  // =========================================================
+  // v38 VISUAL DESIGN PASS
+  // Fast competitive puzzle-game styling inspired by arcade HUDs.
+  // Gameplay logic remains unchanged.
+  // =========================================================
+
+  var v38Style = document.createElement("style");
+  v38Style.textContent = `
+    :root {
+      --hud-display: "Oxanium", "Arial Narrow", sans-serif;
+      --hud-body: "Barlow Semi Condensed", "Arial Narrow", sans-serif;
+      --hud-radius: 4px;
+      --hud-cut: 14px;
+      --hud-speed: 220ms;
+    }
+
+    html,
+    body {
+      min-height: 100%;
+    }
+
+    html {
+      background: var(--game-bg-a) !important;
+    }
+
+    body {
+      position: relative;
+      isolation: isolate;
+      overflow-x: hidden;
+      background: transparent !important;
+      font-family: var(--hud-body) !important;
+      letter-spacing: .01em;
+    }
+
+    #app-root,
+    #game-host,
+    .battle-shell,
+    .settings-overlay,
+    .result-overlay {
+      font-family: var(--hud-body) !important;
+    }
+
+    h1,
+    h2,
+    h3,
+    .app-title-brand,
+    .game-logo-rinas,
+    .game-logo-number,
+    .battle-mode-title,
+    .player-name,
+    .rank-badge,
+    .score-container,
+    .best-container,
+    .highest-box,
+    .mini-stat,
+    .stat-card strong,
+    .room-code-display {
+      font-family: var(--hud-display) !important;
+    }
+
+    body::before,
+    body::after {
+      content: "";
+      position: fixed;
+      inset: 0;
+      pointer-events: none;
+    }
+
+    body::before {
+      z-index: -3;
+      background:
+        radial-gradient(circle at 18% 10%, var(--game-glow-a), transparent 32%),
+        radial-gradient(circle at 82% 76%, var(--game-glow-b), transparent 34%),
+        linear-gradient(145deg, var(--game-bg-a), var(--game-bg-b));
+    }
+
+    body::after {
+      z-index: -2;
+      opacity: var(--game-grid-opacity);
+      background-image:
+        linear-gradient(var(--game-grid-line) 1px, transparent 1px),
+        linear-gradient(90deg, var(--game-grid-line) 1px, transparent 1px),
+        linear-gradient(120deg, transparent 0 48%, var(--game-stripe) 49% 51%, transparent 52% 100%);
+      background-size: 42px 42px, 42px 42px, 240px 240px;
+      mask-image: linear-gradient(to bottom, rgba(0,0,0,.72), rgba(0,0,0,.16));
+      animation: rinas-grid-drift 24s linear infinite;
+    }
+
+    body.theme-classic {
+      --app-bg: #f3efe6;
+      --app-card: #fffaf0;
+      --app-soft: #e9dfd0;
+      --app-border: #cbbbab;
+      --app-text: #2c2825;
+      --app-muted: #776e65;
+      --app-accent: #e96f3d;
+      --app-accent-hover: #d65e2e;
+      --app-on-accent: #fffaf4;
+      --app-board: #a99786;
+      --app-cell: rgba(255, 246, 232, .38);
+      --app-stat: #39312c;
+      --app-danger: #b9424b;
+      --app-overlay: rgba(24, 20, 18, .76);
+      --app-message-bg: rgba(255, 250, 240, .92);
+      --app-shadow: rgba(55, 36, 24, .22);
+      --game-bg-a: #efe7da;
+      --game-bg-b: #fbf7ef;
+      --game-panel: rgba(255,250,240,.82);
+      --game-panel-strong: #fffaf0;
+      --game-line: rgba(78,62,49,.20);
+      --game-grid-line: rgba(78,62,49,.09);
+      --game-grid-opacity: .72;
+      --game-stripe: rgba(233,111,61,.07);
+      --game-glow-a: rgba(242,177,121,.32);
+      --game-glow-b: rgba(237,194,46,.18);
+      --game-accent-2: #f2b179;
+      --game-accent-3: #edc22e;
+      --game-deep: #2c2825;
+      --game-on-deep: #fffaf0;
+    }
+
+    body.theme-pastel {
+      --app-bg: #fbfbff;
+      --app-card: #ffffff;
+      --app-soft: #f0edfa;
+      --app-border: #d8d0ed;
+      --app-text: #312e43;
+      --app-muted: #706a86;
+      --app-accent: #8f74ff;
+      --app-accent-hover: #7458e7;
+      --app-on-accent: #ffffff;
+      --app-board: #d9d2e9;
+      --app-cell: #f4f1fb;
+      --app-stat: #403956;
+      --app-danger: #d85876;
+      --app-overlay: rgba(37,31,53,.64);
+      --app-message-bg: rgba(255,255,255,.94);
+      --app-shadow: rgba(69,52,110,.18);
+      --game-bg-a: #ffffff;
+      --game-bg-b: #f7f4ff;
+      --game-panel: rgba(255,255,255,.82);
+      --game-panel-strong: #ffffff;
+      --game-line: rgba(96,76,150,.18);
+      --game-grid-line: rgba(96,76,150,.075);
+      --game-grid-opacity: .82;
+      --game-stripe: rgba(255,142,199,.07);
+      --game-glow-a: rgba(143,116,255,.18);
+      --game-glow-b: rgba(255,142,199,.19);
+      --game-accent-2: #ff8ec7;
+      --game-accent-3: #6bc8ff;
+      --game-deep: #312e43;
+      --game-on-deep: #ffffff;
+    }
+
+    body.theme-ocean {
+      --app-bg: #071923;
+      --app-card: #0e2633;
+      --app-soft: #153746;
+      --app-border: #2a5a69;
+      --app-text: #e9fbff;
+      --app-muted: #9bc7d2;
+      --app-accent: #28d7df;
+      --app-accent-hover: #5ce8ee;
+      --app-on-accent: #052127;
+      --app-board: #1f5360;
+      --app-cell: #2a6572;
+      --app-stat: #163846;
+      --app-danger: #ff667c;
+      --app-overlay: rgba(2,10,15,.82);
+      --app-message-bg: rgba(7,25,35,.94);
+      --app-shadow: rgba(0,0,0,.42);
+      --game-bg-a: #04131c;
+      --game-bg-b: #0b2531;
+      --game-panel: rgba(10,36,47,.80);
+      --game-panel-strong: #0e2633;
+      --game-line: rgba(67,216,225,.22);
+      --game-grid-line: rgba(67,216,225,.09);
+      --game-grid-opacity: .85;
+      --game-stripe: rgba(40,215,223,.055);
+      --game-glow-a: rgba(40,215,223,.17);
+      --game-glow-b: rgba(44,111,255,.15);
+      --game-accent-2: #64f0b8;
+      --game-accent-3: #4d89ff;
+      --game-deep: #031117;
+      --game-on-deep: #e9fbff;
+    }
+
+    body.theme-candy {
+      --app-bg: #241222;
+      --app-card: #351833;
+      --app-soft: #4a2143;
+      --app-border: #6b315e;
+      --app-text: #fff2fb;
+      --app-muted: #e4a8cf;
+      --app-accent: #ff4f9f;
+      --app-accent-hover: #ff7ab7;
+      --app-on-accent: #2a1024;
+      --app-board: #6d335e;
+      --app-cell: #81446f;
+      --app-stat: #4a2143;
+      --app-danger: #ff695f;
+      --app-overlay: rgba(20,7,18,.82);
+      --app-message-bg: rgba(36,18,34,.94);
+      --app-shadow: rgba(0,0,0,.36);
+      --game-bg-a: #1a0b18;
+      --game-bg-b: #32142e;
+      --game-panel: rgba(53,24,51,.82);
+      --game-panel-strong: #351833;
+      --game-line: rgba(255,102,183,.22);
+      --game-grid-line: rgba(255,102,183,.08);
+      --game-grid-opacity: .88;
+      --game-stripe: rgba(255,205,84,.05);
+      --game-glow-a: rgba(255,79,159,.20);
+      --game-glow-b: rgba(143,116,255,.18);
+      --game-accent-2: #ffd054;
+      --game-accent-3: #9b7bff;
+      --game-deep: #170914;
+      --game-on-deep: #fff2fb;
+    }
+
+    body.theme-midnight {
+      --app-bg: #080912;
+      --app-card: #121526;
+      --app-soft: #1b2038;
+      --app-border: #30375f;
+      --app-text: #f3f4ff;
+      --app-muted: #a6afd4;
+      --app-accent: #8d7cff;
+      --app-accent-hover: #a899ff;
+      --app-on-accent: #0d0e18;
+      --app-board: #262b49;
+      --app-cell: #343a5d;
+      --app-stat: #1f2440;
+      --app-danger: #ff5c82;
+      --app-overlay: rgba(2,3,8,.88);
+      --app-message-bg: rgba(8,9,18,.94);
+      --app-shadow: rgba(0,0,0,.50);
+      --game-bg-a: #05060c;
+      --game-bg-b: #111326;
+      --game-panel: rgba(18,21,38,.84);
+      --game-panel-strong: #121526;
+      --game-line: rgba(141,124,255,.24);
+      --game-grid-line: rgba(141,124,255,.09);
+      --game-grid-opacity: .90;
+      --game-stripe: rgba(68,221,255,.05);
+      --game-glow-a: rgba(141,124,255,.20);
+      --game-glow-b: rgba(68,221,255,.14);
+      --game-accent-2: #44ddff;
+      --game-accent-3: #ff5ca8;
+      --game-deep: #05060c;
+      --game-on-deep: #f3f4ff;
+    }
+
+    @keyframes rinas-grid-drift {
+      from { background-position: 0 0, 0 0, 0 0; }
+      to { background-position: 42px 42px, 42px 42px, 240px 120px; }
+    }
+
+    @keyframes rinas-screen-in-forward {
+      from { opacity: 0; transform: translateX(48px) scale(.99); filter: blur(2px); }
+      to { opacity: 1; transform: translateX(0) scale(1); filter: blur(0); }
+    }
+
+    @keyframes rinas-screen-in-back {
+      from { opacity: 0; transform: translateX(-48px) scale(.99); filter: blur(2px); }
+      to { opacity: 1; transform: translateX(0) scale(1); filter: blur(0); }
+    }
+
+    @keyframes rinas-screen-out-forward {
+      from { opacity: 1; transform: translateX(0) scale(1); }
+      to { opacity: 0; transform: translateX(-42px) scale(.99); }
+    }
+
+    @keyframes rinas-screen-out-back {
+      from { opacity: 1; transform: translateX(0) scale(1); }
+      to { opacity: 0; transform: translateX(42px) scale(.99); }
+    }
+
+    @keyframes rinas-logo-pulse {
+      0%, 100% { transform: translateY(0); text-shadow: 0 0 0 transparent; }
+      50% { transform: translateY(-3px); text-shadow: 0 10px 30px var(--game-glow-a); }
+    }
+
+    @keyframes rinas-tile-float-a {
+      0%,100% { transform: translate(0,0) rotate(-6deg); }
+      50% { transform: translate(8px,-12px) rotate(2deg); }
+    }
+
+    @keyframes rinas-tile-float-b {
+      0%,100% { transform: translate(0,0) rotate(5deg); }
+      50% { transform: translate(-9px,11px) rotate(-2deg); }
+    }
+
+    @keyframes rinas-shimmer {
+      from { background-position: -180% 0; }
+      to { background-position: 180% 0; }
+    }
+
+    .app-screen {
+      min-height: 100vh;
+      padding: 22px 22px 56px;
+      background: transparent !important;
+      color: var(--app-text) !important;
+      animation: none !important;
+    }
+
+    .app-screen.enter-forward {
+      animation: rinas-screen-in-forward var(--hud-speed) cubic-bezier(.2,.85,.2,1) both !important;
+    }
+
+    .app-screen.enter-back {
+      animation: rinas-screen-in-back var(--hud-speed) cubic-bezier(.2,.85,.2,1) both !important;
+    }
+
+    .screen-ghost {
+      position: fixed !important;
+      inset: 0 !important;
+      z-index: 9000 !important;
+      width: 100% !important;
+      height: 100% !important;
+      overflow: hidden !important;
+      pointer-events: none !important;
+      background: transparent !important;
+    }
+
+    .screen-ghost.forward {
+      animation: rinas-screen-out-forward var(--hud-speed) cubic-bezier(.4,0,.2,1) both !important;
+    }
+
+    .screen-ghost.back {
+      animation: rinas-screen-out-back var(--hud-speed) cubic-bezier(.4,0,.2,1) both !important;
+    }
+
+    .app-screen-inner {
+      max-width: 980px;
+    }
+
+    .app-header {
+      position: relative;
+      min-height: 62px;
+      grid-template-columns: 160px 1fr 160px;
+      margin-bottom: 34px;
+      padding: 7px 0 11px;
+      border-bottom: 1px solid var(--game-line);
+    }
+
+    .app-header::after {
+      content: "";
+      position: absolute;
+      left: 50%;
+      bottom: -2px;
+      width: 96px;
+      height: 3px;
+      transform: translateX(-50%);
+      background: linear-gradient(90deg, transparent, var(--app-accent), var(--game-accent-2), transparent);
+    }
+
+    .app-title-stack {
+      min-width: 0;
+      text-align: center;
+    }
+
+    .app-title-brand {
+      display: block;
+      margin-bottom: 2px;
+      color: var(--app-accent);
+      font-size: 10px;
+      font-weight: 800;
+      line-height: 1;
+      letter-spacing: .24em;
+      text-transform: uppercase;
+    }
+
+    .app-header h1 {
+      margin: 0;
+      color: var(--app-text) !important;
+      font-size: 32px;
+      font-weight: 700;
+      line-height: 1.05;
+      letter-spacing: -.03em;
+      text-transform: uppercase;
+    }
+
+    .nav-button,
+    .settings-button,
+    .secondary-button,
+    .primary-button,
+    .danger-button,
+    .small-button,
+    .target-button,
+    .control-choice,
+    .toggle-button {
+      position: relative;
+      overflow: hidden;
+      border-radius: 3px !important;
+      border: 1px solid var(--game-line) !important;
+      font-family: var(--hud-display) !important;
+      font-weight: 700 !important;
+      letter-spacing: .035em;
+      text-transform: uppercase;
+      box-shadow: none !important;
+    }
+
+    .nav-button,
+    .settings-button,
+    .secondary-button,
+    .small-button,
+    .target-button,
+    .control-choice,
+    .toggle-button.off {
+      background: var(--game-panel) !important;
+      color: var(--app-text) !important;
+      backdrop-filter: blur(12px);
+    }
+
+    .primary-button,
+    .toggle-button.on,
+    .target-button.selected,
+    .control-choice.selected {
+      border-color: color-mix(in srgb, var(--app-accent) 74%, white 6%) !important;
+      background: linear-gradient(110deg, var(--app-accent), var(--game-accent-2)) !important;
+      color: var(--app-on-accent) !important;
+      box-shadow: 0 0 24px var(--game-glow-a) !important;
+    }
+
+    .danger-button {
+      border-color: color-mix(in srgb, var(--app-danger) 70%, transparent) !important;
+      background: color-mix(in srgb, var(--app-danger) 76%, var(--game-deep)) !important;
+      color: white !important;
+    }
+
+    button:not(:disabled)::after,
+    .target-button:not(:disabled)::after,
+    .control-choice:not(:disabled)::after {
+      content: "";
+      position: absolute;
+      inset: 0;
+      pointer-events: none;
+      background: linear-gradient(110deg, transparent 20%, rgba(255,255,255,.15) 45%, transparent 70%);
+      transform: translateX(-130%);
+      transition: transform 240ms ease;
+    }
+
+    @media (hover:hover) and (pointer:fine) {
+      button:not(:disabled):hover::after,
+      .target-button:not(:disabled):hover::after,
+      .control-choice:not(:disabled):hover::after {
+        transform: translateX(130%);
+      }
+
+      .primary-button:hover:not(:disabled),
+      .secondary-button:hover:not(:disabled),
+      .nav-button:hover:not(:disabled),
+      .settings-button:hover:not(:disabled),
+      .small-button:hover:not(:disabled) {
+        transform: translateY(-2px) !important;
+        border-color: var(--app-accent) !important;
+      }
+    }
+
+    button:not(:disabled):active {
+      transform: translateY(1px) scale(.985) !important;
+    }
+
+    /* TITLE SCREEN */
+    .screen-menu .app-screen-inner {
+      max-width: 900px;
+    }
+
+    .screen-menu .app-header {
+      grid-template-columns: 1fr 150px;
+      margin-bottom: 0;
+      border-bottom: 0;
+    }
+
+    .screen-menu .app-header::after,
+    .screen-menu .app-header-side.left,
+    .screen-menu .app-title-stack {
+      display: none;
+    }
+
+    .screen-menu .app-header-side.right {
+      grid-column: 2;
+    }
+
+    .title-stage {
+      position: relative;
+      min-height: 285px;
+      display: grid;
+      place-items: center;
+      margin: 0 auto 18px;
+      isolation: isolate;
+    }
+
+    .title-stage::before {
+      content: "";
+      position: absolute;
+      width: min(560px, 90vw);
+      height: 160px;
+      border: 1px solid var(--game-line);
+      clip-path: polygon(7% 0, 100% 0, 93% 100%, 0 100%);
+      background: linear-gradient(90deg, transparent, var(--game-panel), transparent);
+      z-index: -1;
+      opacity: .72;
+    }
+
+    .game-logo {
+      position: relative;
+      text-align: center;
+      animation: rinas-logo-pulse 4s ease-in-out infinite;
+    }
+
+    .game-logo-rinas {
+      display: block;
+      margin-left: .2em;
+      color: var(--app-text);
+      font-size: 27px;
+      font-weight: 700;
+      letter-spacing: .26em;
+      line-height: 1;
+    }
+
+    .game-logo-number {
+      display: block;
+      margin-top: 3px;
+      color: var(--app-text);
+      font-size: clamp(78px, 12vw, 122px);
+      font-weight: 800;
+      letter-spacing: -.08em;
+      line-height: .78;
+    }
+
+    .game-logo-number em {
+      color: var(--app-accent);
+      font-style: normal;
+      text-shadow: 0 0 28px var(--game-glow-a);
+    }
+
+    .logo-tagline {
+      margin: 18px 0 0;
+      color: var(--app-muted);
+      font-family: var(--hud-display);
+      font-size: 12px;
+      font-weight: 600;
+      letter-spacing: .14em;
+      text-transform: uppercase;
+    }
+
+    .logo-float-tile {
+      position: absolute;
+      width: 48px;
+      height: 48px;
+      display: grid;
+      place-items: center;
+      border: 1px solid var(--game-line);
+      background: var(--game-panel-strong);
+      color: var(--app-text);
+      font-family: var(--hud-display);
+      font-size: 18px;
+      font-weight: 800;
+      box-shadow: 0 10px 30px var(--app-shadow);
+    }
+
+    .logo-float-tile.one {
+      left: -75px;
+      top: 6px;
+      background: var(--tile-8);
+      color: var(--tile-light-text);
+      animation: rinas-tile-float-a 4.2s ease-in-out infinite;
+    }
+
+    .logo-float-tile.two {
+      right: -74px;
+      bottom: 2px;
+      background: var(--tile-16);
+      color: var(--tile-light-text);
+      animation: rinas-tile-float-b 4.6s ease-in-out infinite;
+    }
+
+    .hero-subtitle {
+      margin: 0;
+      color: var(--app-muted) !important;
+    }
+
+    .home-mode-grid {
+      max-width: 720px;
+      margin: 0 auto;
+      grid-template-columns: 1fr !important;
+      gap: 12px !important;
+    }
+
+    .home-mode-card {
+      min-height: 110px !important;
+      display: grid !important;
+      grid-template-columns: 76px minmax(0,1fr) 92px;
+      align-items: center;
+      gap: 18px;
+      padding: 16px 22px !important;
+      border: 1px solid var(--game-line) !important;
+      border-left: 4px solid var(--app-accent) !important;
+      border-radius: 2px !important;
+      background:
+        linear-gradient(100deg, color-mix(in srgb, var(--app-accent) 10%, transparent), transparent 48%),
+        var(--game-panel) !important;
+      color: var(--app-text) !important;
+      clip-path: polygon(0 0, calc(100% - 14px) 0, 100% 14px, 100% 100%, 14px 100%, 0 calc(100% - 14px));
+      backdrop-filter: blur(16px);
+    }
+
+    .home-mode-card.multiplayer-card {
+      border-left-color: var(--game-accent-2) !important;
+      background:
+        linear-gradient(100deg, color-mix(in srgb, var(--game-accent-2) 12%, transparent), transparent 48%),
+        var(--game-panel) !important;
+    }
+
+    .home-mode-card .mode-icon {
+      width: 58px;
+      height: 58px;
+      display: grid;
+      place-items: center;
+      margin: 0;
+      border: 1px solid var(--game-line);
+      background: var(--app-soft);
+      font-size: 28px;
+    }
+
+    .home-mode-card h2 {
+      margin: 0 0 3px;
+      color: var(--app-text) !important;
+      font-family: var(--hud-display) !important;
+      font-size: 26px;
+      font-weight: 700;
+      letter-spacing: -.025em;
+      text-transform: uppercase;
+    }
+
+    .home-mode-card p {
+      margin: 0;
+      color: var(--app-muted) !important;
+      font-size: 14px;
+      line-height: 1.32;
+    }
+
+    .mode-enter {
+      justify-self: end;
+      color: var(--app-accent);
+      font-family: var(--hud-display);
+      font-size: 12px;
+      font-weight: 800;
+      letter-spacing: .08em;
+      text-transform: uppercase;
+    }
+
+    .multiplayer-card .mode-enter {
+      color: var(--game-accent-2);
+    }
+
+    .mode-enter::after {
+      content: "  ›";
+      font-size: 20px;
+      vertical-align: -1px;
+    }
+
+    .home-footnote {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 10px;
+      margin-top: 20px;
+      color: var(--app-muted);
+      font-family: var(--hud-display);
+      font-size: 10px;
+      font-weight: 600;
+      letter-spacing: .12em;
+      text-transform: uppercase;
+    }
+
+    .home-footnote i {
+      width: 4px;
+      height: 4px;
+      background: var(--app-accent);
+      transform: rotate(45deg);
+    }
+
+    /* GENERIC MENUS */
+    .screen-solo-menu .app-screen-inner {
+      max-width: 760px;
+    }
+
+    .screen-multiplayer-menu .app-screen-inner {
+      max-width: 1080px;
+    }
+
+    .screen-multiplayer-menu .mode-grid {
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+    }
+
+    .screen-multiplayer-menu .mode-live {
+      min-height: 190px !important;
+    }
+
+    .screen-multiplayer-menu .mode-live .mode-icon {
+      width: 44px;
+      height: 44px;
+      display: grid;
+      place-items: center;
+      margin: 0 0 18px;
+      border: 1px solid var(--game-line);
+      background: var(--app-soft);
+      font-size: 23px;
+    }
+
+    .screen-multiplayer-menu .coming-soon {
+      min-height: 122px !important;
+      opacity: .52 !important;
+    }
+
+    .screen-multiplayer-menu .coming-soon .mode-icon {
+      font-size: 22px;
+      margin-bottom: 5px;
+    }
+
+    .screen-multiplayer-menu .coming-soon h3 {
+      font-size: 16px;
+    }
+
+    .screen-multiplayer-menu .coming-soon p {
+      font-size: 12px;
+    }
+
+    .mode-grid:not(.home-mode-grid) {
+      gap: 12px !important;
+    }
+
+    .mode-grid:not(.home-mode-grid) .mode-card {
+      min-height: 156px;
+      padding: 18px 18px 17px 20px;
+      border: 1px solid var(--game-line) !important;
+      border-radius: 2px !important;
+      background: var(--game-panel) !important;
+      color: var(--app-text) !important;
+      box-shadow: none !important;
+      clip-path: polygon(0 0, calc(100% - 12px) 0, 100% 12px, 100% 100%, 0 100%);
+      backdrop-filter: blur(14px);
+    }
+
+    .mode-grid:not(.home-mode-grid) button.mode-card::before {
+      content: "";
+      position: absolute;
+      left: 0;
+      top: 0;
+      bottom: 0;
+      width: 4px;
+      background: linear-gradient(var(--app-accent), var(--game-accent-2));
+    }
+
+    .mode-card h2,
+    .mode-card h3 {
+      color: var(--app-text) !important;
+      font-family: var(--hud-display) !important;
+      text-transform: uppercase;
+      letter-spacing: -.015em;
+    }
+
+    .mode-card p {
+      color: var(--app-muted) !important;
+      font-size: 14px;
+      line-height: 1.35;
+    }
+
+    .mode-card .mode-kicker,
+    .coming-soon-badge {
+      border-radius: 2px !important;
+      background: var(--app-soft) !important;
+      color: var(--app-muted) !important;
+      font-family: var(--hud-display);
+      letter-spacing: .08em;
+    }
+
+    .identity-line,
+    .info-card,
+    .rules-card,
+    .race-box,
+    .custom-target-panel,
+    .freeplay-banner {
+      border: 1px solid var(--game-line) !important;
+      border-radius: 2px !important;
+      background: var(--game-panel) !important;
+      color: var(--app-text) !important;
+      box-shadow: none !important;
+      backdrop-filter: blur(14px);
+    }
+
+    .info-card,
+    .rules-card,
+    .freeplay-banner {
+      position: relative;
+      overflow: hidden;
+    }
+
+    .info-card::before,
+    .rules-card::before,
+    .freeplay-banner::before {
+      content: "";
+      position: absolute;
+      left: 0;
+      top: 0;
+      bottom: 0;
+      width: 3px;
+      background: var(--app-accent);
+    }
+
+    .stat-card {
+      border: 1px solid var(--game-line);
+      border-radius: 2px !important;
+      background: var(--game-deep) !important;
+      color: var(--game-on-deep) !important;
+      clip-path: polygon(0 0, calc(100% - 9px) 0, 100% 9px, 100% 100%, 0 100%);
+    }
+
+    .stat-card span {
+      color: color-mix(in srgb, var(--game-on-deep) 68%, transparent);
+      font-family: var(--hud-display);
+      letter-spacing: .09em;
+    }
+
+    .stat-card strong {
+      color: var(--game-on-deep);
+      font-size: 30px;
+    }
+
+    .race-box h2,
+    .rules-card strong,
+    .settings-section h3 {
+      font-family: var(--hud-display) !important;
+      text-transform: uppercase;
+      letter-spacing: .04em;
+    }
+
+    .room-input,
+    .nickname-field {
+      border-radius: 2px !important;
+      border: 1px solid var(--game-line) !important;
+      background: color-mix(in srgb, var(--game-panel-strong) 88%, transparent) !important;
+      color: var(--app-text) !important;
+      font-family: var(--hud-display) !important;
+      font-weight: 600;
+      box-shadow: inset 0 -2px 0 color-mix(in srgb, var(--app-accent) 20%, transparent);
+    }
+
+    .room-input:focus,
+    .nickname-field:focus {
+      border-color: var(--app-accent) !important;
+      box-shadow: 0 0 0 2px color-mix(in srgb, var(--app-accent) 18%, transparent);
+    }
+
+    /* SETTINGS */
+    .settings-overlay,
+    .result-overlay {
+      background: color-mix(in srgb, var(--app-overlay) 88%, transparent) !important;
+      backdrop-filter: blur(10px);
+    }
+
+    .settings-dialog,
+    .result-box {
+      position: relative;
+      overflow: hidden;
+      border: 1px solid var(--game-line) !important;
+      border-top: 4px solid var(--app-accent) !important;
+      border-radius: 2px !important;
+      background: var(--game-panel-strong) !important;
+      color: var(--app-text) !important;
+      box-shadow: 0 24px 70px var(--app-shadow) !important;
+    }
+
+    .settings-dialog::after,
+    .result-box::after {
+      content: "";
+      position: absolute;
+      width: 80px;
+      height: 80px;
+      right: -40px;
+      bottom: -40px;
+      border: 1px solid var(--game-line);
+      transform: rotate(45deg);
+      pointer-events: none;
+    }
+
+    .settings-dialog h2,
+    .result-box h1 {
+      color: var(--app-text) !important;
+      font-family: var(--hud-display) !important;
+      text-transform: uppercase;
+      letter-spacing: -.02em;
+    }
+
+    .settings-help {
+      color: var(--app-muted) !important;
+    }
+
+    .settings-section + .settings-section {
+      border-top-color: var(--game-line) !important;
+    }
+
+    .theme-choice {
+      border-radius: 2px !important;
+      border: 1px solid var(--game-line) !important;
+      background: var(--game-panel) !important;
+      color: var(--app-text) !important;
+      font-family: var(--hud-display) !important;
+      text-transform: uppercase;
+    }
+
+    .theme-choice.selected {
+      border-color: var(--app-accent) !important;
+      box-shadow: inset 3px 0 0 var(--app-accent) !important;
+    }
+
+    .theme-swatches i {
+      border-radius: 1px !important;
+    }
+
+    /* SOLO GAME */
+    body.solo-active #game-host {
+      min-height: 100vh;
+      padding: 18px 18px 58px !important;
+      background: transparent !important;
+    }
+
+    body.solo-active #solo-toolbar {
+      width: min(860px, calc(100% - 12px));
+      margin: 0 auto 16px;
+    }
+
+    .solo-floating-header {
+      position: relative;
+      min-height: 60px;
+      padding: 7px 0 10px;
+      border-bottom: 1px solid var(--game-line);
+    }
+
+    .solo-floating-header::after {
+      content: "";
+      position: absolute;
+      left: 50%;
+      bottom: -2px;
+      width: 76px;
+      height: 3px;
+      transform: translateX(-50%);
+      background: linear-gradient(90deg, transparent, var(--app-accent), transparent);
+    }
+
+    .solo-floating-center strong {
+      color: var(--app-text) !important;
+      font-family: var(--hud-display) !important;
+      font-size: 25px;
+      letter-spacing: -.035em;
+      text-transform: uppercase;
+    }
+
+    .solo-mode-label {
+      margin-top: 3px;
+      padding: 0;
+      border-radius: 0;
+      background: transparent !important;
+      color: var(--app-accent) !important;
+      font-family: var(--hud-display);
+      font-size: 10px;
+      letter-spacing: .18em;
+    }
+
+    body.solo-active .container {
+      position: relative;
+      width: 560px;
+      padding: 18px !important;
+      border: 1px solid var(--game-line) !important;
+      border-top: 4px solid var(--app-accent) !important;
+      border-radius: 2px !important;
+      background: var(--game-panel) !important;
+      box-shadow: 0 24px 60px var(--app-shadow) !important;
+      clip-path: polygon(0 0, calc(100% - 14px) 0, 100% 14px, 100% 100%, 0 100%);
+      backdrop-filter: blur(14px);
+    }
+
+    body.solo-active .container::after {
+      content: "SOLO RUN";
+      position: absolute;
+      right: 18px;
+      bottom: 8px;
+      color: var(--game-line);
+      font-family: var(--hud-display);
+      font-size: 9px;
+      font-weight: 800;
+      letter-spacing: .18em;
+      pointer-events: none;
+    }
+
+    body.solo-active .container .heading {
+      margin-bottom: 12px;
+      padding-bottom: 12px;
+      border-bottom: 1px solid var(--game-line);
+    }
+
+    body.solo-active .container .title {
+      color: var(--app-text) !important;
+      font-size: 56px !important;
+      font-weight: 800 !important;
+      letter-spacing: -.075em;
+      text-shadow: 0 0 28px var(--game-glow-a);
+    }
+
+    body.solo-active .container .score-container,
+    body.solo-active .container .best-container {
+      min-width: 78px;
+      margin: 0 !important;
+      padding: 7px 10px !important;
+      border: 1px solid var(--game-line);
+      border-radius: 2px !important;
+      background: var(--game-deep) !important;
+      color: var(--game-on-deep) !important;
+      font-family: var(--hud-display) !important;
+      box-shadow: none !important;
+    }
+
+    body.solo-active .container .score-container::after,
+    body.solo-active .container .best-container::after {
+      color: color-mix(in srgb, var(--game-on-deep) 68%, transparent) !important;
+      font-family: var(--hud-display) !important;
+      letter-spacing: .08em;
+    }
+
+    .solo-card-actions {
+      justify-content: space-between !important;
+      margin-bottom: 12px !important;
+      padding: 0;
+    }
+
+    .solo-card-actions .small-button {
+      min-width: 112px;
+    }
+
+    .solo-card-actions kbd,
+    .freeplay-controls kbd {
+      border-radius: 2px !important;
+      border-color: currentColor !important;
+      font-family: var(--hud-display) !important;
+    }
+
+    body.solo-active .game-container {
+      border: 1px solid var(--game-line);
+      box-shadow: 0 16px 36px var(--app-shadow);
+    }
+
+    /* MULTIPLAYER MATCH */
+    .battle-shell {
+      max-width: 1240px !important;
+      margin: 0 auto !important;
+      padding: 18px 22px 54px !important;
+      background: transparent !important;
+      color: var(--app-text) !important;
+    }
+
+    .battle-topbar {
+      position: relative;
+      min-height: 62px;
+      margin-bottom: 6px !important;
+      padding: 6px 0 10px;
+      border-bottom: 1px solid var(--game-line);
+    }
+
+    .battle-topbar::after {
+      content: "";
+      position: absolute;
+      left: 50%;
+      bottom: -2px;
+      width: 92px;
+      height: 3px;
+      transform: translateX(-50%);
+      background: linear-gradient(90deg, transparent, var(--app-accent), var(--game-accent-2), transparent);
+    }
+
+    .battle-mode-title strong {
+      color: var(--app-text) !important;
+      font-family: var(--hud-display) !important;
+      font-size: 24px !important;
+      letter-spacing: -.025em;
+      text-transform: uppercase;
+    }
+
+    .battle-mode-title span {
+      color: var(--app-accent) !important;
+      letter-spacing: .14em !important;
+    }
+
+    .battle-room-mini {
+      border: 1px solid var(--game-line);
+      border-radius: 2px !important;
+      background: var(--game-panel) !important;
+      color: var(--app-muted) !important;
+      font-family: var(--hud-display);
+      letter-spacing: .12em !important;
+    }
+
+    .battle-heading {
+      margin: 6px 0 18px !important;
+    }
+
+    .battle-rule-line {
+      max-width: 740px;
+      color: var(--app-muted) !important;
+      font-size: 13px !important;
+      letter-spacing: .01em;
+    }
+
+    .battle-layout {
+      grid-template-columns: minmax(0, 570px) 66px minmax(0, 370px) !important;
+      column-gap: 34px !important;
+      align-items: stretch !important;
+    }
+
+    .battle-player-card {
+      position: relative;
+      overflow: hidden;
+      border: 1px solid var(--game-line) !important;
+      border-radius: 2px !important;
+      background: var(--game-panel) !important;
+      box-shadow: 0 20px 52px var(--app-shadow) !important;
+      clip-path: polygon(0 0, calc(100% - 14px) 0, 100% 14px, 100% 100%, 0 100%);
+      backdrop-filter: blur(14px);
+    }
+
+    .battle-player-card::before {
+      content: "";
+      position: absolute;
+      left: 0;
+      top: 0;
+      width: 100%;
+      height: 4px;
+      background: var(--game-line);
+    }
+
+    .own-panel {
+      width: 570px !important;
+      border-color: color-mix(in srgb, var(--app-accent) 45%, var(--game-line)) !important;
+    }
+
+    .own-panel::before {
+      background: linear-gradient(90deg, var(--app-accent), var(--game-accent-2));
+      box-shadow: 0 0 22px var(--game-glow-a);
+    }
+
+    .opponent-panel {
+      width: 370px !important;
+    }
+
+    .player-card-header {
+      min-height: 88px !important;
+      margin-bottom: 8px !important;
+      padding-bottom: 9px;
+      border-bottom: 1px solid var(--game-line);
+    }
+
+    .player-name {
+      color: var(--app-text) !important;
+      font-size: 27px !important;
+      font-weight: 700 !important;
+      letter-spacing: -.035em;
+      text-transform: uppercase;
+    }
+
+    .player-subline {
+      color: var(--app-muted) !important;
+      font-family: var(--hud-display);
+      letter-spacing: .10em !important;
+    }
+
+    .rank-badge {
+      min-width: 54px !important;
+      border: 1px solid var(--game-line);
+      border-radius: 2px !important;
+      background: var(--app-soft) !important;
+      color: var(--app-text) !important;
+      font-size: 11px !important;
+      letter-spacing: .08em !important;
+      clip-path: polygon(0 0, calc(100% - 7px) 0, 100% 7px, 100% 100%, 0 100%);
+    }
+
+    .rank-badge.first {
+      border-color: var(--app-accent) !important;
+      background: linear-gradient(110deg, var(--app-accent), var(--game-accent-2)) !important;
+      color: var(--app-on-accent) !important;
+      box-shadow: 0 0 20px var(--game-glow-a);
+    }
+
+    .highest-box,
+    .mini-stat {
+      border: 1px solid var(--game-line);
+      border-radius: 2px !important;
+      background: var(--game-deep) !important;
+      color: var(--game-on-deep) !important;
+      clip-path: polygon(0 0, calc(100% - 7px) 0, 100% 7px, 100% 100%, 0 100%);
+    }
+
+    .highest-box span,
+    .mini-stat span {
+      color: color-mix(in srgb, var(--game-on-deep) 68%, transparent) !important;
+      letter-spacing: .09em !important;
+    }
+
+    .battle-vs {
+      padding-top: 160px !important;
+      align-items: flex-start !important;
+    }
+
+    .battle-vs span {
+      position: relative;
+      width: 64px !important;
+      height: 64px !important;
+      border: 1px solid var(--app-accent) !important;
+      border-radius: 0 !important;
+      background: var(--game-deep) !important;
+      color: var(--game-on-deep) !important;
+      font-family: var(--hud-display);
+      font-size: 17px !important;
+      font-weight: 800 !important;
+      clip-path: polygon(50% 0, 100% 24%, 100% 76%, 50% 100%, 0 76%, 0 24%);
+      box-shadow: 0 0 30px var(--game-glow-a);
+    }
+
+    .battle-vs span::before,
+    .battle-vs span::after {
+      content: "";
+      position: absolute;
+      left: 50%;
+      width: 1px;
+      height: 52px;
+      background: linear-gradient(transparent, var(--game-line));
+      transform: translateX(-50%);
+    }
+
+    .battle-vs span::before { bottom: 100%; }
+    .battle-vs span::after { top: 100%; transform: translateX(-50%) rotate(180deg); }
+
+    .progress-track {
+      height: 11px !important;
+      border: 1px solid var(--game-line);
+      border-radius: 1px !important;
+      background:
+        repeating-linear-gradient(90deg, var(--app-soft) 0 14px, color-mix(in srgb, var(--app-soft) 70%, transparent) 14px 16px) !important;
+    }
+
+    .progress-fill {
+      position: relative;
+      border-radius: 0 !important;
+      background:
+        linear-gradient(90deg, var(--app-accent), var(--game-accent-2), var(--app-accent)) !important;
+      background-size: 180% 100% !important;
+      box-shadow: 0 0 16px var(--game-glow-a);
+      animation: rinas-shimmer 2.4s linear infinite;
+    }
+
+    .progress-meta,
+    .progress-note {
+      font-family: var(--hud-display);
+      letter-spacing: .07em !important;
+    }
+
+    .opponent-grid {
+      border: 1px solid color-mix(in srgb, var(--app-accent) 24%, var(--game-line));
+      border-radius: 2px !important;
+      box-shadow: inset 0 0 0 1px rgba(255,255,255,.03), 0 12px 26px var(--app-shadow);
+    }
+
+    .opponent-cell {
+      border-radius: 1px !important;
+      font-family: var(--hud-display);
+      font-weight: 700;
+    }
+
+    #opponent-status {
+      color: var(--app-muted) !important;
+      font-family: var(--hud-display);
+      font-size: 10px !important;
+      letter-spacing: .07em;
+      text-transform: uppercase;
+    }
+
+    #battle-toast,
+    #solo-milestone-toast {
+      border: 1px solid color-mix(in srgb, var(--app-accent) 70%, white 5%) !important;
+      border-radius: 2px !important;
+      background: var(--game-deep) !important;
+      color: var(--game-on-deep) !important;
+      font-family: var(--hud-display) !important;
+      letter-spacing: .05em;
+      text-transform: uppercase;
+      box-shadow: 0 0 28px var(--game-glow-a) !important;
+    }
+
+    .result-icon {
+      filter: drop-shadow(0 8px 20px var(--game-glow-a));
+    }
+
+    /* Native 2048 board gets a crisper competitive-game finish. */
+    .game-container {
+      border-radius: 3px !important;
+      background: var(--app-board) !important;
+    }
+
+    .grid-cell {
+      border-radius: 2px !important;
+      background: var(--app-cell) !important;
+    }
+
+    .tile .tile-inner {
+      border-radius: 2px !important;
+      font-family: var(--hud-display) !important;
+      font-weight: 700 !important;
+      box-shadow: inset 0 0 0 1px rgba(255,255,255,.09);
+    }
+
+    /* Small HUD line under active cards. */
+    .race-box,
+    .custom-target-panel,
+    .battle-player-card,
+    body.solo-active .container {
+      isolation: isolate;
+    }
+
+    @media (max-width: 900px) {
+      .battle-layout {
+        grid-template-columns: minmax(0, 570px) !important;
+        row-gap: 14px !important;
+      }
+
+      .battle-vs {
+        padding-top: 0 !important;
+      }
+
+      .battle-vs span {
+        width: 88px !important;
+        height: 34px !important;
+        clip-path: polygon(10px 0, calc(100% - 10px) 0, 100% 50%, calc(100% - 10px) 100%, 10px 100%, 0 50%);
+      }
+
+      .battle-vs span::before,
+      .battle-vs span::after {
+        display: none;
+      }
+
+      .opponent-panel {
+        width: min(370px, 100%) !important;
+      }
+    }
+
+    @media (max-width: 680px) {
+      .app-screen {
+        padding: 12px 12px 42px;
+      }
+
+      .app-header {
+        grid-template-columns: 92px 1fr 92px;
+      }
+
+      .app-header h1 {
+        font-size: 24px;
+      }
+
+      .app-title-brand {
+        font-size: 8px;
+      }
+
+      .title-stage {
+        min-height: 240px;
+      }
+
+      .game-logo-rinas {
+        font-size: 20px;
+      }
+
+      .logo-float-tile {
+        width: 38px;
+        height: 38px;
+        font-size: 14px;
+      }
+
+      .logo-float-tile.one { left: -43px; }
+      .logo-float-tile.two { right: -42px; }
+
+      .home-mode-card {
+        grid-template-columns: 58px minmax(0,1fr);
+        gap: 12px;
+        padding: 14px !important;
+      }
+
+      .home-mode-card .mode-icon {
+        width: 48px;
+        height: 48px;
+        font-size: 23px;
+      }
+
+      .home-mode-card h2 {
+        font-size: 21px;
+      }
+
+      .home-mode-card p {
+        font-size: 13px;
+      }
+
+      .mode-enter {
+        display: none;
+      }
+
+      .mode-grid:not(.home-mode-grid),
+      .screen-multiplayer-menu .mode-grid {
+        grid-template-columns: 1fr !important;
+      }
+
+      .home-footnote {
+        flex-wrap: wrap;
+        font-size: 9px;
+      }
+
+      .solo-floating-header {
+        grid-template-columns: 84px 1fr 84px !important;
+      }
+
+      .solo-floating-center strong {
+        font-size: 19px !important;
+      }
+
+      body.solo-active .container {
+        width: min(520px, 100%);
+        max-width: 100% !important;
+        padding: 10px !important;
+      }
+
+      body.solo-active .container .title {
+        font-size: 42px !important;
+      }
+
+      body.solo-active .container .score-container,
+      body.solo-active .container .best-container {
+        min-width: 66px;
+        padding: 6px !important;
+      }
+
+      .solo-card-actions .small-button {
+        min-width: 0;
+        flex: 1;
+      }
+
+      .battle-shell {
+        padding: 10px 10px 42px !important;
+      }
+
+      .battle-player-card {
+        padding: 12px !important;
+      }
+
+      .own-panel {
+        width: 100% !important;
+      }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      body::after,
+      .game-logo,
+      .logo-float-tile,
+      .progress-fill,
+      .app-screen,
+      .screen-ghost {
+        animation: none !important;
+      }
+    }
+  `;
+  document.head.appendChild(v38Style);
+
 
   // =========================================================
   // COMMON UI
@@ -2322,7 +3801,52 @@
     );
   }
 
+  var nextScreenTransitionDirection = 1;
+
+  function removeIdsFromClone(root) {
+    if (!root) return;
+
+    if (root.removeAttribute) {
+      root.removeAttribute("id");
+    }
+
+    if (!root.querySelectorAll) return;
+
+    Array.prototype.forEach.call(root.querySelectorAll("[id]"), function (node) {
+      node.removeAttribute("id");
+    });
+  }
+
+  function createScreenGhost(direction) {
+    var outgoing = appRoot.querySelector(".app-screen");
+
+    if (!outgoing) return;
+
+    var ghost = outgoing.cloneNode(true);
+    removeIdsFromClone(ghost);
+    ghost.classList.remove("enter-forward", "enter-back");
+    ghost.classList.add("screen-ghost", direction < 0 ? "back" : "forward");
+
+    document.body.appendChild(ghost);
+
+    setTimeout(function () {
+      if (ghost.parentNode) ghost.remove();
+    }, 280);
+  }
+
+  function getScreenClass() {
+    return "screen-" + String(window.currentGameMode || "menu")
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, "-")
+      .replace(/^-+|-+$/g, "");
+  }
+
   function showScreen(title, backHandler, contentHtml) {
+    var direction = nextScreenTransitionDirection || 1;
+    nextScreenTransitionDirection = 1;
+
+    createScreenGhost(direction);
+
     clearModeClasses();
     restoreGameContainer();
     gameHost.style.display = "none";
@@ -2332,13 +3856,16 @@
     currentScreen = title;
 
     appRoot.innerHTML = `
-      <div class="app-screen">
+      <div class="app-screen ${getScreenClass()} ${direction < 0 ? "enter-back" : "enter-forward"}">
         <div class="app-screen-inner">
           <div class="app-header">
             <div class="app-header-side left">
               ${backHandler ? '<button class="nav-button" id="screen-back">← Back</button>' : ""}
             </div>
-            <h1>${escapeHtml(title)}</h1>
+            <div class="app-title-stack">
+              <span class="app-title-brand">Rina's 2048</span>
+              <h1>${escapeHtml(title)}</h1>
+            </div>
             <div class="app-header-side right">
               <button class="settings-button" id="screen-settings">⚙️ Settings</button>
             </div>
@@ -2351,7 +3878,10 @@
     document.getElementById("screen-settings").addEventListener("click", openSettings);
 
     if (backHandler) {
-      document.getElementById("screen-back").addEventListener("click", backHandler);
+      document.getElementById("screen-back").addEventListener("click", function () {
+        nextScreenTransitionDirection = -1;
+        backHandler();
+      });
     }
   }
 
@@ -2492,19 +4022,40 @@
       "Rina's 2048",
       null,
       `
-        <p class="hero-subtitle">Choose how you want to play.</p>
-        <div class="mode-grid">
-          <button class="mode-card" id="choose-solo">
+        <div class="title-stage">
+          <div class="game-logo">
+            <span class="logo-float-tile one">8</span>
+            <span class="logo-float-tile two">16</span>
+            <span class="game-logo-rinas">RINA'S</span>
+            <span class="game-logo-number">20<em>48</em></span>
+            <p class="logo-tagline">Merge fast. Think ahead.</p>
+          </div>
+        </div>
+
+        <div class="mode-grid home-mode-grid">
+          <button class="mode-card home-mode-card solo-card" id="choose-solo">
             <span class="mode-icon">🎮</span>
-            <h2>Solo 2048</h2>
-            <p>Endless 2048 with persistent saves, records, and optional single-step Undo.</p>
+            <span class="mode-copy">
+              <h2>Solo</h2>
+              <p>Build an endless board, chase your records, and play your way.</p>
+            </span>
+            <span class="mode-enter">Play</span>
           </button>
 
-          <button class="mode-card" id="choose-multiplayer">
+          <button class="mode-card home-mode-card multiplayer-card" id="choose-multiplayer">
             <span class="mode-icon">👥</span>
-            <h2>Multiplayer</h2>
-            <p>Compete, play casually side-by-side, or create a handicap race for different skill levels.</p>
+            <span class="mode-copy">
+              <h2>Multiplayer</h2>
+              <p>Race a friend, freeplay side-by-side, or balance the match with custom targets.</p>
+            </span>
+            <span class="mode-enter">Enter</span>
           </button>
+        </div>
+
+        <div class="home-footnote">
+          <span>Solo saves locally</span>
+          <i></i>
+          <span>Multiplayer with friends</span>
         </div>
       `
     );
