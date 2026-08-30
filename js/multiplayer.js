@@ -5438,7 +5438,7 @@
 
     setTimeout(function () {
       if (ghost.parentNode) ghost.remove();
-    }, 280);
+    }, 330);
   }
 
   function getScreenClass() {
@@ -5498,35 +5498,120 @@
     });
   }
 
+
+  function closeOverlaySmoothly(overlay, callback) {
+    if (!overlay) {
+      if (callback) callback();
+      return;
+    }
+
+    overlay.classList.add("ui-overlay-leaving");
+    setTimeout(function () {
+      if (overlay.parentNode) overlay.remove();
+      if (callback) callback();
+    }, 230);
+  }
+
+  function openGameConfirm(options) {
+    options = options || {};
+
+    var old = document.getElementById("game-confirm-overlay");
+    if (old) old.remove();
+
+    var overlay = document.createElement("div");
+    overlay.id = "game-confirm-overlay";
+    overlay.className = "game-modal-overlay";
+
+    var title = options.title || "Are you sure?";
+    var message = options.message || "";
+    var confirmLabel = options.confirmLabel || "Confirm";
+    var cancelLabel = options.cancelLabel || "Cancel";
+    var toneClass = options.tone === "danger" ? " danger" : "";
+
+    overlay.innerHTML = `
+      <div class="game-modal confirm-modal" role="dialog" aria-modal="true" aria-labelledby="game-confirm-title">
+        <div class="game-modal-accent"></div>
+        <span class="game-modal-kicker">RINA'S 2048</span>
+        <h2 id="game-confirm-title">${escapeHtml(title)}</h2>
+        <p>${escapeHtml(message)}</p>
+        <div class="game-modal-actions">
+          <button class="game-modal-button secondary" id="game-confirm-cancel">${escapeHtml(cancelLabel)}</button>
+          <button class="game-modal-button primary${toneClass}" id="game-confirm-ok">${escapeHtml(confirmLabel)}</button>
+        </div>
+      </div>
+    `;
+
+    document.body.appendChild(overlay);
+
+    var cancelButton = document.getElementById("game-confirm-cancel");
+    var okButton = document.getElementById("game-confirm-ok");
+
+    function cancel() {
+      document.removeEventListener("keydown", onKey);
+      closeOverlaySmoothly(overlay, function () {
+        if (options.onCancel) options.onCancel();
+      });
+    }
+
+    function confirmAction() {
+      document.removeEventListener("keydown", onKey);
+      okButton.disabled = true;
+      closeOverlaySmoothly(overlay, function () {
+        if (options.onConfirm) options.onConfirm();
+      });
+    }
+
+    cancelButton.addEventListener("click", cancel);
+    okButton.addEventListener("click", confirmAction);
+    overlay.addEventListener("click", function (event) {
+      if (event.target === overlay) cancel();
+    });
+
+    function onKey(event) {
+      if (!overlay.parentNode) {
+        document.removeEventListener("keydown", onKey);
+        return;
+      }
+      if (event.key === "Escape") {
+        event.preventDefault();
+        document.removeEventListener("keydown", onKey);
+        cancel();
+      }
+    }
+    document.addEventListener("keydown", onKey);
+    okButton.focus();
+  }
+
   function openNicknamePrompt(onComplete) {
     var old = document.getElementById("nickname-overlay");
-
-    if (old) {
-      old.remove();
-    }
+    if (old) old.remove();
 
     var overlay = document.createElement("div");
     overlay.id = "nickname-overlay";
-    overlay.className = "settings-overlay";
+    overlay.className = "game-modal-overlay nickname-modal-overlay";
 
     overlay.innerHTML = `
-      <div class="settings-dialog" style="max-width:410px;">
-        <div class="settings-dialog-header">
-          <h2>Choose a nickname</h2>
+      <div class="game-modal nickname-modal" role="dialog" aria-modal="true" aria-labelledby="nickname-modal-title">
+        <div class="game-modal-accent"></div>
+        <span class="game-modal-kicker">MULTIPLAYER PROFILE</span>
+        <h2 id="nickname-modal-title">Choose a nickname</h2>
+        <p class="nickname-modal-copy">This is what your opponent will see during a match.</p>
+        <div class="nickname-input-stage">
+          <span>YOU'LL APPEAR AS</span>
+          <input
+            id="nickname-prompt-input"
+            class="nickname-field nickname-field-centered"
+            type="text"
+            maxlength="16"
+            autocomplete="nickname"
+            placeholder="Nickname"
+            value="${escapeHtml(window.rinasSettings.nickname || "")}"
+          >
         </div>
-        <p class="settings-help">This is the name your opponent will see. You can change it later in Settings.</p>
-        <input
-          id="nickname-prompt-input"
-          class="nickname-field"
-          type="text"
-          maxlength="16"
-          autocomplete="nickname"
-          placeholder="Nickname"
-          value="${escapeHtml(window.rinasSettings.nickname || "")}"
-        >
-        <p class="status-text" id="nickname-prompt-status" style="min-height:20px;margin:8px 0 0;"></p>
-        <div class="result-actions">
-          <button class="primary-button" id="nickname-prompt-save">Continue</button>
+        <p class="status-text" id="nickname-prompt-status" aria-live="polite"></p>
+        <div class="game-modal-actions">
+          <button class="game-modal-button secondary" id="nickname-prompt-cancel">Back</button>
+          <button class="game-modal-button primary" id="nickname-prompt-save">Continue <span>→</span></button>
         </div>
       </div>
     `;
@@ -5548,23 +5633,32 @@
       window.rinasSettings.nickname = nickname;
       saveSettings();
 
-      overlay.classList.add("ui-overlay-leaving");
-
-      setTimeout(function () {
-        if (overlay.parentNode) overlay.remove();
-
+      closeOverlaySmoothly(overlay, function () {
         if (onComplete) {
           nextScreenTransitionDirection = 1;
           onComplete();
         }
-      }, 190);
+      });
+    }
+
+    function cancelNickname() {
+      closeOverlaySmoothly(overlay);
     }
 
     document.getElementById("nickname-prompt-save").addEventListener("click", saveNicknameAndContinue);
+    document.getElementById("nickname-prompt-cancel").addEventListener("click", cancelNickname);
+    overlay.addEventListener("click", function (event) {
+      if (event.target === overlay) cancelNickname();
+    });
+
     input.addEventListener("keydown", function (event) {
       if (event.key === "Enter") {
         event.preventDefault();
         saveNicknameAndContinue();
+      }
+      if (event.key === "Escape") {
+        event.preventDefault();
+        cancelNickname();
       }
     });
 
@@ -5820,9 +5914,13 @@
       if (startButton) startButton.addEventListener("click", function () { startSolo(true); });
       if (newButton) {
         newButton.addEventListener("click", function () {
-          if (window.confirm("Start a new Solo run? Your current saved board will be replaced.")) {
-            startSolo(true);
-          }
+          openGameConfirm({
+            title: "Start a new run?",
+            message: "Your current saved board will be replaced. Your Best Score and records will stay saved.",
+            confirmLabel: "Start New Run",
+            tone: "danger",
+            onConfirm: function () { startSolo(true); }
+          });
         });
       }
     });
@@ -5874,9 +5972,13 @@
     gameContainer.insertBefore(controlStrip, board.nextSibling);
 
     document.getElementById("solo-new").addEventListener("click", function () {
-      if (window.confirm("Start a new Solo game?")) {
-        withGame(function (game) { game.restart(); });
-      }
+      openGameConfirm({
+        title: "Start a new game?",
+        message: "Your current Solo board will be replaced. Your Best Score and records will stay saved.",
+        confirmLabel: "New Game",
+        tone: "danger",
+        onConfirm: function () { withGame(function (game) { game.restart(); }); }
+      });
     });
 
     document.getElementById("solo-undo").addEventListener("click", function () {
@@ -6518,9 +6620,13 @@
         withGame(function (game) { game.undo(); });
       });
       document.getElementById("freeplay-restart").addEventListener("click", function () {
-        if (window.confirm("Restart your Freeplay board? Your opponent will keep playing.")) {
-          restartFreeplayBoard();
-        }
+        openGameConfirm({
+          title: "Restart your board?",
+          message: "Your Freeplay board will restart. Your opponent will keep playing.",
+          confirmLabel: "Restart Board",
+          tone: "danger",
+          onConfirm: restartFreeplayBoard
+        });
       });
     }
 
@@ -6549,7 +6655,13 @@
     }
 
     document.getElementById("leave-match").addEventListener("click", function () {
-      if (window.confirm("Leave this multiplayer room?")) leaveMultiplayerMatch();
+      openGameConfirm({
+        title: "Leave this match?",
+        message: "You will disconnect from the room and return to the multiplayer menu.",
+        confirmLabel: "Leave Match",
+        tone: "danger",
+        onConfirm: leaveMultiplayerMatch
+      });
     });
     document.getElementById("battle-settings").addEventListener("click", openSettings);
 
@@ -7009,17 +7121,27 @@
         <div class="settings-grid-v40">
           <section class="settings-section settings-profile-section">
             <h3>Profile</h3>
-            <label class="field-label" for="settings-nickname">Nickname</label>
-            <input id="settings-nickname" class="nickname-field" type="text" maxlength="16" autocomplete="nickname" placeholder="Nickname" value="${escapeHtml(window.rinasSettings.nickname || "")}">
-            <p class="settings-help">Shown to the other player in multiplayer rooms.</p>
+            <div class="nickname-setting-row">
+              <div class="nickname-setting-copy">
+                <label class="field-label" for="settings-nickname">Nickname</label>
+                <p class="settings-help">Shown to the other player in multiplayer rooms.</p>
+              </div>
+              <input id="settings-nickname" class="nickname-field nickname-field-centered" type="text" maxlength="16" autocomplete="nickname" placeholder="Nickname" value="${escapeHtml(window.rinasSettings.nickname || "")}">
+            </div>
           </section>
 
           <section class="settings-section">
             <h3>Controls</h3>
             <p class="settings-help">Choose one keyboard movement scheme. Touch controls always use swipe.</p>
-            <div class="control-choice-row">
-              <button class="control-choice ${window.rinasSettings.controlScheme === "arrows" ? "selected" : ""}" data-controls="arrows">Arrow Keys</button>
-              <button class="control-choice ${window.rinasSettings.controlScheme === "wasd" ? "selected" : ""}" data-controls="wasd">WASD</button>
+            <div class="control-choice-row control-choice-visual-row">
+              <button class="control-choice control-choice-visual ${window.rinasSettings.controlScheme === "arrows" ? "selected" : ""}" data-controls="arrows">
+                <span class="scheme-keys arrow-scheme"><kbd>↑</kbd><span><kbd>←</kbd><kbd>↓</kbd><kbd>→</kbd></span></span>
+                <span class="scheme-name">Arrow Keys</span>
+              </button>
+              <button class="control-choice control-choice-visual ${window.rinasSettings.controlScheme === "wasd" ? "selected" : ""}" data-controls="wasd">
+                <span class="scheme-keys wasd-scheme"><kbd>W</kbd><span><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd></span></span>
+                <span class="scheme-name">WASD</span>
+              </button>
             </div>
 
             <div class="toggle-row settings-inline-toggle">
@@ -7092,8 +7214,9 @@
 
     function close() {
       saveNickname();
-      overlay.remove();
-      window.refreshSoloControls();
+      closeOverlaySmoothly(overlay, function () {
+        window.refreshSoloControls();
+      });
     }
 
     document.getElementById("close-settings").addEventListener("click", close);
@@ -9371,6 +9494,672 @@
     childList: true,
     subtree: false
   });
+
+
+  // =========================================================
+  // v46: cohesive adult-game UI polish
+  // - visual control schemes
+  // - rounded game modals / no browser confirms
+  // - stable mode previews + restored motion
+  // - rebuilt Solo HUD spacing
+  // - viewport-fit desktop gameplay
+  // =========================================================
+
+  var v46Style = document.createElement("style");
+  v46Style.textContent = `
+    :root {
+      --v46-radius-lg: 20px;
+      --v46-radius-md: 14px;
+      --v46-radius-sm: 10px;
+      --v46-ease: cubic-bezier(.2,.82,.2,1);
+    }
+
+    /* -------------------- screen motion -------------------- */
+    @keyframes v46-screen-in-forward {
+      from { opacity: 0; transform: translate3d(24px,0,0) scale(.992); }
+      to { opacity: 1; transform: translate3d(0,0,0) scale(1); }
+    }
+    @keyframes v46-screen-in-back {
+      from { opacity: 0; transform: translate3d(-24px,0,0) scale(.992); }
+      to { opacity: 1; transform: translate3d(0,0,0) scale(1); }
+    }
+    @keyframes v46-screen-out-forward {
+      from { opacity: 1; transform: translate3d(0,0,0) scale(1); }
+      to { opacity: 0; transform: translate3d(-20px,0,0) scale(.995); }
+    }
+    @keyframes v46-screen-out-back {
+      from { opacity: 1; transform: translate3d(0,0,0) scale(1); }
+      to { opacity: 0; transform: translate3d(20px,0,0) scale(.995); }
+    }
+
+    .app-screen.enter-forward { animation: v46-screen-in-forward 300ms var(--v46-ease) both !important; }
+    .app-screen.enter-back { animation: v46-screen-in-back 300ms var(--v46-ease) both !important; }
+    .screen-ghost.forward { animation: v46-screen-out-forward 300ms var(--v46-ease) both !important; }
+    .screen-ghost.back { animation: v46-screen-out-back 300ms var(--v46-ease) both !important; }
+
+    /* -------------------- common game controls -------------------- */
+    .nav-button,
+    .settings-button,
+    .nickname-link {
+      border-radius: 10px !important;
+      padding: 9px 12px !important;
+      min-height: 38px !important;
+      background: color-mix(in srgb, var(--game-panel-strong) 72%, transparent) !important;
+      border: 1px solid color-mix(in srgb, var(--game-line) 85%, transparent) !important;
+      box-shadow: 0 6px 16px color-mix(in srgb, var(--app-shadow) 50%, transparent) !important;
+      transition: background 150ms ease, border-color 150ms ease, box-shadow 150ms ease !important;
+    }
+    .nav-button:hover,
+    .settings-button:hover,
+    .nickname-link:hover {
+      transform: none !important;
+      border-color: color-mix(in srgb, var(--app-accent) 65%, var(--game-line)) !important;
+      background: color-mix(in srgb, var(--app-accent) 10%, var(--game-panel-strong)) !important;
+      box-shadow: 0 8px 20px color-mix(in srgb, var(--app-shadow) 65%, transparent) !important;
+    }
+    .nav-button::after,
+    .settings-button::after,
+    .nickname-link::after { display: none !important; }
+
+    /* Replace gray divider language with restrained theme accent. */
+    .app-header,
+    .solo-floating-header,
+    .battle-topbar {
+      border-bottom: 0 !important;
+      background-image: linear-gradient(90deg,
+        transparent 0%,
+        color-mix(in srgb, var(--app-accent) 38%, transparent) 18%,
+        color-mix(in srgb, var(--game-accent-2) 44%, transparent) 50%,
+        color-mix(in srgb, var(--app-accent) 38%, transparent) 82%,
+        transparent 100%) !important;
+      background-repeat: no-repeat !important;
+      background-size: 100% 2px !important;
+      background-position: left bottom !important;
+    }
+    .app-header::after,
+    .solo-floating-header::after,
+    .battle-topbar::after { display: none !important; }
+
+    /* -------------------- game modal system -------------------- */
+    @keyframes v46-overlay-in { from { opacity: 0; } to { opacity: 1; } }
+    @keyframes v46-modal-in {
+      from { opacity: 0; transform: translateY(12px) scale(.975); }
+      to { opacity: 1; transform: translateY(0) scale(1); }
+    }
+    @keyframes v46-overlay-out { to { opacity: 0; } }
+    @keyframes v46-modal-out { to { opacity: 0; transform: translateY(8px) scale(.985); } }
+
+    .settings-overlay,
+    .game-modal-overlay {
+      position: fixed !important;
+      inset: 0 !important;
+      z-index: 12000 !important;
+      display: flex !important;
+      align-items: center !important;
+      justify-content: center !important;
+      padding: 20px !important;
+      background: rgba(18, 17, 17, .56) !important;
+      backdrop-filter: blur(10px) saturate(.82) !important;
+      overflow: hidden !important;
+      animation: v46-overlay-in 180ms ease both !important;
+    }
+    .settings-overlay.ui-overlay-leaving,
+    .game-modal-overlay.ui-overlay-leaving { animation: v46-overlay-out 210ms ease both !important; }
+    .settings-overlay.ui-overlay-leaving > *,
+    .game-modal-overlay.ui-overlay-leaving > * { animation: v46-modal-out 210ms ease both !important; }
+
+    .game-modal {
+      position: relative;
+      width: min(540px, calc(100vw - 36px));
+      padding: 30px 32px 28px;
+      border: 1px solid color-mix(in srgb, var(--app-accent) 25%, var(--game-line));
+      border-radius: var(--v46-radius-lg);
+      background:
+        radial-gradient(circle at 88% 8%, color-mix(in srgb, var(--game-accent-2) 10%, transparent), transparent 30%),
+        var(--game-panel-strong);
+      color: var(--app-text);
+      box-shadow: 0 28px 80px rgba(0,0,0,.28);
+      animation: v46-modal-in 240ms var(--v46-ease) both;
+      overflow: hidden;
+    }
+    .game-modal-accent {
+      position: absolute;
+      top: 0; left: 0; right: 0;
+      height: 4px;
+      background: linear-gradient(90deg, var(--app-accent), var(--game-accent-2));
+    }
+    .game-modal-kicker {
+      display: block;
+      margin-bottom: 7px;
+      color: var(--app-accent);
+      font: 800 11px/1 var(--hud-display);
+      letter-spacing: .12em;
+    }
+    .game-modal h2 {
+      margin: 0 0 9px;
+      font: 900 30px/1.05 var(--hud-display);
+      color: var(--app-text);
+    }
+    .game-modal > p,
+    .nickname-modal-copy {
+      margin: 0 0 20px;
+      color: var(--app-muted);
+      font: 600 15px/1.45 var(--ui-font);
+    }
+    .game-modal-actions {
+      display: flex;
+      justify-content: flex-end;
+      gap: 10px;
+      margin-top: 22px;
+    }
+    .game-modal-button {
+      min-width: 132px;
+      min-height: 44px;
+      padding: 10px 18px;
+      border: 1px solid var(--game-line);
+      border-radius: 12px;
+      font: 900 14px/1 var(--hud-display);
+      text-transform: uppercase;
+      letter-spacing: .02em;
+      transition: background 150ms ease, border-color 150ms ease, box-shadow 150ms ease;
+    }
+    .game-modal-button.secondary {
+      color: var(--app-text);
+      background: color-mix(in srgb, var(--game-panel) 80%, transparent);
+    }
+    .game-modal-button.primary {
+      color: var(--button-text, #fff);
+      border-color: var(--app-accent);
+      background: var(--app-accent);
+      box-shadow: 0 8px 22px color-mix(in srgb, var(--app-accent) 28%, transparent);
+    }
+    .game-modal-button.primary.danger {
+      background: #b94b55;
+      border-color: #b94b55;
+    }
+    .game-modal-button:hover { box-shadow: 0 10px 24px color-mix(in srgb, var(--app-shadow) 70%, transparent); }
+
+    .nickname-modal { width: min(520px, calc(100vw - 36px)); text-align: center; }
+    .nickname-input-stage {
+      display: grid;
+      justify-items: center;
+      gap: 8px;
+      margin: 16px auto 0;
+    }
+    .nickname-input-stage > span {
+      color: var(--app-muted);
+      font: 800 10px/1 var(--hud-display);
+      letter-spacing: .12em;
+    }
+    .nickname-field-centered {
+      width: 300px !important;
+      max-width: 100% !important;
+      min-height: 46px !important;
+      text-align: center !important;
+      border-radius: 11px !important;
+      font-size: 18px !important;
+      font-weight: 800 !important;
+      letter-spacing: .02em !important;
+    }
+    .nickname-modal .status-text { min-height: 20px; margin: 9px 0 0; text-align: center; }
+    .nickname-modal .game-modal-actions { justify-content: center; }
+
+    /* -------------------- settings -------------------- */
+    .settings-dialog.settings-dialog-v40 {
+      width: min(980px, calc(100vw - 40px)) !important;
+      max-width: 980px !important;
+      max-height: min(640px, calc(100vh - 40px)) !important;
+      padding: 0 28px 24px !important;
+      overflow: hidden !important;
+      border: 1px solid color-mix(in srgb, var(--app-accent) 24%, var(--game-line)) !important;
+      border-radius: 20px !important;
+      background:
+        radial-gradient(circle at 94% 0%, color-mix(in srgb, var(--game-accent-2) 8%, transparent), transparent 26%),
+        var(--game-panel-strong) !important;
+      box-shadow: 0 30px 90px rgba(0,0,0,.30) !important;
+      animation: v46-modal-in 240ms var(--v46-ease) both !important;
+    }
+    .settings-dialog.settings-dialog-v40::before { border-radius: 20px 20px 0 0 !important; }
+    .settings-dialog-header {
+      margin: 0 -28px 16px !important;
+      padding: 16px 28px 13px !important;
+      min-height: 68px !important;
+      border-bottom: 0 !important;
+      background: color-mix(in srgb, var(--game-panel) 65%, transparent) !important;
+    }
+    .settings-dialog-header h2 { font-size: 29px !important; }
+    .settings-header-actions { gap: 9px !important; }
+    .settings-done-inline,
+    .close-settings {
+      display: inline-flex !important;
+      align-items: center !important;
+      justify-content: center !important;
+      min-height: 42px !important;
+      border-radius: 11px !important;
+      border: 1px solid var(--game-line) !important;
+      box-shadow: none !important;
+    }
+    .settings-done-inline {
+      min-width: 88px !important;
+      padding: 9px 16px !important;
+      background: var(--app-accent) !important;
+      border-color: var(--app-accent) !important;
+      color: var(--button-text, #fff) !important;
+    }
+    .close-settings {
+      width: 42px !important;
+      min-width: 42px !important;
+      padding: 0 !important;
+      background: color-mix(in srgb, var(--game-panel) 82%, transparent) !important;
+      color: var(--app-text) !important;
+      font-size: 23px !important;
+    }
+    .settings-done-inline:hover,
+    .close-settings:hover { transform: none !important; border-color: var(--app-accent) !important; }
+
+    .settings-grid-v40 {
+      grid-template-columns: 1.08fr .92fr .98fr !important;
+      grid-template-areas:
+        "profile profile profile"
+        "controls audio theme" !important;
+      gap: 14px 26px !important;
+    }
+    .settings-section {
+      min-width: 0;
+      padding: 0 !important;
+      border: 0 !important;
+      background: transparent !important;
+    }
+    .settings-section h3 {
+      margin: 0 0 9px !important;
+      padding: 0 !important;
+      border: 0 !important;
+      font-size: 18px !important;
+    }
+    .settings-section h3::after {
+      content: "";
+      display: block;
+      width: 44px;
+      height: 3px;
+      margin-top: 6px;
+      border-radius: 3px;
+      background: linear-gradient(90deg, var(--app-accent), var(--game-accent-2));
+    }
+    .settings-help { font-size: 12.5px !important; line-height: 1.28 !important; margin: 0 0 8px !important; }
+    .nickname-setting-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 24px;
+      min-height: 52px;
+      padding: 8px 0 12px;
+    }
+    .nickname-setting-copy { min-width: 0; }
+    .nickname-setting-copy .settings-help { margin: 4px 0 0 !important; }
+    .settings-profile-section .nickname-field {
+      width: 300px !important;
+      max-width: 300px !important;
+      flex: 0 0 300px !important;
+      height: 42px !important;
+      text-align: center !important;
+      border-radius: 11px !important;
+    }
+
+    .control-choice-visual-row {
+      display: grid !important;
+      grid-template-columns: 1fr 1fr !important;
+      gap: 10px !important;
+      margin: 7px 0 12px !important;
+    }
+    .control-choice.control-choice-visual {
+      min-height: 112px !important;
+      padding: 12px 9px 10px !important;
+      border: 1px solid var(--game-line) !important;
+      border-radius: 14px !important;
+      background: color-mix(in srgb, var(--game-panel) 74%, transparent) !important;
+      color: var(--app-muted) !important;
+      box-shadow: 0 7px 18px color-mix(in srgb, var(--app-shadow) 35%, transparent) !important;
+      display: flex !important;
+      flex-direction: column !important;
+      align-items: center !important;
+      justify-content: center !important;
+      gap: 9px !important;
+    }
+    .control-choice.control-choice-visual.selected {
+      border-color: color-mix(in srgb, var(--app-accent) 72%, var(--game-line)) !important;
+      background: color-mix(in srgb, var(--app-accent) 12%, var(--game-panel-strong)) !important;
+      color: var(--app-text) !important;
+      box-shadow: 0 9px 24px color-mix(in srgb, var(--app-accent) 18%, transparent) !important;
+    }
+    .scheme-keys {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 3px;
+    }
+    .scheme-keys > span { display: flex; gap: 3px; }
+    .scheme-keys kbd {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 27px;
+      height: 27px;
+      border: 1px solid currentColor;
+      border-radius: 6px;
+      background: color-mix(in srgb, var(--game-panel-strong) 80%, transparent);
+      color: inherit;
+      box-shadow: inset 0 -2px 0 color-mix(in srgb, currentColor 18%, transparent);
+      font: 800 12px/1 var(--hud-display);
+    }
+    .scheme-name { font: 900 13px/1 var(--hud-display); }
+
+    .toggle-row.settings-inline-toggle,
+    .audio-control-group .toggle-row { min-height: 54px !important; }
+    .volume-row { margin-top: 9px !important; }
+
+    .theme-grid {
+      display: grid !important;
+      grid-template-columns: 1fr !important;
+      gap: 5px !important;
+    }
+    .theme-choice {
+      position: relative !important;
+      display: grid !important;
+      grid-template-columns: 72px minmax(0,1fr) !important;
+      align-items: center !important;
+      min-height: 38px !important;
+      padding: 4px 0 !important;
+      border: 0 !important;
+      border-radius: 0 !important;
+      background: transparent !important;
+      box-shadow: none !important;
+      text-align: left !important;
+      color: var(--app-muted) !important;
+    }
+    .theme-choice.selected { color: var(--app-text) !important; }
+    .theme-choice.selected::before {
+      content: "";
+      position: absolute;
+      left: -8px;
+      width: 3px;
+      height: 22px;
+      border-radius: 2px;
+      background: var(--app-accent);
+    }
+    .theme-swatches { margin: 0 !important; height: 13px !important; }
+    .theme-swatches i { border-radius: 3px !important; }
+
+    /* -------------------- mode selector -------------------- */
+    .screen-multiplayer-menu .app-screen-inner { width: min(1080px, calc(100% - 52px)) !important; }
+    .screen-multiplayer-menu .multiplayer-entry-head { margin-bottom: 10px !important; }
+    .mode-showcase-list {
+      display: grid !important;
+      grid-template-columns: 1fr !important;
+      gap: 12px !important;
+      border: 0 !important;
+    }
+    .mode-showcase {
+      min-height: 164px !important;
+      grid-template-columns: minmax(0, 1fr) 330px !important;
+      gap: 28px !important;
+      padding: 20px 22px !important;
+      border: 1px solid color-mix(in srgb, var(--mode-hue) 24%, var(--game-line)) !important;
+      border-radius: 18px !important;
+      background:
+        radial-gradient(circle at 90% 12%, color-mix(in srgb, var(--mode-hue) 10%, transparent), transparent 30%),
+        color-mix(in srgb, var(--game-panel-strong) 92%, transparent) !important;
+      box-shadow: 0 10px 30px color-mix(in srgb, var(--app-shadow) 36%, transparent) !important;
+      overflow: visible !important;
+      transition: border-color 160ms ease, box-shadow 160ms ease, background 160ms ease !important;
+    }
+    .mode-showcase::before {
+      top: 18px !important;
+      bottom: 18px !important;
+      left: 0 !important;
+      width: 4px !important;
+      border-radius: 0 4px 4px 0 !important;
+    }
+    .mode-showcase:hover {
+      transform: none !important;
+      border-color: color-mix(in srgb, var(--mode-hue) 58%, var(--game-line)) !important;
+      box-shadow: 0 14px 34px color-mix(in srgb, var(--mode-hue) 14%, var(--app-shadow)) !important;
+    }
+    .mode-showcase h2 { margin: 4px 0 5px !important; font-size: 30px !important; }
+    .mode-showcase p { font-size: 15px !important; line-height: 1.34 !important; margin-bottom: 8px !important; }
+    .mode-showcase-index { font-size: 11px !important; }
+    .mode-showcase-facts { font-size: 11px !important; }
+    .mode-showcase-action { margin-top: 10px !important; font-size: 13px !important; color: var(--mode-hue) !important; }
+    .mode-showcase-preview {
+      min-height: 124px !important;
+      max-height: none !important;
+      overflow: visible !important;
+      display: flex !important;
+      align-items: center !important;
+      justify-content: center !important;
+      padding: 8px !important;
+      border-radius: 14px !important;
+      background: color-mix(in srgb, var(--mode-hue) 6%, var(--game-panel)) !important;
+    }
+    .mode-showcase .ui-mini-board {
+      width: 116px !important;
+      height: 116px !important;
+      max-height: none !important;
+      border-radius: 10px !important;
+      overflow: hidden !important;
+    }
+    .mode-visual-pair { gap: 12px !important; }
+    .mode-freeplay-visual { gap: 18px !important; }
+    .mode-custom-visual { gap: 12px !important; }
+    .custom-target {
+      min-width: 112px !important;
+      min-height: 88px !important;
+      border: 1px solid color-mix(in srgb, var(--mode-hue) 30%, var(--game-line)) !important;
+      border-radius: 12px !important;
+      background: color-mix(in srgb, var(--mode-hue) 8%, var(--game-panel-strong)) !important;
+    }
+    .mode-showcase:hover .ui-mini-cell.filled {
+      animation: v46-preview-pop 850ms var(--v46-ease) both;
+    }
+    .mode-showcase:hover .ui-mini-cell.filled:nth-child(3n+1) { animation-delay: 35ms; }
+    .mode-showcase:hover .ui-mini-cell.filled:nth-child(3n+2) { animation-delay: 85ms; }
+    .mode-showcase:hover .ui-mini-cell.filled:nth-child(3n) { animation-delay: 135ms; }
+    @keyframes v46-preview-pop {
+      0% { transform: scale(1); }
+      45% { transform: scale(1.07); }
+      100% { transform: scale(1); }
+    }
+    .future-modes-strip { margin-top: 10px !important; }
+
+    /* -------------------- game lobbies -------------------- */
+    .rules-card,
+    .race-box,
+    .waiting-card,
+    .result-box {
+      border: 1px solid color-mix(in srgb, var(--app-accent) 20%, var(--game-line)) !important;
+      border-radius: 18px !important;
+      background:
+        radial-gradient(circle at 100% 0%, color-mix(in srgb, var(--game-accent-2) 7%, transparent), transparent 32%),
+        color-mix(in srgb, var(--game-panel-strong) 92%, transparent) !important;
+      box-shadow: 0 12px 32px color-mix(in srgb, var(--app-shadow) 38%, transparent) !important;
+    }
+    .primary-button,
+    .target-button,
+    .small-button,
+    .result-actions button {
+      border-radius: 11px !important;
+    }
+    .room-input { border-radius: 11px !important; }
+
+    /* -------------------- Solo entry -------------------- */
+    .solo-launch-v43 {
+      max-width: 980px !important;
+      margin: 12px auto 0 !important;
+      gap: 42px !important;
+      align-items: center !important;
+    }
+    .solo-launch-copy h2 { font-size: clamp(42px, 4vw, 58px) !important; line-height: .98 !important; }
+    .solo-launch-stats {
+      gap: 12px !important;
+      border: 0 !important;
+    }
+    .solo-launch-stat {
+      border: 0 !important;
+      border-radius: 14px !important;
+      background: color-mix(in srgb, var(--game-panel-strong) 86%, transparent) !important;
+      box-shadow: 0 8px 22px color-mix(in srgb, var(--app-shadow) 32%, transparent) !important;
+      padding: 14px 16px !important;
+    }
+    .solo-main-action,
+    .solo-text-action { border-radius: 11px !important; }
+    .solo-preview-stage {
+      padding: 14px !important;
+      border-radius: 18px !important;
+      background: color-mix(in srgb, var(--game-panel-strong) 78%, transparent) !important;
+      box-shadow: 0 12px 32px color-mix(in srgb, var(--app-shadow) 36%, transparent) !important;
+    }
+
+    /* -------------------- active Solo: rebuild HUD -------------------- */
+    body.solo-active #solo-toolbar {
+      width: min(860px, calc(100% - 36px)) !important;
+      margin: 0 auto !important;
+      min-height: 62px !important;
+    }
+    .solo-floating-header {
+      width: 100% !important;
+      min-height: 62px !important;
+      padding: 8px 0 10px !important;
+    }
+    .solo-floating-center strong { font-size: 25px !important; }
+
+    body.solo-active .container {
+      width: 500px !important;
+      max-width: 500px !important;
+      margin: 8px auto 0 !important;
+      padding: 0 !important;
+      border: 0 !important;
+      background: transparent !important;
+      box-shadow: none !important;
+    }
+    body.solo-active .container .heading {
+      display: grid !important;
+      grid-template-columns: auto 1fr !important;
+      align-items: center !important;
+      gap: 18px !important;
+      min-height: 78px !important;
+      padding: 0 0 12px !important;
+      border: 0 !important;
+      background: transparent !important;
+    }
+    body.solo-active .container .title {
+      margin: 0 !important;
+      font-size: 46px !important;
+      line-height: 1 !important;
+    }
+    body.solo-active .scores-container {
+      display: grid !important;
+      grid-template-columns: 1fr 1fr !important;
+      gap: 10px !important;
+      width: 100% !important;
+      margin: 0 !important;
+      border: 0 !important;
+      background: transparent !important;
+    }
+    body.solo-active .score-container,
+    body.solo-active .best-container {
+      position: relative !important;
+      display: flex !important;
+      align-items: flex-end !important;
+      justify-content: center !important;
+      width: auto !important;
+      min-width: 0 !important;
+      min-height: 68px !important;
+      padding: 29px 14px 9px !important;
+      border: 1px solid color-mix(in srgb, var(--app-accent) 16%, var(--game-line)) !important;
+      border-radius: 14px !important;
+      background: color-mix(in srgb, var(--game-panel-strong) 86%, transparent) !important;
+      box-shadow: 0 8px 20px color-mix(in srgb, var(--app-shadow) 32%, transparent) !important;
+      color: var(--app-text) !important;
+      font: 900 29px/1 var(--tile-font) !important;
+      text-shadow: none !important;
+    }
+    body.solo-active .score-container::after,
+    body.solo-active .best-container::after {
+      top: 10px !important;
+      left: 0 !important;
+      right: 0 !important;
+      color: var(--app-muted) !important;
+      font: 800 10px/1 var(--hud-display) !important;
+      letter-spacing: .10em !important;
+    }
+    .solo-card-actions {
+      display: flex !important;
+      justify-content: space-between !important;
+      align-items: center !important;
+      margin: 0 0 10px !important;
+      padding: 0 !important;
+      border: 0 !important;
+    }
+    .solo-card-actions .small-button {
+      min-height: 38px !important;
+      padding: 8px 13px !important;
+      border: 1px solid var(--game-line) !important;
+      border-radius: 10px !important;
+      background: color-mix(in srgb, var(--game-panel-strong) 80%, transparent) !important;
+      box-shadow: 0 5px 14px color-mix(in srgb, var(--app-shadow) 26%, transparent) !important;
+    }
+    body.solo-active .game-container {
+      margin: 0 auto !important;
+      border-radius: 14px !important;
+      overflow: hidden !important;
+      box-shadow: 0 14px 32px color-mix(in srgb, var(--app-shadow) 40%, transparent) !important;
+    }
+    #solo-control-strip {
+      margin: 8px 0 0 !important;
+      padding: 7px 0 0 !important;
+      border: 0 !important;
+      color: var(--app-muted) !important;
+    }
+
+    @media (min-width: 901px) {
+      body.solo-active,
+      body.battle-fit-active {
+        height: 100vh !important;
+        overflow: hidden !important;
+      }
+      body.solo-active #game-host,
+      body.solo-active #solo-toolbar,
+      body.solo-active .container { max-height: 100vh !important; }
+      .battle-shell { max-height: 100vh !important; overflow: hidden !important; }
+    }
+
+    @media (min-width: 901px) and (max-height: 820px) {
+      body.solo-active .container { zoom: .88 !important; }
+      body.solo-active #solo-toolbar { min-height: 56px !important; }
+      .screen-multiplayer-menu .mode-showcase { min-height: 145px !important; padding-top: 16px !important; padding-bottom: 16px !important; }
+      .screen-multiplayer-menu .mode-showcase-preview { min-height: 108px !important; }
+      .screen-multiplayer-menu .mode-showcase .ui-mini-board { width: 102px !important; height: 102px !important; }
+    }
+    @media (min-width: 901px) and (max-height: 730px) {
+      body.solo-active .container { zoom: .78 !important; }
+      .screen-multiplayer-menu .mode-showcase { min-height: 126px !important; }
+      .screen-multiplayer-menu .mode-showcase h2 { font-size: 27px !important; }
+      .screen-multiplayer-menu .mode-showcase p { font-size: 14px !important; }
+    }
+
+    @media (max-width: 900px) {
+      .settings-overlay,
+      .game-modal-overlay { overflow-y: auto !important; align-items: flex-start !important; }
+      .settings-dialog.settings-dialog-v40 { max-height: none !important; overflow: visible !important; }
+      .settings-grid-v40 { grid-template-columns: 1fr !important; grid-template-areas: "profile" "controls" "audio" "theme" !important; }
+      .nickname-setting-row { flex-direction: column !important; align-items: stretch !important; }
+      .settings-profile-section .nickname-field { width: 100% !important; max-width: none !important; flex-basis: auto !important; }
+      .control-choice-visual-row { grid-template-columns: 1fr 1fr !important; }
+      .mode-showcase { grid-template-columns: 1fr !important; }
+      .mode-showcase-preview { min-height: 0 !important; }
+      body.solo-active .container { width: min(500px, calc(100% - 18px)) !important; zoom: 1 !important; }
+    }
+  `;
+  document.head.appendChild(v46Style);
 
   restoreGameContainer();
   showMainMenu();
