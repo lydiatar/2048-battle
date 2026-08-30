@@ -2,7 +2,7 @@
   "use strict";
 
   var socket = io("https://two048-battle-oc8k.onrender.com");
-
+window.multiplayerSocket = socket;
   var gameContainer = document.querySelector(".container");
 
   gameContainer.style.display = "none";
@@ -205,4 +205,15 @@
   socket.on("disconnect", function () {
     console.log("Disconnected from 2048 Battle server.");
   });
+  socket.on("gameWinner", function (data) {
+  var message;
+
+  if (data.winner === window.multiplayerPlayerNumber) {
+    message = "YOU WIN! 🎉";
+  } else {
+    message = "YOU LOSE!";
+  }
+
+  alert(message);
+});
 })();
