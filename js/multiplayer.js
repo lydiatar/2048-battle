@@ -14,8 +14,11 @@
 
   var SETTINGS_KEY = "rinas2048.settings";
   var LAST_TARGET_KEY = "rinas2048.lastRaceTarget";
+  var LAST_CUSTOM_HOST_TARGET_KEY = "rinas2048.lastCustomHostTarget";
+  var LAST_CUSTOM_GUEST_TARGET_KEY = "rinas2048.lastCustomGuestTarget";
   var THEMES = ["classic", "pastel", "ocean", "candy", "midnight"];
   var TARGETS = [2048, 4096, 8192];
+  var CUSTOM_TARGETS = [1024, 2048, 4096, 8192, 16384];
 
   function safeStorageGet(key, fallback) {
     try {
@@ -37,24 +40,41 @@
   var currentScreen = "main";
   var currentRoomCode = null;
   var selectedTarget = Number(safeStorageGet(LAST_TARGET_KEY, 2048));
+  var selectedCustomHostTarget = Number(safeStorageGet(LAST_CUSTOM_HOST_TARGET_KEY, 2048));
+  var selectedCustomGuestTarget = Number(safeStorageGet(LAST_CUSTOM_GUEST_TARGET_KEY, 4096));
   var battleShell = null;
   var opponentGrid = null;
   var opponentHighest = null;
   var opponentStatus = null;
-  var ownRescueStatus = null;
   var ownHighestDisplay = null;
+  var ownScoreDisplay = null;
+  var opponentScoreDisplay = null;
+  var ownProgressFill = null;
+  var opponentProgressFill = null;
+  var ownProgressText = null;
+  var opponentProgressText = null;
+  var ownProgressNote = null;
+  var opponentProgressNote = null;
   var ownNicknameDisplay = null;
   var opponentNicknameDisplay = null;
   var ownRankBadge = null;
   var opponentRankBadge = null;
   var latestOpponentState = null;
-  var opponentRescueSeen = false;
   var lastOwnHighest = 0;
+  var lastOwnScore = 0;
   var lastLeaderNumber = null;
   var audioContext = null;
 
   if (TARGETS.indexOf(selectedTarget) === -1) {
     selectedTarget = 2048;
+  }
+
+  if (CUSTOM_TARGETS.indexOf(selectedCustomHostTarget) === -1) {
+    selectedCustomHostTarget = 2048;
+  }
+
+  if (CUSTOM_TARGETS.indexOf(selectedCustomGuestTarget) === -1) {
+    selectedCustomGuestTarget = 4096;
   }
 
   function sanitizeNickname(value) {
@@ -98,7 +118,8 @@
       theme: "classic",
       soloUndo: false,
       soundEffects: true,
-      nickname: ""
+      nickname: "",
+      controlScheme: "arrows"
     };
 
     try {
@@ -116,6 +137,10 @@
 
       if (typeof saved.nickname === "string") {
         defaults.nickname = sanitizeNickname(saved.nickname);
+      }
+
+      if (saved.controlScheme === "wasd" || saved.controlScheme === "arrows") {
+        defaults.controlScheme = saved.controlScheme;
       }
     } catch (error) {
       // Use defaults.
@@ -214,9 +239,7 @@
     } else if (name === "undo") {
       playTone(ctx, 440, 0.09, 0.022, "triangle", 0, 210);
       playTone(ctx, 260, 0.07, 0.014, "sine", 0.045, 170);
-    } else if (name === "rescue") {
-      playTone(ctx, 260, 0.11, 0.026, "sine", 0, 430);
-      playTone(ctx, 520, 0.12, 0.02, "sine", 0.07, 720);
+
     } else if (name === "lead") {
       playTone(ctx, 520, 0.08, 0.02, "sine", 0, 650);
       playTone(ctx, 700, 0.10, 0.022, "sine", 0.06, 840);
@@ -1755,22 +1778,6 @@
       margin: 0 0 12px;
     }
 
-    .rescue-status {
-      display: inline-flex;
-      align-items: center;
-      min-height: 24px;
-      color: var(--app-muted, #8f7a66);
-      font-size: 11px;
-      font-weight: 900;
-      letter-spacing: .45px;
-      margin-top: 7px;
-    }
-
-    .rescue-status.used {
-      color: var(--app-text, #776e65);
-      opacity: .72;
-    }
-
     .battle-room-mini {
       display: inline-flex;
       align-items: center;
@@ -1911,6 +1918,390 @@
 
   document.head.appendChild(style);
 
+
+
+  var v37Style = document.createElement("style");
+  v37Style.textContent = `
+    /* v37: unified Solo card + competitive progress + custom/freeplay */
+    .mode-card.mode-live {
+      border-color: var(--app-accent, #8f7a66);
+    }
+
+    .mode-card .mode-kicker {
+      display: inline-block;
+      margin-top: 10px;
+      font-size: 11px;
+      font-weight: 900;
+      letter-spacing: .65px;
+      text-transform: uppercase;
+      color: var(--app-accent, #8f7a66);
+    }
+
+    .control-choice-row {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 8px;
+      margin-top: 10px;
+    }
+
+    .control-choice {
+      min-height: 46px;
+      border: 2px solid var(--app-border, #ddd3c8);
+      border-radius: 8px;
+      background: var(--app-card, #fff);
+      color: var(--app-text, #776e65);
+      font: inherit;
+      font-weight: 800;
+      cursor: pointer;
+    }
+
+    .control-choice.selected {
+      border-color: var(--app-accent, #8f7a66);
+      background: var(--app-accent, #8f7a66);
+      color: var(--app-on-accent, #fff);
+    }
+
+    .solo-active {
+      background: var(--app-bg, #faf8ef);
+    }
+
+    body.solo-active #game-host {
+      min-height: 100vh;
+      padding: 22px 18px 46px;
+      box-sizing: border-box;
+      background: var(--app-bg, #faf8ef);
+    }
+
+    body.solo-active #solo-toolbar {
+      width: min(760px, calc(100% - 8px));
+      max-width: none;
+      margin: 0 auto 18px;
+      display: block;
+    }
+
+    .solo-floating-header {
+      display: grid;
+      grid-template-columns: 120px 1fr 120px;
+      align-items: center;
+      gap: 12px;
+      min-height: 52px;
+    }
+
+    .solo-floating-center {
+      text-align: center;
+      color: var(--app-text, #776e65);
+    }
+
+    .solo-floating-center strong {
+      display: block;
+      font-size: 24px;
+      line-height: 1.05;
+    }
+
+    .solo-mode-label {
+      display: inline-block;
+      margin-top: 5px;
+      padding: 4px 9px;
+      border-radius: 999px;
+      background: var(--app-soft, #eee4da);
+      color: var(--app-muted, #8f7a66);
+      font-size: 10px;
+      font-weight: 900;
+      letter-spacing: .8px;
+    }
+
+    .solo-floating-right {
+      display: flex;
+      justify-content: flex-end;
+    }
+
+    body.solo-active .container {
+      width: 540px;
+      max-width: calc(100% - 8px);
+      box-sizing: border-box;
+      margin: 0 auto !important;
+      padding: 18px;
+      border: 2px solid var(--app-accent, #8f7a66);
+      border-radius: 16px;
+      background: var(--app-card, #fff);
+      box-shadow: 0 7px 24px var(--app-shadow, rgba(0,0,0,.08));
+    }
+
+    body.solo-active .container .heading {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      margin-bottom: 14px;
+    }
+
+    body.solo-active .container .title {
+      display: block !important;
+      float: none;
+      margin: 0;
+      font-size: 58px;
+      line-height: .95;
+      color: var(--app-text, #776e65);
+    }
+
+    body.solo-active .container .scores-container {
+      float: none;
+      display: flex;
+      gap: 6px;
+    }
+
+    body.solo-active .container .score-container,
+    body.solo-active .container .best-container {
+      margin: 0;
+    }
+
+    .solo-card-actions {
+      display: flex;
+      justify-content: flex-end;
+      gap: 8px;
+      flex-wrap: wrap;
+      margin: 0 0 14px;
+    }
+
+    .solo-card-actions kbd,
+    .freeplay-controls kbd {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      min-width: 22px;
+      height: 22px;
+      margin-left: 5px;
+      padding: 0 5px;
+      box-sizing: border-box;
+      border: 1px solid currentColor;
+      border-radius: 5px;
+      font: inherit;
+      font-size: 10px;
+      opacity: .78;
+    }
+
+    body.solo-active .container .above-game,
+    body.solo-active .container .game-explanation,
+    body.solo-active .container > hr,
+    body.solo-active .container > p {
+      display: none !important;
+    }
+
+    body.solo-active .game-container {
+      margin-top: 0;
+    }
+
+    .battle-mode-title {
+      text-align: center;
+      min-width: 0;
+    }
+
+    .battle-mode-title strong {
+      display: block;
+      font-size: 20px;
+      line-height: 1.05;
+      color: var(--app-text, #776e65);
+    }
+
+    .battle-mode-title span {
+      display: inline-block;
+      margin-top: 5px;
+      font-size: 11px;
+      font-weight: 900;
+      letter-spacing: .7px;
+      text-transform: uppercase;
+      color: var(--app-muted, #8f7a66);
+    }
+
+    .battle-topbar {
+      display: grid;
+      grid-template-columns: 150px 1fr 220px;
+      align-items: center;
+      gap: 12px;
+      margin-bottom: 10px;
+    }
+
+    .battle-topbar-right {
+      display: flex;
+      align-items: center;
+      justify-content: flex-end;
+      gap: 8px;
+      min-width: 0;
+    }
+
+    .battle-room-mini {
+      opacity: .82;
+    }
+
+    .progress-wrap {
+      margin-top: 12px;
+    }
+
+    .progress-track {
+      width: 100%;
+      height: 8px;
+      overflow: hidden;
+      border-radius: 999px;
+      background: var(--app-soft, #eee4da);
+    }
+
+    .progress-fill {
+      width: 0%;
+      height: 100%;
+      border-radius: inherit;
+      background: var(--app-accent, #8f7a66);
+      transition: width 260ms cubic-bezier(.2,.8,.2,1);
+    }
+
+    .progress-meta {
+      display: flex;
+      justify-content: space-between;
+      gap: 10px;
+      margin-top: 6px;
+      color: var(--app-muted, #8f7a66);
+      font-size: 11px;
+      font-weight: 800;
+    }
+
+    .progress-note {
+      min-height: 16px;
+      margin-top: 5px;
+      color: var(--app-accent, #8f7a66);
+      font-size: 10px;
+      font-weight: 900;
+      letter-spacing: .5px;
+      text-transform: uppercase;
+    }
+
+    .stat-pair {
+      display: flex;
+      gap: 6px;
+    }
+
+    .mini-stat {
+      min-width: 70px;
+      padding: 8px 9px;
+      border-radius: 7px;
+      box-sizing: border-box;
+      background: var(--app-stat, #bbada0);
+      color: var(--app-on-accent, #fff);
+      text-align: center;
+      font-weight: bold;
+    }
+
+    .mini-stat span {
+      display: block;
+      font-size: 9px;
+      text-transform: uppercase;
+      letter-spacing: .45px;
+      opacity: .82;
+    }
+
+    .mini-stat strong {
+      display: block;
+      margin-top: 2px;
+      font-size: 18px;
+    }
+
+    .freeplay-controls {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+      margin: 12px 0 0;
+    }
+
+    .custom-target-grid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 14px;
+      margin: 16px 0;
+    }
+
+    .custom-target-panel {
+      padding: 15px;
+      border: 1px solid var(--app-border, #ddd3c8);
+      border-radius: 9px;
+      background: var(--app-soft, #f1ece3);
+    }
+
+    .custom-target-panel h3 {
+      margin: 0 0 5px;
+      font-size: 15px;
+      color: var(--app-text, #776e65);
+    }
+
+    .custom-target-panel p {
+      margin: 0 0 9px;
+      font-size: 12px;
+      color: var(--app-muted, #8f7a66);
+    }
+
+    .freeplay-banner {
+      margin: 0 0 16px;
+      padding: 10px 13px;
+      border-radius: 9px;
+      background: var(--app-soft, #eee4da);
+      color: var(--app-muted, #8f7a66);
+      text-align: center;
+      font-size: 12px;
+      font-weight: 700;
+    }
+
+    @media (max-width: 900px) {
+      .battle-topbar {
+        grid-template-columns: 120px 1fr 170px;
+      }
+    }
+
+    @media (max-width: 620px) {
+      .solo-floating-header {
+        grid-template-columns: 82px 1fr 82px;
+      }
+
+      .solo-floating-center strong {
+        font-size: 20px;
+      }
+
+      body.solo-active .container {
+        padding: 10px;
+      }
+
+      body.solo-active .container .title {
+        font-size: 44px;
+      }
+
+      .battle-topbar {
+        grid-template-columns: 1fr 1fr;
+      }
+
+      .battle-mode-title {
+        grid-column: 1 / -1;
+        grid-row: 1;
+      }
+
+      .battle-topbar > .danger-button {
+        grid-column: 1;
+        grid-row: 2;
+        justify-self: start;
+      }
+
+      .battle-topbar-right {
+        grid-column: 2;
+        grid-row: 2;
+      }
+
+      .battle-room-mini {
+        display: none;
+      }
+
+      .custom-target-grid {
+        grid-template-columns: 1fr;
+      }
+    }
+  `;
+  document.head.appendChild(v37Style);
+
+
   // =========================================================
   // COMMON UI
   // =========================================================
@@ -1919,8 +2310,21 @@
     document.body.classList.remove("solo-active");
   }
 
+  function isTypingTarget(target) {
+    return !!(
+      target &&
+      (
+        target.tagName === "INPUT" ||
+        target.tagName === "TEXTAREA" ||
+        target.tagName === "SELECT" ||
+        target.isContentEditable
+      )
+    );
+  }
+
   function showScreen(title, backHandler, contentHtml) {
     clearModeClasses();
+    restoreGameContainer();
     gameHost.style.display = "none";
     gameContainer.style.display = "none";
     soloToolbar.style.display = "none";
@@ -1944,8 +2348,7 @@
       </div>
     `;
 
-    var settingsButton = document.getElementById("screen-settings");
-    settingsButton.addEventListener("click", openSettings);
+    document.getElementById("screen-settings").addEventListener("click", openSettings);
 
     if (backHandler) {
       document.getElementById("screen-back").addEventListener("click", backHandler);
@@ -2008,11 +2411,7 @@
       }
     }
 
-    document.getElementById("nickname-prompt-save").addEventListener(
-      "click",
-      saveNicknameAndContinue
-    );
-
+    document.getElementById("nickname-prompt-save").addEventListener("click", saveNicknameAndContinue);
     input.addEventListener("keydown", function (event) {
       if (event.key === "Enter") {
         event.preventDefault();
@@ -2078,29 +2477,33 @@
     window.multiplayerProfiles = profiles;
   }
 
+  // =========================================================
+  // MAIN + SOLO
+  // =========================================================
+
   function showMainMenu() {
     window.currentGameMode = "menu";
     window.multiplayerMode = false;
     window.multiplayerMatchActive = false;
     window.multiplayerGameOver = false;
+    window.multiplayerModeName = null;
 
     showScreen(
       "Rina's 2048",
       null,
       `
         <p class="hero-subtitle">Choose how you want to play.</p>
-
         <div class="mode-grid">
           <button class="mode-card" id="choose-solo">
             <span class="mode-icon">🎮</span>
             <h2>Solo 2048</h2>
-            <p>Endless solo play with optional Undo. Reach 2048, then keep climbing to 4096, 8192, and beyond. Your game and records are saved.</p>
+            <p>Endless 2048 with persistent saves, records, and optional single-step Undo.</p>
           </button>
 
           <button class="mode-card" id="choose-multiplayer">
             <span class="mode-icon">👥</span>
             <h2>Multiplayer</h2>
-            <p>Race a friend now, with more multiplayer modes ready to grow later.</p>
+            <p>Compete, play casually side-by-side, or create a handicap race for different skill levels.</p>
           </button>
         </div>
       `
@@ -2122,32 +2525,19 @@
       var hasSave = game.storageManager.hasGameState();
       var best = game.storageManager.getBestScore();
       var highest = game.storageManager.getHighestTileEver();
-      var undoLabel = window.rinasSettings.soloUndo ? "On" : "Off";
-      var undoHelp = window.rinasSettings.soloUndo
-        ? "Use the Undo button or press Z to reverse one move."
-        : "Turn it on in Settings if you want Undo available.";
 
       showScreen(
         "Solo 2048",
         showMainMenu,
         `
           <div class="info-card">
-            Your current Solo game is saved automatically, so you can close the browser or computer and continue later.
-            <br><br>
-            <strong>Endless play:</strong> 2048 is a milestone, not the finish. Continue to 4096, 8192, 16384, and beyond.
-            <br><br>
-            <strong>Undo:</strong> ${undoLabel}. ${undoHelp}
+            Your Solo run saves automatically. 2048 is a milestone, not the finish — continue to 4096, 8192, 16384 and beyond.
+            ${window.rinasSettings.soloUndo ? "<br><br><strong>Undo is On:</strong> one Undo is available after each successful move." : ""}
           </div>
 
           <div class="solo-stats">
-            <div class="stat-card">
-              <span>Best Score</span>
-              <strong>${best}</strong>
-            </div>
-            <div class="stat-card">
-              <span>Highest Tile Ever</span>
-              <strong>${highest || 0}</strong>
-            </div>
+            <div class="stat-card"><span>Best Score</span><strong>${best}</strong></div>
+            <div class="stat-card"><span>Highest Tile Ever</span><strong>${highest || 0}</strong></div>
           </div>
 
           <div class="button-stack">
@@ -2161,18 +2551,8 @@
       var startButton = document.getElementById("start-solo");
       var newButton = document.getElementById("new-solo");
 
-      if (continueButton) {
-        continueButton.addEventListener("click", function () {
-          startSolo(false);
-        });
-      }
-
-      if (startButton) {
-        startButton.addEventListener("click", function () {
-          startSolo(true);
-        });
-      }
-
+      if (continueButton) continueButton.addEventListener("click", function () { startSolo(false); });
+      if (startButton) startButton.addEventListener("click", function () { startSolo(true); });
       if (newButton) {
         newButton.addEventListener("click", function () {
           if (window.confirm("Start a new Solo game? Your current saved board will be replaced.")) {
@@ -2183,11 +2563,63 @@
     });
   }
 
+  function removeSoloActionRow() {
+    var row = document.getElementById("solo-card-actions");
+    if (row) row.remove();
+  }
+
+  function renderSoloChrome() {
+    soloToolbar.innerHTML = `
+      <div class="solo-floating-header">
+        <div><button class="nav-button" id="solo-back">← Back</button></div>
+        <div class="solo-floating-center">
+          <strong>Rina's 2048</strong>
+          <span class="solo-mode-label">SOLO</span>
+        </div>
+        <div class="solo-floating-right">
+          <button class="settings-button" id="solo-settings">⚙️ Settings</button>
+        </div>
+      </div>
+    `;
+
+    soloToolbar.style.display = "block";
+
+    document.getElementById("solo-back").addEventListener("click", showSoloMenu);
+    document.getElementById("solo-settings").addEventListener("click", openSettings);
+
+    removeSoloActionRow();
+
+    var actionRow = document.createElement("div");
+    actionRow.id = "solo-card-actions";
+    actionRow.className = "solo-card-actions";
+    actionRow.innerHTML = `
+      <button class="small-button" id="solo-new">New Game</button>
+      <button class="small-button" id="solo-undo" data-no-ui-sound="true">Undo <kbd>Z</kbd></button>
+    `;
+
+    var board = gameContainer.querySelector(".game-container");
+    gameContainer.insertBefore(actionRow, board);
+
+    document.getElementById("solo-new").addEventListener("click", function () {
+      if (window.confirm("Start a new Solo game?")) {
+        withGame(function (game) { game.restart(); });
+      }
+    });
+
+    document.getElementById("solo-undo").addEventListener("click", function () {
+      withGame(function (game) { game.undo(); });
+    });
+
+    window.refreshSoloControls();
+  }
+
   function startSolo(startNew) {
+    restoreGameContainer();
     window.currentGameMode = "solo";
     window.multiplayerMode = false;
     window.multiplayerMatchActive = false;
     window.multiplayerGameOver = false;
+    window.multiplayerModeName = null;
     window.multiplayerPlayerNumber = null;
 
     appRoot.innerHTML = "";
@@ -2196,23 +2628,16 @@
     gameHost.style.display = "block";
     gameContainer.style.display = "block";
 
-    renderSoloToolbar();
+    renderSoloChrome();
 
     withGame(function (game) {
       game.actuator.continueGame();
 
-      if (startNew) {
-        game.restart();
-      } else {
-        game.setup();
-      }
+      if (startNew) game.restart();
+      else game.setup();
 
       window.refreshSoloControls();
 
-      // If the browser was closed while the 2048 celebration was
-      // waiting for a choice, show it again when the saved Solo
-      // run is resumed. Once Continue is chosen, keepPlaying is
-      // saved and this will not repeat.
       if (
         !startNew &&
         game.won &&
@@ -2225,133 +2650,41 @@
     });
   }
 
-  function renderSoloToolbar() {
-    soloToolbar.innerHTML = `
-      <button class="nav-button" id="solo-back">← Back</button>
-      <div class="solo-toolbar-actions">
-        <button class="small-button" id="solo-undo" data-no-ui-sound="true" title="Undo last move (Z)">↶ Undo</button>
-        <button class="small-button" id="solo-new">New Game</button>
-        <button class="settings-button" id="solo-settings">⚙️ Settings</button>
-      </div>
-      <div class="solo-control-hint" id="solo-control-hint"></div>
-    `;
-
-    soloToolbar.style.display = "flex";
-
-    document.getElementById("solo-back").addEventListener("click", showSoloMenu);
-
-    document.getElementById("solo-new").addEventListener("click", function () {
-      if (window.confirm("Start a new Solo game?")) {
-        withGame(function (game) {
-          game.restart();
-        });
-      }
-    });
-
-    document.getElementById("solo-settings").addEventListener("click", openSettings);
-
-    document.getElementById("solo-undo").addEventListener("click", function () {
-      withGame(function (game) {
-        game.undo();
-      });
-    });
-
-    window.refreshSoloControls();
-  }
-
   window.refreshSoloControls = function () {
     var undoButton = document.getElementById("solo-undo");
-    var controlHint = document.getElementById("solo-control-hint");
 
-    if (!undoButton) {
-      return;
-    }
+    if (!undoButton) return;
 
     if (!window.rinasSettings.soloUndo) {
       undoButton.style.display = "none";
-
-      if (controlHint) {
-        controlHint.innerHTML =
-          "Arrow keys / swipe to move";
-      }
-
       return;
     }
 
-    undoButton.style.display = "inline-block";
-
-    if (controlHint) {
-      controlHint.innerHTML =
-        'Arrow keys / swipe to move &nbsp;·&nbsp; <kbd>Z</kbd> to undo';
-    }
+    undoButton.style.display = "inline-flex";
 
     if (!window.multiplayerGame) {
       undoButton.disabled = true;
       return;
     }
 
-    undoButton.disabled =
-      !!window.multiplayerGame.undoAnimating ||
+    undoButton.disabled = !!window.multiplayerGame.undoAnimating ||
       window.multiplayerGame.storageManager.getUndoStack().length === 0;
   };
 
-  /*
-   * Solo Undo keyboard shortcut.
-   *
-   * Z only performs Undo when Solo Undo is enabled.
-   * There is deliberately NO keyboard shortcut for switching
-   * the Undo setting itself on or off.
-   */
+  // Z is an action only. It never toggles Undo On/Off.
   document.addEventListener("keydown", function (event) {
-    var key = String(event.key || "").toLowerCase();
+    if (String(event.key || "").toLowerCase() !== "z") return;
+    if (event.ctrlKey || event.metaKey || event.altKey || event.shiftKey || event.repeat) return;
+    if (isTypingTarget(event.target)) return;
+    if (document.getElementById("settings-overlay") || document.getElementById("solo-2048-overlay")) return;
 
-    if (key !== "z") {
-      return;
-    }
+    var soloCanUndo = window.currentGameMode === "solo" && window.rinasSettings.soloUndo;
+    var freeplayCanUndo = window.currentGameMode === "multiplayer-freeplay";
 
-    if (
-      event.ctrlKey ||
-      event.metaKey ||
-      event.altKey ||
-      event.shiftKey ||
-      event.repeat
-    ) {
-      return;
-    }
-
-    if (
-      window.currentGameMode !== "solo" ||
-      !window.rinasSettings.soloUndo
-    ) {
-      return;
-    }
-
-    var target = event.target;
-
-    if (
-      target &&
-      (
-        target.tagName === "INPUT" ||
-        target.tagName === "TEXTAREA" ||
-        target.tagName === "SELECT" ||
-        target.isContentEditable
-      )
-    ) {
-      return;
-    }
-
-    if (
-      document.getElementById("settings-overlay") ||
-      document.getElementById("solo-2048-overlay")
-    ) {
-      return;
-    }
+    if (!soloCanUndo && !freeplayCanUndo) return;
 
     event.preventDefault();
-
-    withGame(function (game) {
-      game.undo();
-    });
+    withGame(function (game) { game.undo(); });
   });
 
   // =========================================================
@@ -2359,19 +2692,14 @@
   // =========================================================
 
   window.showSolo2048Milestone = function () {
-    if (window.multiplayerMode || window.currentGameMode !== "solo") {
-      return;
-    }
+    if (window.multiplayerMode || window.currentGameMode !== "solo") return;
 
     var old = document.getElementById("solo-2048-overlay");
-    if (old) {
-      old.remove();
-    }
+    if (old) old.remove();
 
     var overlay = document.createElement("div");
     overlay.id = "solo-2048-overlay";
     overlay.className = "result-overlay";
-
     overlay.innerHTML = `
       <div class="result-box">
         <div class="result-icon">🎉</div>
@@ -2390,15 +2718,7 @@
     document.getElementById("solo-2048-continue").addEventListener("click", function () {
       withGame(function (game) {
         game.keepPlaying = true;
-
-        // Rare edge case: the move that created 2048 can also
-        // leave the board with no legal moves. In that case,
-        // Continue should correctly reveal Solo Game Over rather
-        // than leaving the player on an immovable board.
-        if (!game.movesAvailable()) {
-          game.over = true;
-        }
-
+        if (!game.movesAvailable()) game.over = true;
         game.actuator.continueGame();
         game.actuate();
         overlay.remove();
@@ -2414,30 +2734,14 @@
   };
 
   window.showSoloMilestoneToast = function (tileValue) {
-    if (window.multiplayerMode || window.currentGameMode !== "solo") {
-      return;
-    }
+    if (window.multiplayerMode || window.currentGameMode !== "solo") return;
 
-    var existing = document.getElementById("solo-milestone-toast");
-    if (existing) {
-      existing.remove();
-    }
-
-    var toast = document.createElement("div");
-    toast.id = "solo-milestone-toast";
-    toast.textContent = "✨ " + tileValue + " reached! Keep going.";
-    document.body.appendChild(toast);
+    showBattleToast(tileValue + " reached!");
     playSound("milestone");
-
-    setTimeout(function () {
-      if (toast.parentNode) {
-        toast.remove();
-      }
-    }, 2600);
   };
 
   // =========================================================
-  // MULTIPLAYER MODE MENUS
+  // MULTIPLAYER MENUS
   // =========================================================
 
   function showMultiplayerMenu() {
@@ -2445,7 +2749,7 @@
     window.multiplayerMode = false;
     window.multiplayerMatchActive = false;
     window.multiplayerGameOver = false;
-
+    window.multiplayerModeName = null;
     restoreGameContainer();
 
     showScreen(
@@ -2458,10 +2762,25 @@
         </div>
 
         <div class="mode-grid">
-          <button class="mode-card" id="mode-tile-race">
+          <button class="mode-card mode-live" id="mode-tile-race">
             <span class="mode-icon">🏁</span>
             <h3>Tile Race</h3>
-            <p>First to reach the chosen tile wins. Play to 2048, 4096, or 8192.</p>
+            <p>Pure competitive 2048. First to the target tile wins; a stuck board loses.</p>
+            <span class="mode-kicker">Competitive</span>
+          </button>
+
+          <button class="mode-card mode-live" id="mode-freeplay">
+            <span class="mode-icon">🎮</span>
+            <h3>Freeplay Duel</h3>
+            <p>Relaxed side-by-side play. No winner, no elimination, and one-step Undo after each move.</p>
+            <span class="mode-kicker">Casual</span>
+          </button>
+
+          <button class="mode-card mode-live" id="mode-custom-race">
+            <span class="mode-icon">⚙️</span>
+            <h3>Custom Race</h3>
+            <p>Give each player a different finish tile. Perfect for beginner-vs-expert handicaps.</p>
+            <span class="mode-kicker">Handicap</span>
           </button>
 
           <div class="mode-card coming-soon">
@@ -2469,13 +2788,6 @@
             <span class="mode-icon">🏆</span>
             <h3>Score Sprint</h3>
             <p>First player to reach the target score wins.</p>
-          </div>
-
-          <div class="mode-card coming-soon">
-            <span class="coming-soon-badge">Coming Soon</span>
-            <span class="mode-icon">🎮</span>
-            <h3>Freeplay Duel</h3>
-            <p>Relaxed multiplayer with forgiving rules and no elimination.</p>
           </div>
 
           <div class="mode-card coming-soon">
@@ -2498,99 +2810,27 @@
     document.getElementById("change-nickname").addEventListener("click", function () {
       openNicknamePrompt(showMultiplayerMenu);
     });
-
     document.getElementById("mode-tile-race").addEventListener("click", showTileRaceLobby);
+    document.getElementById("mode-freeplay").addEventListener("click", showFreeplayLobby);
+    document.getElementById("mode-custom-race").addEventListener("click", showCustomRaceLobby);
   }
 
-  function showTileRaceLobby() {
-    window.currentGameMode = "tile-race-lobby";
-    window.multiplayerMode = false;
-    window.multiplayerMatchActive = false;
-    window.multiplayerGameOver = false;
+  function roomJoinMarkup() {
+    return `
+      <div class="race-box">
+        <h2>Join Game</h2>
+        <p>Enter the room code your friend sent you.</p>
+        <input id="room-code" class="room-input" maxlength="6" placeholder="ROOM CODE" autocomplete="off">
+        <button class="primary-button" id="join-room">Join Game</button>
+      </div>
+    `;
+  }
 
-    showScreen(
-      "Tile Race",
-      function () {
-        leaveRoomSilently();
-        showMultiplayerMenu();
-      },
-      `
-        <div class="rules-card">
-          <strong>Tile Race Rules</strong>
-          <ul>
-            <li>First player to reach the room's target tile wins.</li>
-            <li>Each player gets one automatic Rescue.</li>
-            <li>If your board gets stuck, Rescue automatically clears one of your lowest-value tiles.</li>
-            <li>If you get stuck again after Rescue has been used, you're eliminated.</li>
-            <li>Score is not shown and does not decide the winner.</li>
-          </ul>
-        </div>
-
-        <div class="race-columns">
-          <div class="race-box">
-            <h2>Create Race</h2>
-            <p>Choose the target for this room.</p>
-
-            <div class="target-picker" id="target-picker">
-              ${TARGETS.map(function (target) {
-                return '<button class="target-button ' + (target === selectedTarget ? 'selected' : '') + '" data-target="' + target + '">' + target + '</button>';
-              }).join("")}
-            </div>
-
-            <button class="primary-button" id="create-race">Create Game</button>
-          </div>
-
-          <div class="race-box">
-            <h2>Join Race</h2>
-            <p>Enter the room code your friend sent you.</p>
-
-            <input id="room-code" class="room-input" maxlength="6" placeholder="ROOM CODE" autocomplete="off">
-
-            <button class="primary-button" id="join-race">Join Game</button>
-          </div>
-        </div>
-
-        <p class="status-text" id="race-status"></p>
-      `
-    );
-
-    Array.prototype.forEach.call(
-      document.querySelectorAll(".target-button"),
-      function (button) {
-        button.addEventListener("click", function () {
-          selectedTarget = Number(button.getAttribute("data-target"));
-          safeStorageSet(LAST_TARGET_KEY, selectedTarget);
-
-          Array.prototype.forEach.call(
-            document.querySelectorAll(".target-button"),
-            function (other) {
-              other.classList.toggle(
-                "selected",
-                Number(other.getAttribute("data-target")) === selectedTarget
-              );
-            }
-          );
-        });
-      }
-    );
-
-    document.getElementById("create-race").addEventListener("click", function () {
-      var status = document.getElementById("race-status");
-      status.textContent = "Creating room...";
-      this.disabled = true;
-
-      socket.emit("createRoom", {
-        mode: "tile-race",
-        targetTile: selectedTarget,
-        nickname: sanitizeNickname(window.rinasSettings.nickname),
-        theme: window.rinasSettings.theme
-      });
-    });
-
-    document.getElementById("join-race").addEventListener("click", function () {
-      var roomInput = document.getElementById("room-code");
-      var status = document.getElementById("race-status");
-      var code = roomInput.value.trim().toUpperCase();
+  function bindJoinRoom() {
+    document.getElementById("join-room").addEventListener("click", function () {
+      var input = document.getElementById("room-code");
+      var status = document.getElementById("lobby-status");
+      var code = input.value.trim().toUpperCase();
 
       if (code.length !== 6) {
         status.textContent = "Please enter a 6-character room code.";
@@ -2610,23 +2850,219 @@
     });
   }
 
-  function showWaitingRoom(data) {
-    currentRoomCode = data.roomCode;
-    window.multiplayerRoomCode = data.roomCode;
-    selectedTarget = Number(data.targetTile || 2048);
+  function targetButtons(targets, selected, groupClass) {
+    return targets.map(function (target) {
+      return '<button class="target-button ' + groupClass + ' ' + (target === selected ? 'selected' : '') + '" data-target="' + target + '">' + target + '</button>';
+    }).join("");
+  }
+
+  function bindTargetGroup(selector, onSelect) {
+    Array.prototype.forEach.call(document.querySelectorAll(selector), function (button) {
+      button.addEventListener("click", function () {
+        var value = Number(button.getAttribute("data-target"));
+        onSelect(value);
+        Array.prototype.forEach.call(document.querySelectorAll(selector), function (other) {
+          other.classList.toggle("selected", other === button);
+        });
+      });
+    });
+  }
+
+  function showTileRaceLobby() {
+    window.currentGameMode = "tile-race-lobby";
+    window.multiplayerMode = false;
+    window.multiplayerMatchActive = false;
+    window.multiplayerGameOver = false;
 
     showScreen(
       "Tile Race",
-      function () {
-        leaveRoomSilently();
-        showTileRaceLobby();
-      },
+      function () { leaveRoomSilently(); showMultiplayerMenu(); },
       `
-        <div class="race-box" style="max-width:500px;margin:0 auto;text-align:center;">
+        <div class="rules-card">
+          <strong>Tile Race Rules</strong>
+          <ul>
+            <li>First player to make the target tile wins.</li>
+            <li>Both players use standard 2048 rules with no Undo.</li>
+            <li>If your board has no legal moves before you reach the target, you lose.</li>
+            <li>The live race meter shows who is closer to the finish.</li>
+            <li>Score does not decide the winner.</li>
+          </ul>
+        </div>
+
+        <div class="race-columns">
+          <div class="race-box">
+            <h2>Create Race</h2>
+            <p>Choose a shared target.</p>
+            <div class="target-picker" id="target-picker">${targetButtons(TARGETS, selectedTarget, "shared-target")}</div>
+            <button class="primary-button" id="create-room">Create Game</button>
+          </div>
+          ${roomJoinMarkup()}
+        </div>
+        <p class="status-text" id="lobby-status"></p>
+      `
+    );
+
+    bindTargetGroup(".shared-target", function (value) {
+      selectedTarget = value;
+      safeStorageSet(LAST_TARGET_KEY, selectedTarget);
+    });
+
+    document.getElementById("create-room").addEventListener("click", function () {
+      document.getElementById("lobby-status").textContent = "Creating room...";
+      this.disabled = true;
+      socket.emit("createRoom", {
+        mode: "tile-race",
+        targetTile: selectedTarget,
+        nickname: sanitizeNickname(window.rinasSettings.nickname),
+        theme: window.rinasSettings.theme
+      });
+    });
+
+    bindJoinRoom();
+  }
+
+  function showFreeplayLobby() {
+    window.currentGameMode = "freeplay-lobby";
+    window.multiplayerMode = false;
+    window.multiplayerMatchActive = false;
+    window.multiplayerGameOver = false;
+
+    showScreen(
+      "Freeplay Duel",
+      function () { leaveRoomSilently(); showMultiplayerMenu(); },
+      `
+        <div class="rules-card">
+          <strong>Freeplay Rules</strong>
+          <ul>
+            <li>There is no winner and no elimination.</li>
+            <li>Play side-by-side for as long as you like and watch each other's board.</li>
+            <li>Each successful move earns one single-step Undo. Use the Undo button or Z.</li>
+            <li>If your board gets stuck, Undo the last move or restart your own board; your opponent keeps playing.</li>
+            <li>Score and Highest are shown for friendly comparison only.</li>
+          </ul>
+        </div>
+
+        <div class="race-columns">
+          <div class="race-box">
+            <h2>Create Freeplay</h2>
+            <p>Open a relaxed room with no finish line.</p>
+            <button class="primary-button" id="create-room">Create Game</button>
+          </div>
+          ${roomJoinMarkup()}
+        </div>
+        <p class="status-text" id="lobby-status"></p>
+      `
+    );
+
+    document.getElementById("create-room").addEventListener("click", function () {
+      document.getElementById("lobby-status").textContent = "Creating room...";
+      this.disabled = true;
+      socket.emit("createRoom", {
+        mode: "freeplay",
+        nickname: sanitizeNickname(window.rinasSettings.nickname),
+        theme: window.rinasSettings.theme
+      });
+    });
+
+    bindJoinRoom();
+  }
+
+  function showCustomRaceLobby() {
+    window.currentGameMode = "custom-race-lobby";
+    window.multiplayerMode = false;
+    window.multiplayerMatchActive = false;
+    window.multiplayerGameOver = false;
+
+    showScreen(
+      "Custom Race",
+      function () { leaveRoomSilently(); showMultiplayerMenu(); },
+      `
+        <div class="rules-card">
+          <strong>Custom Race</strong>
+          <ul>
+            <li>Each player can have a different target tile.</li>
+            <li>Use a lower target for the newer player and a higher target for the stronger player.</li>
+            <li>First player to reach their own target wins.</li>
+            <li>There is no Undo. If your board gets stuck, you lose.</li>
+            <li>The live meter compares percentage progress toward each player's own target.</li>
+          </ul>
+        </div>
+
+        <div class="race-columns">
+          <div class="race-box">
+            <h2>Create Custom Race</h2>
+            <div class="custom-target-grid">
+              <div class="custom-target-panel">
+                <h3>Your target</h3>
+                <p>Player 1 / room creator</p>
+                <div class="target-picker">${targetButtons(CUSTOM_TARGETS, selectedCustomHostTarget, "host-target")}</div>
+              </div>
+              <div class="custom-target-panel">
+                <h3>Opponent target</h3>
+                <p>Player 2 / person joining</p>
+                <div class="target-picker">${targetButtons(CUSTOM_TARGETS, selectedCustomGuestTarget, "guest-target")}</div>
+              </div>
+            </div>
+            <button class="primary-button" id="create-room">Create Game</button>
+          </div>
+          ${roomJoinMarkup()}
+        </div>
+        <p class="status-text" id="lobby-status"></p>
+      `
+    );
+
+    bindTargetGroup(".host-target", function (value) {
+      selectedCustomHostTarget = value;
+      safeStorageSet(LAST_CUSTOM_HOST_TARGET_KEY, value);
+    });
+    bindTargetGroup(".guest-target", function (value) {
+      selectedCustomGuestTarget = value;
+      safeStorageSet(LAST_CUSTOM_GUEST_TARGET_KEY, value);
+    });
+
+    document.getElementById("create-room").addEventListener("click", function () {
+      document.getElementById("lobby-status").textContent = "Creating room...";
+      this.disabled = true;
+      socket.emit("createRoom", {
+        mode: "custom-race",
+        hostTarget: selectedCustomHostTarget,
+        guestTarget: selectedCustomGuestTarget,
+        nickname: sanitizeNickname(window.rinasSettings.nickname),
+        theme: window.rinasSettings.theme
+      });
+    });
+
+    bindJoinRoom();
+  }
+
+  function modeTitle(mode) {
+    if (mode === "freeplay") return "Freeplay Duel";
+    if (mode === "custom-race") return "Custom Race";
+    return "Tile Race";
+  }
+
+  function backToLobbyForMode(mode) {
+    if (mode === "freeplay") showFreeplayLobby();
+    else if (mode === "custom-race") showCustomRaceLobby();
+    else showTileRaceLobby();
+  }
+
+  function showWaitingRoom(data) {
+    currentRoomCode = data.roomCode;
+    window.multiplayerRoomCode = data.roomCode;
+    var mode = data.mode || "tile-race";
+
+    showScreen(
+      modeTitle(mode),
+      function () { leaveRoomSilently(); backToLobbyForMode(mode); },
+      `
+        <div class="race-box" style="max-width:520px;margin:0 auto;text-align:center;">
           <h2>Room Created</h2>
           <p>Send this code to your opponent:</p>
           <div class="room-code-display">${escapeHtml(data.roomCode)}</div>
-          <p><strong>Target:</strong> ${selectedTarget}</p>
+          ${mode === "tile-race" ? '<p><strong>Target:</strong> ' + Number(data.targetTile || 2048) + '</p>' : ""}
+          ${mode === "custom-race" ? '<p><strong>Your target:</strong> ' + Number(data.ownTarget || 2048) + ' &nbsp;·&nbsp; <strong>Opponent target:</strong> ' + Number(data.opponentTarget || 2048) + '</p>' : ""}
+          ${mode === "freeplay" ? '<p><strong>Mode:</strong> No finish line, no elimination.</p>' : ""}
           <p><strong>Playing as:</strong> ${escapeHtml(sanitizeNickname(window.rinasSettings.nickname) || "Player 1")}</p>
           <p>Waiting for Player 2 to join...</p>
         </div>
@@ -2640,71 +3076,107 @@
 
   function startMultiplayerMatch(data) {
     currentRoomCode = data.roomCode || currentRoomCode;
-
     updateProfiles(data.players || []);
 
-    window.currentGameMode = "multiplayer-tile-race";
+    var mode = data.mode || "tile-race";
+
+    window.currentGameMode = "multiplayer-" + mode;
     window.multiplayerMode = true;
     window.multiplayerMatchActive = true;
     window.multiplayerGameOver = false;
-    window.multiplayerSecondChanceUsed = false;
+    window.multiplayerModeName = mode;
     window.multiplayerPlayerNumber = Number(data.playerNumber);
     window.multiplayerRoomCode = currentRoomCode;
-    window.multiplayerTargetTile = Number(data.targetTile || 2048);
+    window.multiplayerTargetTile = Number(data.targetTile || 0);
+    window.multiplayerOwnTarget = Number(data.ownTarget || data.targetTile || 0);
+    window.multiplayerOpponentTarget = Number(data.opponentTarget || data.targetTile || 0);
 
     appRoot.innerHTML = "";
     gameHost.style.display = "none";
     soloToolbar.style.display = "none";
     clearModeClasses();
+    removeSoloActionRow();
 
     latestOpponentState = null;
-    opponentRescueSeen = false;
     lastOwnHighest = 0;
+    lastOwnScore = 0;
     lastLeaderNumber = null;
 
     withGame(function (game) {
       window.multiplayerAllowRestart = true;
       game.restart();
       window.multiplayerAllowRestart = false;
+      game.freeplayUndoEntry = null;
 
       lastOwnHighest = game.getHighestTileValue();
+      lastOwnScore = game.score;
       createBattleView();
       gameContainer.style.display = "block";
-      updateOwnSecondChanceUI();
-      window.updateRacePosition(lastOwnHighest);
+      window.updateMatchProgress(lastOwnHighest, lastOwnScore);
     });
+  }
+
+  function progressRatio(highest, target) {
+    highest = Math.max(2, Number(highest || 2));
+    target = Math.max(4, Number(target || 2048));
+
+    var currentStep = Math.max(0, Math.log(highest) / Math.LN2 - 1);
+    var totalSteps = Math.max(1, Math.log(target) / Math.LN2 - 1);
+    return Math.max(0, Math.min(1, currentStep / totalSteps));
+  }
+
+  function createProgressHtml(prefix, target) {
+    return `
+      <div class="progress-wrap">
+        <div class="progress-track"><div class="progress-fill" id="${prefix}-progress-fill"></div></div>
+        <div class="progress-meta">
+          <span id="${prefix}-progress-text">2 / ${target}</span>
+          <span>${target}</span>
+        </div>
+        <div class="progress-note" id="${prefix}-progress-note"></div>
+      </div>
+    `;
   }
 
   function createBattleView() {
     removeBattleShell();
 
-    battleShell = document.createElement("div");
-    battleShell.className = "battle-shell";
-
-    var target = Number(window.multiplayerTargetTile || 2048);
+    var mode = window.multiplayerModeName || "tile-race";
+    var isFreeplay = mode === "freeplay";
+    var ownTarget = Number(window.multiplayerOwnTarget || window.multiplayerTargetTile || 2048);
+    var opponentTarget = Number(window.multiplayerOpponentTarget || window.multiplayerTargetTile || 2048);
     var ownName = getOwnNickname();
     var opponentName = getOpponentNickname();
     var opponentProfile = getProfile(getOpponentNumber());
-    var opponentTheme = opponentProfile && THEMES.indexOf(opponentProfile.theme) !== -1
-      ? opponentProfile.theme
-      : "classic";
+    var opponentTheme = opponentProfile && THEMES.indexOf(opponentProfile.theme) !== -1 ? opponentProfile.theme : "classic";
+
+    battleShell = document.createElement("div");
+    battleShell.className = "battle-shell";
+
+    var ruleLine = isFreeplay
+      ? "Relaxed side-by-side play. No winner, no elimination. Undo one move at a time or restart your board whenever you need."
+      : mode === "custom-race"
+        ? "Each player races to their own target. A stuck board loses."
+        : "First to the target tile wins. A stuck board loses.";
 
     battleShell.innerHTML = `
       <div class="battle-topbar">
         <button class="danger-button" id="leave-match">Leave Match</button>
-        <span class="battle-room-mini">Room ${escapeHtml(window.multiplayerRoomCode || "------")}</span>
-        <button class="settings-button" id="battle-settings">⚙️ Settings</button>
+        <div class="battle-mode-title">
+          <strong>Rina's 2048</strong>
+          <span>${escapeHtml(modeTitle(mode))}</span>
+        </div>
+        <div class="battle-topbar-right">
+          <span class="battle-room-mini">Room ${escapeHtml(window.multiplayerRoomCode || "------")}</span>
+          <button class="settings-button" id="battle-settings">⚙️ Settings</button>
+        </div>
       </div>
 
       <div class="battle-heading">
-        <h1>Rina's 2048</h1>
-        <div class="battle-meta">
-          <span class="target-badge">Race to ${target}</span>
-        </div>
-        <p class="battle-rule-line">
-          First to ${target} wins. If you get stuck, Rescue automatically clears one low tile. Get stuck again and you're eliminated.
-        </p>
+        <p class="battle-rule-line">${ruleLine}</p>
       </div>
+
+      ${isFreeplay ? '<div class="freeplay-banner">Play at your own pace. Score and Highest are just for friendly comparison.</div>' : ""}
 
       <div class="battle-layout">
         <section class="battle-player-card own-panel" id="own-panel" aria-label="Your board">
@@ -2713,20 +3185,17 @@
               <h2 class="player-name" id="own-nickname">${escapeHtml(ownName)}</h2>
               <div class="player-subline">
                 <span>You</span>
-                <span class="rank-badge" id="own-rank">TIED</span>
+                ${isFreeplay ? "" : '<span class="rank-badge" id="own-rank">TIED</span>'}
               </div>
-              <div id="own-rescue" class="rescue-status">AUTOMATIC RESCUE: READY</div>
             </div>
-            <div class="highest-box">
-              <span>Highest</span>
-              <strong id="own-highest">${Number(lastOwnHighest || 0)}</strong>
-            </div>
+            ${isFreeplay
+              ? '<div class="stat-pair"><div class="mini-stat"><span>Score</span><strong id="own-score">0</strong></div><div class="mini-stat"><span>Highest</span><strong id="own-highest">' + Number(lastOwnHighest || 0) + '</strong></div></div>'
+              : '<div class="highest-box"><span>Highest</span><strong id="own-highest">' + Number(lastOwnHighest || 0) + '</strong></div>'}
           </div>
+          ${isFreeplay ? "" : createProgressHtml("own", ownTarget)}
         </section>
 
-        <div class="battle-vs" aria-hidden="true">
-          <span>VS</span>
-        </div>
+        <div class="battle-vs" aria-hidden="true"><span>VS</span></div>
 
         <section class="battle-player-card opponent-panel" aria-label="Opponent board">
           <div class="player-card-header">
@@ -2734,15 +3203,14 @@
               <h2 class="player-name" id="opponent-nickname">${escapeHtml(opponentName)}</h2>
               <div class="player-subline">
                 <span>Opponent</span>
-                <span class="rank-badge" id="opponent-rank">TIED</span>
+                ${isFreeplay ? "" : '<span class="rank-badge" id="opponent-rank">TIED</span>'}
               </div>
             </div>
-            <div class="highest-box">
-              <span>Highest</span>
-              <strong id="opponent-highest">0</strong>
-            </div>
+            ${isFreeplay
+              ? '<div class="stat-pair"><div class="mini-stat"><span>Score</span><strong id="opponent-score">0</strong></div><div class="mini-stat"><span>Highest</span><strong id="opponent-highest">0</strong></div></div>'
+              : '<div class="highest-box"><span>Highest</span><strong id="opponent-highest">0</strong></div>'}
           </div>
-
+          ${isFreeplay ? "" : createProgressHtml("opponent", opponentTarget)}
           <div id="opponent-grid" class="opponent-grid" data-theme="${escapeHtml(opponentTheme)}"></div>
           <div id="opponent-status">Waiting for opponent to move...</div>
         </section>
@@ -2754,8 +3222,28 @@
     var ownPanel = document.getElementById("own-panel");
     ownPanel.appendChild(gameContainer);
 
-    ownRescueStatus = document.getElementById("own-rescue");
+    if (isFreeplay) {
+      var controls = document.createElement("div");
+      controls.className = "freeplay-controls";
+      controls.innerHTML = `
+        <button class="small-button" id="freeplay-undo" data-no-ui-sound="true">Undo <kbd>Z</kbd></button>
+        <button class="small-button" id="freeplay-restart">Restart Board</button>
+      `;
+      ownPanel.appendChild(controls);
+
+      document.getElementById("freeplay-undo").addEventListener("click", function () {
+        withGame(function (game) { game.undo(); });
+      });
+      document.getElementById("freeplay-restart").addEventListener("click", function () {
+        if (window.confirm("Restart your Freeplay board? Your opponent will keep playing.")) {
+          restartFreeplayBoard();
+        }
+      });
+    }
+
     ownHighestDisplay = document.getElementById("own-highest");
+    ownScoreDisplay = document.getElementById("own-score");
+    opponentScoreDisplay = document.getElementById("opponent-score");
     ownNicknameDisplay = document.getElementById("own-nickname");
     opponentNicknameDisplay = document.getElementById("opponent-nickname");
     ownRankBadge = document.getElementById("own-rank");
@@ -2763,6 +3251,12 @@
     opponentGrid = document.getElementById("opponent-grid");
     opponentHighest = document.getElementById("opponent-highest");
     opponentStatus = document.getElementById("opponent-status");
+    ownProgressFill = document.getElementById("own-progress-fill");
+    opponentProgressFill = document.getElementById("opponent-progress-fill");
+    ownProgressText = document.getElementById("own-progress-text");
+    opponentProgressText = document.getElementById("opponent-progress-text");
+    ownProgressNote = document.getElementById("own-progress-note");
+    opponentProgressNote = document.getElementById("opponent-progress-note");
 
     for (var i = 0; i < 16; i++) {
       var cell = document.createElement("div");
@@ -2771,92 +3265,67 @@
     }
 
     document.getElementById("leave-match").addEventListener("click", function () {
-      if (window.confirm("Leave this multiplayer match?")) {
-        leaveMultiplayerMatch();
-      }
+      if (window.confirm("Leave this multiplayer room?")) leaveMultiplayerMatch();
     });
-
     document.getElementById("battle-settings").addEventListener("click", openSettings);
 
-    updateOwnSecondChanceUI();
-    window.updateRacePosition(lastOwnHighest);
-
-    if (latestOpponentState) {
-      renderOpponentState(latestOpponentState);
-    }
+    window.refreshFreeplayControls();
+    window.updateMatchProgress(lastOwnHighest, lastOwnScore);
+    if (latestOpponentState) renderOpponentState(latestOpponentState);
   }
 
   function restoreGameContainer() {
     if (gameContainer.parentNode !== gameHost) {
       gameHost.appendChild(gameContainer);
     }
-
     gameContainer.style.display = "none";
     removeBattleShell();
   }
 
   function removeBattleShell() {
-    if (battleShell && battleShell.parentNode) {
-      battleShell.remove();
-    }
-
+    if (battleShell && battleShell.parentNode) battleShell.remove();
     battleShell = null;
     opponentGrid = null;
     opponentHighest = null;
     opponentStatus = null;
-    ownRescueStatus = null;
     ownHighestDisplay = null;
+    ownScoreDisplay = null;
+    opponentScoreDisplay = null;
     ownNicknameDisplay = null;
     opponentNicknameDisplay = null;
     ownRankBadge = null;
     opponentRankBadge = null;
+    ownProgressFill = null;
+    opponentProgressFill = null;
+    ownProgressText = null;
+    opponentProgressText = null;
+    ownProgressNote = null;
+    opponentProgressNote = null;
   }
 
   function leaveRoomSilently() {
-    if (currentRoomCode) {
-      socket.emit("leaveRoom");
-    }
-
+    if (currentRoomCode) socket.emit("leaveRoom");
     currentRoomCode = null;
     window.multiplayerRoomCode = null;
   }
 
   function leaveMultiplayerMatch() {
     socket.emit("leaveRoom");
-
     currentRoomCode = null;
     window.multiplayerRoomCode = null;
     window.multiplayerMode = false;
     window.multiplayerMatchActive = false;
     window.multiplayerGameOver = false;
     window.multiplayerPlayerNumber = null;
-    window.multiplayerSecondChanceUsed = false;
     window.multiplayerProfiles = [];
-
+    window.multiplayerModeName = null;
     restoreGameContainer();
     showMultiplayerMenu();
   }
 
-  function updateOwnSecondChanceUI() {
-    if (!ownRescueStatus) {
-      return;
-    }
-
-    if (window.multiplayerSecondChanceUsed) {
-      ownRescueStatus.textContent = "AUTOMATIC RESCUE: USED";
-      ownRescueStatus.className = "rescue-status used";
-    } else {
-      ownRescueStatus.textContent = "AUTOMATIC RESCUE: READY";
-      ownRescueStatus.className = "rescue-status";
-    }
-  }
-
   function showBattleToast(message) {
     var existing = document.getElementById("battle-toast");
-
-    if (existing) {
-      existing.remove();
-    }
+    if (existing) existing.remove();
 
     var toast = document.createElement("div");
     toast.id = "battle-toast";
@@ -2864,31 +3333,15 @@
     document.body.appendChild(toast);
 
     setTimeout(function () {
-      if (toast.parentNode) {
-        toast.remove();
-      }
+      if (toast.parentNode) toast.remove();
     }, 2200);
   }
 
-  window.showSecondChanceUsed = function (removedValue) {
-    updateOwnSecondChanceUI();
-
-    showBattleToast(
-      removedValue
-        ? "Rescue activated — a " + removedValue + " tile was cleared."
-        : "Rescue activated — one low tile was cleared."
-    );
-  };
-
   function applyRankBadge(badge, text, isFirst) {
-    if (!badge) {
-      return;
-    }
-
+    if (!badge) return;
     var changed = badge.textContent !== text;
     badge.textContent = text;
     badge.classList.toggle("first", !!isFirst);
-
     if (changed) {
       badge.classList.remove("rank-bump");
       void badge.offsetWidth;
@@ -2896,32 +3349,56 @@
     }
   }
 
-  window.updateRacePosition = function (ownHighest) {
-    lastOwnHighest = Number(ownHighest || 0);
+  function setProgress(prefix, highest, target) {
+    var ratio = progressRatio(highest, target);
+    var fill = prefix === "own" ? ownProgressFill : opponentProgressFill;
+    var text = prefix === "own" ? ownProgressText : opponentProgressText;
+    var note = prefix === "own" ? ownProgressNote : opponentProgressNote;
 
-    if (ownHighestDisplay) {
-      ownHighestDisplay.textContent = lastOwnHighest;
+    if (fill) fill.style.width = Math.round(ratio * 100) + "%";
+    if (text) text.textContent = Number(highest || 0) + " / " + target;
+    if (note) {
+      note.textContent = Number(highest || 0) >= target / 2 && Number(highest || 0) < target
+        ? "One merge away"
+        : "";
     }
 
-    var opponentValue = latestOpponentState
-      ? Number(latestOpponentState.highestTile || 0)
-      : 0;
+    return ratio;
+  }
+
+  window.updateMatchProgress = function (ownHighest, ownScore) {
+    lastOwnHighest = Number(ownHighest || 0);
+    lastOwnScore = Number(ownScore || 0);
+
+    if (ownHighestDisplay) ownHighestDisplay.textContent = lastOwnHighest;
+    if (ownScoreDisplay) ownScoreDisplay.textContent = lastOwnScore;
+
+    var mode = window.multiplayerModeName || "tile-race";
+    if (mode === "freeplay") return;
+
+    var ownTarget = Number(window.multiplayerOwnTarget || window.multiplayerTargetTile || 2048);
+    var opponentTarget = Number(window.multiplayerOpponentTarget || window.multiplayerTargetTile || 2048);
+    var ownRatio = setProgress("own", lastOwnHighest, ownTarget);
 
     if (!latestOpponentState) {
+      setProgress("opponent", 0, opponentTarget);
       applyRankBadge(ownRankBadge, "TIED", false);
       applyRankBadge(opponentRankBadge, "TIED", false);
       return;
     }
 
+    var opponentHighestValue = Number(latestOpponentState.highestTile || 0);
+    var opponentRatio = setProgress("opponent", opponentHighestValue, opponentTarget);
     var leaderNumber = 0;
     var ownNumber = Number(window.multiplayerPlayerNumber);
     var opponentNumber = getOpponentNumber();
+    var epsilon = 0.00001;
 
-    if (lastOwnHighest > opponentValue) {
+    if (ownRatio > opponentRatio + epsilon) {
       leaderNumber = ownNumber;
       applyRankBadge(ownRankBadge, "1ST", true);
       applyRankBadge(opponentRankBadge, "2ND", false);
-    } else if (opponentValue > lastOwnHighest) {
+    } else if (opponentRatio > ownRatio + epsilon) {
       leaderNumber = opponentNumber;
       applyRankBadge(ownRankBadge, "2ND", false);
       applyRankBadge(opponentRankBadge, "1ST", true);
@@ -2934,10 +3411,7 @@
       if (leaderNumber === 0) {
         showBattleToast("The race is tied.");
       } else {
-        var leaderName = leaderNumber === ownNumber
-          ? getOwnNickname()
-          : getOpponentNickname();
-
+        var leaderName = leaderNumber === ownNumber ? getOwnNickname() : getOpponentNickname();
         showBattleToast(leaderName + " takes the lead.");
         playSound("lead");
       }
@@ -2947,12 +3421,7 @@
   };
 
   function renderOpponentState(state) {
-    if (!opponentGrid || !state || !state.grid) {
-      return;
-    }
-
-    var oldRescueUsed = opponentRescueSeen;
-    opponentRescueSeen = !!state.secondChanceUsed;
+    if (!opponentGrid || !state || !state.grid) return;
 
     if (state.nickname) {
       updateOneProfile({
@@ -2962,9 +3431,7 @@
       });
     }
 
-    if (opponentNicknameDisplay) {
-      opponentNicknameDisplay.textContent = getOpponentNickname();
-    }
+    if (opponentNicknameDisplay) opponentNicknameDisplay.textContent = getOpponentNickname();
 
     opponentGrid.setAttribute(
       "data-theme",
@@ -2978,64 +3445,37 @@
       for (var x = 0; x < 4; x++) {
         var cellElement = cells[cellIndex];
         var tile = state.grid.cells[x][y];
-
         cellElement.className = "opponent-cell";
         cellElement.textContent = "";
-
         if (tile) {
           cellElement.textContent = tile.value;
           cellElement.className = "opponent-cell has-tile tile-" + tile.value;
         }
-
         cellIndex++;
       }
     }
 
-    opponentHighest.textContent = state.highestTile || 0;
+    if (opponentHighest) opponentHighest.textContent = state.highestTile || 0;
+    if (opponentScoreDisplay) opponentScoreDisplay.textContent = state.score || 0;
 
-    if (!oldRescueUsed && opponentRescueSeen) {
-      showBattleToast(getOpponentNickname() + " used their Rescue.");
-    }
+    if (state.over) opponentStatus.textContent = getOpponentNickname() + "'s board is finished.";
+    else opponentStatus.textContent = getOpponentNickname() + " is playing...";
 
-    if (state.won) {
-      opponentStatus.textContent = getOpponentNickname() + " reached the target!";
-    } else if (state.over) {
-      opponentStatus.textContent = getOpponentNickname() + " has no moves left.";
-    } else {
-      opponentStatus.textContent = getOpponentNickname() + " is playing...";
-    }
-
-    window.updateRacePosition(lastOwnHighest);
+    window.updateMatchProgress(lastOwnHighest, lastOwnScore);
   }
 
   function resetOpponentView() {
     latestOpponentState = null;
-    opponentRescueSeen = false;
     lastLeaderNumber = null;
 
-    if (opponentHighest) {
-      opponentHighest.textContent = "0";
-    }
-
-    if (opponentStatus) {
-      opponentStatus.textContent = "Waiting for opponent to move...";
-    }
-
-    if (opponentNicknameDisplay) {
-      opponentNicknameDisplay.textContent = getOpponentNickname();
-    }
+    if (opponentHighest) opponentHighest.textContent = "0";
+    if (opponentScoreDisplay) opponentScoreDisplay.textContent = "0";
+    if (opponentStatus) opponentStatus.textContent = "Waiting for opponent to move...";
 
     if (opponentGrid) {
       var opponentProfile = getProfile(getOpponentNumber());
-      opponentGrid.setAttribute(
-        "data-theme",
-        opponentProfile && THEMES.indexOf(opponentProfile.theme) !== -1
-          ? opponentProfile.theme
-          : "classic"
-      );
-
+      opponentGrid.setAttribute("data-theme", opponentProfile && THEMES.indexOf(opponentProfile.theme) !== -1 ? opponentProfile.theme : "classic");
       var cells = opponentGrid.children;
-
       for (var i = 0; i < cells.length; i++) {
         cells[i].className = "opponent-cell";
         cells[i].textContent = "";
@@ -3046,33 +3486,99 @@
     applyRankBadge(opponentRankBadge, "TIED", false);
   }
 
+  window.refreshFreeplayControls = function () {
+    var button = document.getElementById("freeplay-undo");
+    if (!button) return;
+
+    button.disabled = !window.multiplayerGame ||
+      !!window.multiplayerGame.undoAnimating ||
+      !window.multiplayerGame.freeplayUndoEntry;
+  };
+
+  function restartFreeplayBoard() {
+    removeFreeplayBoardOver();
+    withGame(function (game) {
+      window.multiplayerAllowRestart = true;
+      game.restart();
+      window.multiplayerAllowRestart = false;
+      game.freeplayUndoEntry = null;
+      window.multiplayerGameOver = false;
+      window.refreshFreeplayControls();
+    });
+  }
+
+  function removeFreeplayBoardOver() {
+    var overlay = document.getElementById("freeplay-board-over");
+    if (overlay) overlay.remove();
+  }
+
+  window.showFreeplayBoardOver = function () {
+    if (window.multiplayerModeName !== "freeplay") return;
+    removeFreeplayBoardOver();
+
+    var overlay = document.createElement("div");
+    overlay.id = "freeplay-board-over";
+    overlay.className = "result-overlay";
+
+    var canUndo = !!(window.multiplayerGame && window.multiplayerGame.freeplayUndoEntry);
+    overlay.innerHTML = `
+      <div class="result-box">
+        <h1>Board Full</h1>
+        <p>Freeplay doesn't eliminate you. Undo the last move or start a fresh board while your opponent keeps playing.</p>
+        <div class="result-actions">
+          ${canUndo ? '<button class="primary-button" id="freeplay-over-undo">Undo Last Move</button>' : ""}
+          <button class="secondary-button" id="freeplay-over-restart">Restart Board</button>
+          <button class="secondary-button" id="freeplay-over-leave">Leave Freeplay</button>
+        </div>
+      </div>
+    `;
+    document.body.appendChild(overlay);
+
+    var undoButton = document.getElementById("freeplay-over-undo");
+    if (undoButton) {
+      undoButton.addEventListener("click", function () {
+        withGame(function (game) {
+          game.undo();
+          overlay.remove();
+        });
+      });
+    }
+
+    document.getElementById("freeplay-over-restart").addEventListener("click", restartFreeplayBoard);
+    document.getElementById("freeplay-over-leave").addEventListener("click", function () {
+      overlay.remove();
+      leaveMultiplayerMatch();
+    });
+  };
+
   // =========================================================
-  // RESULT DIALOGS
+  // RESULTS
   // =========================================================
 
   function removeResultOverlay() {
     var existing = document.getElementById("result-overlay");
-    if (existing) {
-      existing.remove();
-    }
+    if (existing) existing.remove();
   }
 
   function showMatchResult(data) {
     removeResultOverlay();
-
     window.multiplayerGameOver = true;
 
-    var didWin = data.winner === window.multiplayerPlayerNumber;
-    var target = Number(data.targetTile || window.multiplayerTargetTile || 2048);
+    var didWin = Number(data.winner) === Number(window.multiplayerPlayerNumber);
+    var mode = data.mode || window.multiplayerModeName || "tile-race";
+    var opponentName = getOpponentNickname();
     var description;
 
-    var opponentName = getOpponentNickname();
-
-    if (data.reason === "elimination") {
+    if (data.reason === "board-stuck") {
       description = didWin
-        ? opponentName + " ran out of moves after using their Rescue."
-        : "You ran out of moves after using your Rescue.";
+        ? opponentName + " ran out of legal moves."
+        : "Your board ran out of legal moves.";
+    } else if (mode === "custom-race") {
+      description = didWin
+        ? "You reached your target of " + Number(window.multiplayerOwnTarget || 2048) + " first!"
+        : opponentName + " reached their target of " + Number(window.multiplayerOpponentTarget || 2048) + " first.";
     } else {
+      var target = Number(window.multiplayerTargetTile || 2048);
       description = didWin
         ? "You were first to reach " + target + "!"
         : opponentName + " reached " + target + " first.";
@@ -3081,7 +3587,6 @@
     var overlay = document.createElement("div");
     overlay.id = "result-overlay";
     overlay.className = "result-overlay";
-
     overlay.innerHTML = `
       <div class="result-box">
         <div class="result-icon">${didWin ? "🏆" : "💥"}</div>
@@ -3102,7 +3607,6 @@
       this.textContent = "Waiting...";
       socket.emit("requestRematch");
     });
-
     document.getElementById("result-back").addEventListener("click", function () {
       removeResultOverlay();
       leaveMultiplayerMatch();
@@ -3111,24 +3615,21 @@
 
   function showOpponentLeft() {
     removeResultOverlay();
+    removeFreeplayBoardOver();
     window.multiplayerGameOver = true;
     window.multiplayerMatchActive = false;
 
     var overlay = document.createElement("div");
     overlay.id = "result-overlay";
     overlay.className = "result-overlay";
-
     overlay.innerHTML = `
       <div class="result-box">
         <div class="result-icon">👋</div>
-        <h1>Match Ended</h1>
+        <h1>Room Ended</h1>
         <p>${escapeHtml(getOpponentNickname())} left the room.</p>
-        <div class="result-actions">
-          <button class="primary-button" id="opponent-left-back">Back to Multiplayer</button>
-        </div>
+        <div class="result-actions"><button class="primary-button" id="opponent-left-back">Back to Multiplayer</button></div>
       </div>
     `;
-
     document.body.appendChild(overlay);
 
     document.getElementById("opponent-left-back").addEventListener("click", function () {
@@ -3137,6 +3638,7 @@
       window.multiplayerRoomCode = null;
       window.multiplayerMode = false;
       window.multiplayerGameOver = false;
+      window.multiplayerModeName = null;
       restoreGameContainer();
       showMultiplayerMenu();
     });
@@ -3166,14 +3668,11 @@
 
   function openSettings() {
     var old = document.getElementById("settings-overlay");
-    if (old) {
-      old.remove();
-    }
+    if (old) old.remove();
 
     var overlay = document.createElement("div");
     overlay.id = "settings-overlay";
     overlay.className = "settings-overlay";
-
     overlay.innerHTML = `
       <div class="settings-dialog">
         <div class="settings-dialog-header">
@@ -3183,31 +3682,26 @@
 
         <div class="settings-section">
           <h3>Multiplayer Nickname</h3>
-          <p class="settings-help">The name your opponent sees during multiplayer. Maximum 16 characters.</p>
-          <input
-            id="settings-nickname"
-            class="nickname-field"
-            type="text"
-            maxlength="16"
-            autocomplete="nickname"
-            placeholder="Nickname"
-            value="${escapeHtml(window.rinasSettings.nickname || "")}"
-          >
+          <p class="settings-help">The name your opponent sees. Maximum 16 characters.</p>
+          <input id="settings-nickname" class="nickname-field" type="text" maxlength="16" autocomplete="nickname" placeholder="Nickname" value="${escapeHtml(window.rinasSettings.nickname || "")}">
         </div>
 
         <div class="settings-section">
           <h3>Theme</h3>
-          <p class="settings-help">Changes the whole app: background, menus, board, controls, and tiles. Your choice is saved on this browser. In multiplayer, your opponent can see your chosen board and tile theme on your mini board.</p>
-
+          <p class="settings-help">Changes the whole app. In multiplayer, your opponent sees your board in your chosen theme.</p>
           <div class="theme-grid">
             ${THEMES.map(function (theme) {
-              return `
-                <button class="theme-choice ${theme === window.rinasSettings.theme ? "selected" : ""}" data-theme="${theme}">
-                  ${prettyThemeName(theme)}
-                  <span class="theme-swatches">${themePreview(theme)}</span>
-                </button>
-              `;
+              return '<button class="theme-choice ' + (theme === window.rinasSettings.theme ? 'selected' : '') + '" data-theme="' + theme + '">' + prettyThemeName(theme) + '<span class="theme-swatches">' + themePreview(theme) + '</span></button>';
             }).join("")}
+          </div>
+        </div>
+
+        <div class="settings-section">
+          <h3>Movement Controls</h3>
+          <p class="settings-help">Choose one keyboard movement scheme. Swipe still works automatically on touch devices.</p>
+          <div class="control-choice-row">
+            <button class="control-choice ${window.rinasSettings.controlScheme === "arrows" ? "selected" : ""}" data-controls="arrows">Arrow Keys</button>
+            <button class="control-choice ${window.rinasSettings.controlScheme === "wasd" ? "selected" : ""}" data-controls="wasd">WASD</button>
           </div>
         </div>
 
@@ -3215,13 +3709,9 @@
           <div class="toggle-row">
             <div>
               <h3>Sound Effects</h3>
-              <p class="settings-help">
-                Plays subtle sounds for moves, merges, Undo, Rescue, lead changes, menus, and results.
-              </p>
+              <p class="settings-help">Subtle sounds for movement, merges, Undo, menus, lead changes, milestones, and results.</p>
             </div>
-            <button id="sound-effects-toggle" class="toggle-button ${window.rinasSettings.soundEffects ? "on" : "off"}">
-              ${window.rinasSettings.soundEffects ? "ON" : "OFF"}
-            </button>
+            <button id="sound-effects-toggle" class="toggle-button ${window.rinasSettings.soundEffects ? "on" : "off"}">${window.rinasSettings.soundEffects ? "ON" : "OFF"}</button>
           </div>
         </div>
 
@@ -3229,41 +3719,20 @@
           <div class="toggle-row">
             <div>
               <h3>Solo Undo</h3>
-              <p class="settings-help">
-                When On, Solo mode lets you undo repeatedly with the on-screen Undo button or the Z key.
-                Multiplayer modes ignore this setting. There is no keyboard shortcut for turning Undo on or off.
-              </p>
+              <p class="settings-help">When On, each successful Solo move earns one Undo. After you Undo, make another forward move before Undo is available again. Use the button or Z.</p>
             </div>
-            <button id="solo-undo-toggle" class="toggle-button ${window.rinasSettings.soloUndo ? "on" : "off"}">
-              ${window.rinasSettings.soloUndo ? "ON" : "OFF"}
-            </button>
+            <button id="solo-undo-toggle" class="toggle-button ${window.rinasSettings.soloUndo ? "on" : "off"}">${window.rinasSettings.soloUndo ? "ON" : "OFF"}</button>
           </div>
         </div>
 
-        <div style="margin-top:24px;text-align:right;">
-          <button class="primary-button" id="settings-done">Done</button>
-        </div>
+        <div style="margin-top:24px;text-align:right;"><button class="primary-button" id="settings-done">Done</button></div>
       </div>
     `;
 
     document.body.appendChild(overlay);
-
-    function close() {
-      overlay.remove();
-    }
-
-    document.getElementById("close-settings").addEventListener("click", close);
-    document.getElementById("settings-done").addEventListener("click", close);
-
-    overlay.addEventListener("click", function (event) {
-      if (event.target === overlay) {
-        close();
-      }
-    });
-
     var nicknameInput = document.getElementById("settings-nickname");
 
-    nicknameInput.addEventListener("change", function () {
+    function saveNickname() {
       window.rinasSettings.nickname = sanitizeNickname(nicknameInput.value);
       nicknameInput.value = window.rinasSettings.nickname;
       saveSettings();
@@ -3273,79 +3742,71 @@
           nickname: window.rinasSettings.nickname,
           theme: window.rinasSettings.theme
         });
-
         updateOneProfile({
           playerNumber: window.multiplayerPlayerNumber,
           nickname: window.rinasSettings.nickname,
           theme: window.rinasSettings.theme
         });
-
-        if (ownNicknameDisplay) {
-          ownNicknameDisplay.textContent = getOwnNickname();
-        }
+        if (ownNicknameDisplay) ownNicknameDisplay.textContent = getOwnNickname();
       }
+    }
+
+    function close() {
+      saveNickname();
+      overlay.remove();
+    }
+
+    document.getElementById("close-settings").addEventListener("click", close);
+    document.getElementById("settings-done").addEventListener("click", close);
+    overlay.addEventListener("click", function (event) { if (event.target === overlay) close(); });
+    nicknameInput.addEventListener("change", saveNickname);
+
+    Array.prototype.forEach.call(overlay.querySelectorAll(".control-choice"), function (button) {
+      button.addEventListener("click", function () {
+        window.rinasSettings.controlScheme = button.getAttribute("data-controls");
+        saveSettings();
+        Array.prototype.forEach.call(overlay.querySelectorAll(".control-choice"), function (other) {
+          other.classList.toggle("selected", other === button);
+        });
+      });
     });
 
     document.getElementById("sound-effects-toggle").addEventListener("click", function () {
       window.rinasSettings.soundEffects = !window.rinasSettings.soundEffects;
       saveSettings();
-
       this.className = "toggle-button " + (window.rinasSettings.soundEffects ? "on" : "off");
       this.textContent = window.rinasSettings.soundEffects ? "ON" : "OFF";
-
-      if (window.rinasSettings.soundEffects) {
-        playSound("ui");
-      }
+      if (window.rinasSettings.soundEffects) playSound("ui");
     });
 
-    Array.prototype.forEach.call(
-      overlay.querySelectorAll(".theme-choice"),
-      function (button) {
-        button.addEventListener("click", function () {
-          var theme = button.getAttribute("data-theme");
-          window.rinasSettings.theme = theme;
-          saveSettings();
-          applyTheme(theme);
+    Array.prototype.forEach.call(overlay.querySelectorAll(".theme-choice"), function (button) {
+      button.addEventListener("click", function () {
+        var theme = button.getAttribute("data-theme");
+        window.rinasSettings.theme = theme;
+        saveSettings();
+        applyTheme(theme);
 
-          Array.prototype.forEach.call(
-            overlay.querySelectorAll(".theme-choice"),
-            function (other) {
-              other.classList.toggle(
-                "selected",
-                other.getAttribute("data-theme") === theme
-              );
-            }
-          );
-
-          if (window.multiplayerGame && window.multiplayerMatchActive) {
-            socket.emit("updateProfile", {
-              nickname: window.rinasSettings.nickname,
-              theme: theme
-            });
-
-            updateOneProfile({
-              playerNumber: window.multiplayerPlayerNumber,
-              nickname: window.rinasSettings.nickname,
-              theme: theme
-            });
-
-            window.multiplayerGame.actuate();
-          }
+        Array.prototype.forEach.call(overlay.querySelectorAll(".theme-choice"), function (other) {
+          other.classList.toggle("selected", other.getAttribute("data-theme") === theme);
         });
-      }
-    );
+
+        if (window.multiplayerGame && window.multiplayerMatchActive) {
+          socket.emit("updateProfile", { nickname: window.rinasSettings.nickname, theme: theme });
+          updateOneProfile({ playerNumber: window.multiplayerPlayerNumber, nickname: window.rinasSettings.nickname, theme: theme });
+          window.multiplayerGame.actuate();
+        }
+      });
+    });
 
     document.getElementById("solo-undo-toggle").addEventListener("click", function () {
       window.rinasSettings.soloUndo = !window.rinasSettings.soloUndo;
       saveSettings();
-
       this.className = "toggle-button " + (window.rinasSettings.soloUndo ? "on" : "off");
       this.textContent = window.rinasSettings.soloUndo ? "ON" : "OFF";
 
       if (!window.rinasSettings.soloUndo && window.multiplayerGame && !window.multiplayerMode) {
         window.multiplayerGame.storageManager.clearUndoStack();
       }
-
       window.refreshSoloControls();
     });
   }
@@ -3364,21 +3825,12 @@
   });
 
   socket.on("joinError", function (message) {
-    var status = document.getElementById("race-status");
-    var joinButton = document.getElementById("join-race");
-    var createButton = document.getElementById("create-race");
-
-    if (status) {
-      status.textContent = message;
-    }
-
-    if (joinButton) {
-      joinButton.disabled = false;
-    }
-
-    if (createButton) {
-      createButton.disabled = false;
-    }
+    var status = document.getElementById("lobby-status");
+    var joinButton = document.getElementById("join-room");
+    var createButton = document.getElementById("create-room");
+    if (status) status.textContent = message;
+    if (joinButton) joinButton.disabled = false;
+    if (createButton) createButton.disabled = false;
   });
 
   socket.on("gameStart", function (data) {
@@ -3395,32 +3847,18 @@
     updateOneProfile(profile);
 
     if (Number(profile.playerNumber) === Number(window.multiplayerPlayerNumber)) {
-      if (ownNicknameDisplay) {
-        ownNicknameDisplay.textContent = getOwnNickname();
-      }
+      if (ownNicknameDisplay) ownNicknameDisplay.textContent = getOwnNickname();
     } else {
-      if (opponentNicknameDisplay) {
-        opponentNicknameDisplay.textContent = getOpponentNickname();
-      }
-
-      if (
-        opponentGrid &&
-        THEMES.indexOf(profile.theme) !== -1
-      ) {
-        opponentGrid.setAttribute("data-theme", profile.theme);
-      }
+      if (opponentNicknameDisplay) opponentNicknameDisplay.textContent = getOpponentNickname();
+      if (opponentGrid && THEMES.indexOf(profile.theme) !== -1) opponentGrid.setAttribute("data-theme", profile.theme);
     }
   });
 
-  socket.on("gameWinner", function (data) {
-    showMatchResult(data);
-  });
+  socket.on("gameWinner", function (data) { showMatchResult(data); });
 
   socket.on("rematchWaiting", function () {
     var button = document.getElementById("result-rematch");
-    if (button) {
-      button.textContent = "Waiting for opponent...";
-    }
+    if (button) button.textContent = "Waiting for opponent...";
   });
 
   socket.on("rematchStart", function (data) {
@@ -3430,34 +3868,31 @@
     window.multiplayerMode = true;
     window.multiplayerMatchActive = true;
     window.multiplayerGameOver = false;
-    window.multiplayerSecondChanceUsed = false;
-    window.multiplayerTargetTile = Number(data.targetTile || window.multiplayerTargetTile || 2048);
+    window.multiplayerModeName = data.mode || window.multiplayerModeName;
+    window.multiplayerTargetTile = Number(data.targetTile || 0);
+    window.multiplayerOwnTarget = Number(data.ownTarget || data.targetTile || window.multiplayerOwnTarget || 0);
+    window.multiplayerOpponentTarget = Number(data.opponentTarget || data.targetTile || window.multiplayerOpponentTarget || 0);
 
     resetOpponentView();
-    updateOwnSecondChanceUI();
 
     withGame(function (game) {
       window.multiplayerAllowRestart = true;
       game.restart();
       window.multiplayerAllowRestart = false;
+      game.freeplayUndoEntry = null;
       lastOwnHighest = game.getHighestTileValue();
-      window.updateRacePosition(lastOwnHighest);
+      lastOwnScore = game.score;
+      window.updateMatchProgress(lastOwnHighest, lastOwnScore);
     });
   });
 
   socket.on("opponentLeftMatch", function () {
-    if (window.multiplayerMatchActive || currentRoomCode) {
-      showOpponentLeft();
-    }
+    if (window.multiplayerMatchActive || currentRoomCode) showOpponentLeft();
   });
 
   socket.on("disconnect", function () {
     console.log("Disconnected from Rina's 2048 server.");
   });
-
-  // =========================================================
-  // START APP
-  // =========================================================
 
   restoreGameContainer();
   showMainMenu();
