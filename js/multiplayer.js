@@ -161,31 +161,42 @@
     socket.emit("joinRoom", roomCode);
   });
 
-  socket.on("roomCreated", function (roomCode) {
-    status.innerHTML =
-      "Your room code is:<br>" +
-      "<strong style=\"font-size: 32px; letter-spacing: 5px;\">" +
-      roomCode +
-      "</strong><br><br>" +
-      "Send this code to your opponent.<br>" +
-      "Waiting for them to join...";
+ socket.on("roomCreated", function (data) {
+  var roomCode = data.roomCode;
 
-    createButton.disabled = true;
-  });
+  window.multiplayerPlayerNumber = data.playerNumber;
+  window.multiplayerRoomCode = roomCode;
+
+  status.innerHTML =
+    "Your room code is:<br>" +
+    "<strong style=\"font-size: 32px; letter-spacing: 5px;\">" +
+    roomCode +
+    "</strong><br><br>" +
+    "You are Player 1.<br>" +
+    "Send this code to your opponent.<br>" +
+    "Waiting for them to join...";
+
+  createButton.disabled = true;
+});
 
   socket.on("joinError", function (message) {
     status.textContent = message;
     joinButton.disabled = false;
   });
 
-  socket.on("gameStart", function () {
-    status.textContent = "Opponent found! Starting game...";
+  socket.on("gameStart", function (data) {
+  window.multiplayerPlayerNumber = data.playerNumber;
 
-    setTimeout(function () {
-      lobby.style.display = "none";
-      gameContainer.style.display = "";
-    }, 1000);
-  });
+  status.textContent =
+    "Opponent found! You are Player " +
+    data.playerNumber +
+    ". Starting game...";
+
+  setTimeout(function () {
+    lobby.style.display = "none";
+    gameContainer.style.display = "";
+  }, 1000);
+});
 
   socket.on("connect", function () {
     console.log("Connected to 2048 Battle server.");
