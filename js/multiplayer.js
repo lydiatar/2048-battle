@@ -336,6 +336,55 @@
       "width: 500px;" +
       "max-width: 100%;" +
     "}";
+   "#battle-result {" +
+      "position: fixed;" +
+      "inset: 0;" +
+      "z-index: 9999;" +
+      "display: flex;" +
+      "align-items: center;" +
+      "justify-content: center;" +
+      "background: rgba(250,248,239,0.94);" +
+      "padding: 20px;" +
+      "box-sizing: border-box;" +
+    "}" +
+
+    ".battle-result-box {" +
+      "width: 100%;" +
+      "max-width: 440px;" +
+      "background: white;" +
+      "border-radius: 14px;" +
+      "padding: 45px 30px;" +
+      "text-align: center;" +
+      "box-shadow: 0 10px 40px rgba(0,0,0,0.15);" +
+    "}" +
+
+    ".battle-result-icon {" +
+      "font-size: 65px;" +
+      "margin-bottom: 10px;" +
+    "}" +
+
+    ".battle-result-box h1 {" +
+      "font-size: 46px;" +
+      "margin: 0 0 15px;" +
+      "color: #776e65;" +
+    "}" +
+
+    ".battle-result-box p {" +
+      "font-size: 19px;" +
+      "margin-bottom: 28px;" +
+      "color: #776e65;" +
+    "}" +
+
+    "#battle-back-lobby {" +
+      "border: 0;" +
+      "border-radius: 6px;" +
+      "padding: 14px 24px;" +
+      "background: #8f7a66;" +
+      "color: white;" +
+      "font-size: 18px;" +
+      "font-weight: bold;" +
+      "cursor: pointer;" +
+    "}" +
     "@media (max-width: 1050px) {" +
       ".battle-layout {" +
         "flex-direction: column;" +
@@ -579,19 +628,44 @@ if (restartButton) {
     }
   });
 
-  socket.on("gameWinner", function (data) {
-    var message;
+socket.on("gameWinner", function (data) {
+  window.multiplayerGameOver = true;
 
-    if (
-      data.winner === window.multiplayerPlayerNumber
-    ) {
-      message = "YOU WIN! 🎉";
-    } else {
-      message = "YOU LOSE!";
-    }
+  var didWin =
+    data.winner === window.multiplayerPlayerNumber;
 
-    alert(message);
-  });
+  var overlay = document.createElement("div");
+  overlay.id = "battle-result";
+
+  overlay.innerHTML =
+    '<div class="battle-result-box">' +
+      '<div class="battle-result-icon">' +
+        (didWin ? "🏆" : "💥") +
+      '</div>' +
+
+      '<h1>' +
+        (didWin ? "YOU WIN!" : "YOU LOSE") +
+      '</h1>' +
+
+      '<p>' +
+        (didWin
+          ? "You were first to reach 2048!"
+          : "Your opponent reached 2048 first.") +
+      '</p>' +
+
+      '<button id="battle-back-lobby">' +
+        'Back to Lobby' +
+      '</button>' +
+    '</div>';
+
+  document.body.appendChild(overlay);
+
+  document
+    .getElementById("battle-back-lobby")
+    .addEventListener("click", function () {
+      window.location.reload();
+    });
+});
 
   socket.on("connect", function () {
     console.log(
