@@ -49,7 +49,10 @@ LocalStorageManager.prototype.setBestScore = function (score) {
 };
 
 // Game state getters/setters and clearing
-LocalStorageManager.prototype.getGameState = function () {
+f (window.multiplayerMode) {
+    return null;
+  }
+
   var stateJSON = this.storage.getItem(this.gameStateKey);
   return stateJSON ? JSON.parse(stateJSON) : null;
 };
