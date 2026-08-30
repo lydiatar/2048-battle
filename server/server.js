@@ -177,9 +177,53 @@ io.on("connection", (socket) => {
         roomCode
       );
 
-      io.to(roomCode).emit("gameWinner", {
-        winner: playerNumber
-      });
+    io.to(roomCode).emit("gameWinner", {
+  winner: playerNumber,
+  reason: "2048"
+});
+socket.on("playerEliminated", () => {
+  for (const [roomCode, room] of rooms.entries()) {
+    if (!room.players.includes(socket.id)) {
+      continue;
+    }
+
+    if (room.status !== "playing") {
+      return;
+    }
+
+    if (room.winner !== null) {
+      return;
+    }
+
+    if (room.players.length < 2) {
+      return;
+    }
+
+    var loserNumber =
+      room.players.indexOf(socket.id) + 1;
+
+    var winnerNumber =
+      loserNumber === 1 ? 2 : 1;
+
+    room.winner = winnerNumber;
+    room.status = "finished";
+
+    console.log(
+      "Player",
+      loserNumber,
+      "was eliminated in room",
+      roomCode
+    );
+
+    io.to(roomCode).emit("gameWinner", {
+      winner: winnerNumber,
+      loser: loserNumber,
+      reason: "elimination"
+    });
+
+    return;
+  }
+});
 
       return;
     }
