@@ -627,46 +627,94 @@ if (restartButton) {
         "Opponent disconnected.";
     }
   });
-
 socket.on("gameWinner", function (data) {
   window.multiplayerGameOver = true;
 
   var didWin =
     data.winner === window.multiplayerPlayerNumber;
 
+  // Prevent duplicate result screens.
+  var oldResult = document.getElementById("battle-result");
+
+  if (oldResult) {
+    oldResult.remove();
+  }
+
   var overlay = document.createElement("div");
   overlay.id = "battle-result";
 
-  overlay.innerHTML =
-    '<div class="battle-result-box">' +
-      '<div class="battle-result-icon">' +
-        (didWin ? "🏆" : "💥") +
-      '</div>' +
+  overlay.style.position = "fixed";
+  overlay.style.top = "0";
+  overlay.style.left = "0";
+  overlay.style.right = "0";
+  overlay.style.bottom = "0";
+  overlay.style.zIndex = "99999";
+  overlay.style.display = "flex";
+  overlay.style.alignItems = "center";
+  overlay.style.justifyContent = "center";
+  overlay.style.background = "rgba(40, 36, 32, 0.72)";
+  overlay.style.padding = "20px";
+  overlay.style.boxSizing = "border-box";
 
-      '<h1>' +
-        (didWin ? "YOU WIN!" : "YOU LOSE") +
-      '</h1>' +
+  var box = document.createElement("div");
 
-      '<p>' +
-        (didWin
-          ? "You were first to reach 2048!"
-          : "Your opponent reached 2048 first.") +
-      '</p>' +
+  box.style.width = "100%";
+  box.style.maxWidth = "420px";
+  box.style.background = "#faf8ef";
+  box.style.borderRadius = "12px";
+  box.style.padding = "42px 30px";
+  box.style.boxSizing = "border-box";
+  box.style.textAlign = "center";
+  box.style.boxShadow = "0 16px 50px rgba(0,0,0,0.30)";
+  box.style.fontFamily =
+    '"Clear Sans", "Helvetica Neue", Arial, sans-serif';
+  box.style.color = "#776e65";
 
-      '<button id="battle-back-lobby">' +
-        'Back to Lobby' +
-      '</button>' +
-    '</div>';
+  var icon = document.createElement("div");
+  icon.textContent = didWin ? "🏆" : "💥";
+  icon.style.fontSize = "64px";
+  icon.style.marginBottom = "12px";
 
+  var title = document.createElement("h1");
+  title.textContent = didWin ? "YOU WIN!" : "YOU LOSE";
+  title.style.fontSize = "44px";
+  title.style.margin = "0 0 14px";
+  title.style.color = "#776e65";
+
+  var description = document.createElement("p");
+  description.textContent = didWin
+    ? "You were first to reach 2048!"
+    : "Your opponent reached 2048 first.";
+
+  description.style.fontSize = "18px";
+  description.style.lineHeight = "1.5";
+  description.style.margin = "0 0 28px";
+
+  var button = document.createElement("button");
+  button.textContent = "Back to Lobby";
+
+  button.style.border = "0";
+  button.style.borderRadius = "6px";
+  button.style.padding = "14px 24px";
+  button.style.background = "#8f7a66";
+  button.style.color = "#ffffff";
+  button.style.fontSize = "17px";
+  button.style.fontWeight = "bold";
+  button.style.cursor = "pointer";
+
+  button.addEventListener("click", function () {
+    window.location.href =
+      "https://lydiatar.github.io/2048-battle/?v=7";
+  });
+
+  box.appendChild(icon);
+  box.appendChild(title);
+  box.appendChild(description);
+  box.appendChild(button);
+
+  overlay.appendChild(box);
   document.body.appendChild(overlay);
-
-  document
-    .getElementById("battle-back-lobby")
-    .addEventListener("click", function () {
-      window.location.reload();
-    });
 });
-
   socket.on("connect", function () {
     console.log(
       "Connected to 2048 Battle server."
