@@ -15,8 +15,15 @@ function GameManager(size, InputManager, Actuator, StorageManager) {
 
 // Restart the game
 GameManager.prototype.restart = function () {
+  if (
+    window.multiplayerMode &&
+    !window.multiplayerAllowRestart
+  ) {
+    return;
+  }
+
   this.storageManager.clearGameState();
-  this.actuator.continueGame(); // Clear the game won/lost message
+  this.actuator.continueGame();
   this.setup();
 };
 
