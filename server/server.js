@@ -6,13 +6,13 @@ const app = express();
 const server = http.createServer(app);
 
 const io = new Server(server, {
-  cors: {
-    origin: "*"
-  }
+  cors: { origin: "*" }
 });
 
 const rooms = new Map();
-const ALLOWED_TARGETS = [2048, 4096, 8192];
+const TILE_RACE_TARGETS = [2048, 4096, 8192];
+const CUSTOM_TARGETS = [1024, 2048, 4096, 8192, 16384];
+const ALLOWED_MODES = ["tile-race", "custom-race", "freeplay"];
 const ALLOWED_THEMES = ["classic", "pastel", "ocean", "candy", "midnight"];
 
 app.get("/", (req, res) => {
@@ -31,6 +31,20 @@ function sanitizeNickname(value, fallback) {
 
 function sanitizeTheme(value) {
   return ALLOWED_THEMES.includes(value) ? value : "classic";
+}
+
+function sanitizeMode(value) {
+  return ALLOWED_MODES.includes(value) ? value : "tile-race";
+}
+
+function sanitizeTileRaceTarget(value) {
+  const target = Number(value);
+  return TILE_RACE_TARGETS.includes(target) ? target : 2048;
+}
+
+function sanitizeCustomTarget(value, fallback) {
+  const target = Number(value);
+  return CUSTOM_TARGETS.includes(target) ? target : fallback;
 }
 
 function createRoomCode() {
@@ -82,6 +96,31 @@ function roomProfiles(room) {
   });
 }
 
+function targetForPlayer(room, playerNumber) {
+  if (room.mode === "custom-race") {
+    return Number(room.targets[playerNumber] || 2048);
+  }
+
+  if (room.mode === "tile-race") {
+    return Number(room.targetTile || 2048);
+  }
+
+  return null;
+}
+
+function roomPayload(roomCode, room, playerNumber) {
+  return {
+    roomCode,
+    playerNumber,
+    mode: room.mode,
+    targetTile: room.mode === "tile-race" ? room.targetTile : null,
+    ownTarget: targetForPlayer(room, playerNumber),
+    opponentTarget: targetForPlayer(room, playerNumber === 1 ? 2 : 1),
+    targets: room.mode === "custom-race" ? room.targets : null,
+    players: roomProfiles(room)
+  };
+}
+
 function removeSocketFromRoom(socket, notifyOpponent) {
   const found = findRoomForSocket(socket.id);
 
@@ -98,7 +137,6 @@ function removeSocketFromRoom(socket, notifyOpponent) {
   }
 
   rooms.delete(roomCode);
-
   console.log("Room", roomCode, "deleted because a player left.");
 }
 
@@ -111,6 +149,15 @@ function finishRoom(roomCode, room, winnerNumber, reason, loserNumber) {
   room.winner = winnerNumber;
   room.rematchVotes = [];
 
+  io.to(roomCode).emit("gameWinner", {
+    winner: winnerNumber,
+    loser: loserNumber || null,
+    reason,
+    mode: room.mode,
+    targetTile: room.targetTile || null,
+    targets: room.targets || null
+  });
+
   console.log(
     "Room",
     roomCode,
@@ -119,13 +166,6 @@ function finishRoom(roomCode, room, winnerNumber, reason, loserNumber) {
     "Reason:",
     reason
   );
-
-  io.to(roomCode).emit("gameWinner", {
-    winner: winnerNumber,
-    loser: loserNumber || null,
-    reason,
-    targetTile: room.targetTile
-  });
 }
 
 io.on("connection", (socket) => {
@@ -134,60 +174,42 @@ io.on("connection", (socket) => {
   socket.on("createRoom", (settings) => {
     removeSocketFromRoom(socket, true);
 
-    const requestedTarget = Number(settings && settings.targetTile);
-    const targetTile = ALLOWED_TARGETS.includes(requestedTarget)
-      ? requestedTarget
-      : 2048;
-
+    const mode = sanitizeMode(settings && settings.mode);
     const roomCode = createRoomCode();
     const profile = makeProfile(settings, "Player 1");
 
-    rooms.set(roomCode, {
+    const room = {
       players: [socket.id],
-      profiles: {
-        [socket.id]: profile
-      },
+      profiles: { [socket.id]: profile },
       status: "waiting",
       winner: null,
       rematchVotes: [],
-      mode: "tile-race",
-      targetTile
-    });
+      mode,
+      targetTile: null,
+      targets: null
+    };
 
+    if (mode === "tile-race") {
+      room.targetTile = sanitizeTileRaceTarget(settings && settings.targetTile);
+    } else if (mode === "custom-race") {
+      room.targets = {
+        1: sanitizeCustomTarget(settings && settings.hostTarget, 2048),
+        2: sanitizeCustomTarget(settings && settings.guestTarget, 2048)
+      };
+    }
+
+    rooms.set(roomCode, room);
     socket.join(roomCode);
 
-    socket.emit("roomCreated", {
-      roomCode,
-      playerNumber: 1,
-      mode: "tile-race",
-      targetTile,
-      players: [
-        {
-          playerNumber: 1,
-          nickname: profile.nickname,
-          theme: profile.theme
-        }
-      ]
-    });
+    socket.emit("roomCreated", roomPayload(roomCode, room, 1));
 
-    console.log(
-      "Room",
-      roomCode,
-      "created by",
-      socket.id,
-      "target:",
-      targetTile
-    );
+    console.log("Room", roomCode, "created. Mode:", mode);
   });
 
   socket.on("joinRoom", (payload) => {
     const isObject = payload && typeof payload === "object";
     const rawRoomCode = isObject ? payload.roomCode : payload;
-
-    const roomCode = String(rawRoomCode || "")
-      .trim()
-      .toUpperCase();
-
+    const roomCode = String(rawRoomCode || "").trim().toUpperCase();
     const room = rooms.get(roomCode);
 
     if (!room) {
@@ -196,13 +218,10 @@ io.on("connection", (socket) => {
     }
 
     if (room.players.includes(socket.id)) {
-      socket.emit("gameStart", {
-        playerNumber: room.players.indexOf(socket.id) + 1,
-        mode: room.mode,
-        targetTile: room.targetTile,
-        roomCode,
-        players: roomProfiles(room)
-      });
+      socket.emit(
+        "gameStart",
+        roomPayload(roomCode, room, room.players.indexOf(socket.id) + 1)
+      );
       return;
     }
 
@@ -227,26 +246,14 @@ io.on("connection", (socket) => {
 
     socket.join(roomCode);
 
-    const profiles = roomProfiles(room);
-
     room.players.forEach((playerId, index) => {
-      io.to(playerId).emit("gameStart", {
-        playerNumber: index + 1,
-        mode: room.mode,
-        targetTile: room.targetTile,
-        roomCode,
-        players: profiles
-      });
+      io.to(playerId).emit(
+        "gameStart",
+        roomPayload(roomCode, room, index + 1)
+      );
     });
 
-    console.log(
-      "Player",
-      socket.id,
-      "joined room",
-      roomCode,
-      "- players:",
-      room.players.length
-    );
+    console.log("Player", socket.id, "joined room", roomCode, "mode:", room.mode);
   });
 
   socket.on("updateProfile", (rawProfile) => {
@@ -326,26 +333,24 @@ io.on("connection", (socket) => {
 
     const { roomCode, room } = found;
 
-    if (room.status !== "playing" || room.winner !== null) {
-      return;
-    }
-
-    const reportedTile = Number(data && data.tileValue);
-
-    if (!Number.isFinite(reportedTile) || reportedTile < room.targetTile) {
+    if (
+      room.status !== "playing" ||
+      room.winner !== null ||
+      (room.mode !== "tile-race" && room.mode !== "custom-race")
+    ) {
       return;
     }
 
     const playerNumber = room.players.indexOf(socket.id) + 1;
-    const loserNumber = playerNumber === 1 ? 2 : 1;
+    const requiredTarget = targetForPlayer(room, playerNumber);
+    const reportedTile = Number(data && data.tileValue);
 
-    finishRoom(
-      roomCode,
-      room,
-      playerNumber,
-      "target",
-      loserNumber
-    );
+    if (!Number.isFinite(reportedTile) || reportedTile < requiredTarget) {
+      return;
+    }
+
+    const loserNumber = playerNumber === 1 ? 2 : 1;
+    finishRoom(roomCode, room, playerNumber, "target", loserNumber);
   });
 
   socket.on("playerEliminated", () => {
@@ -360,7 +365,8 @@ io.on("connection", (socket) => {
     if (
       room.status !== "playing" ||
       room.winner !== null ||
-      room.players.length < 2
+      room.players.length < 2 ||
+      room.mode === "freeplay"
     ) {
       return;
     }
@@ -368,13 +374,7 @@ io.on("connection", (socket) => {
     const loserNumber = room.players.indexOf(socket.id) + 1;
     const winnerNumber = loserNumber === 1 ? 2 : 1;
 
-    finishRoom(
-      roomCode,
-      room,
-      winnerNumber,
-      "elimination",
-      loserNumber
-    );
+    finishRoom(roomCode, room, winnerNumber, "board-stuck", loserNumber);
   });
 
   socket.on("requestRematch", () => {
@@ -386,7 +386,11 @@ io.on("connection", (socket) => {
 
     const { roomCode, room } = found;
 
-    if (room.status !== "finished" || room.players.length !== 2) {
+    if (
+      room.mode === "freeplay" ||
+      room.status !== "finished" ||
+      room.players.length !== 2
+    ) {
       return;
     }
 
@@ -403,11 +407,11 @@ io.on("connection", (socket) => {
     room.winner = null;
     room.rematchVotes = [];
 
-    io.to(roomCode).emit("rematchStart", {
-      mode: room.mode,
-      targetTile: room.targetTile,
-      roomCode,
-      players: roomProfiles(room)
+    room.players.forEach((playerId, index) => {
+      io.to(playerId).emit(
+        "rematchStart",
+        roomPayload(roomCode, room, index + 1)
+      );
     });
 
     console.log("Rematch started in room", roomCode);
