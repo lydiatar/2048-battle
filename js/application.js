@@ -4,6 +4,7 @@ window.multiplayerGameOver = false;
 window.multiplayerAllowRestart = false;
 window.multiplayerSecondChanceUsed = false;
 window.multiplayerTargetTile = 2048;
+window.multiplayerProfiles = [];
 
 // Boot the hidden game engine without reading or overwriting Solo saves.
 window.multiplayerMode = true;
