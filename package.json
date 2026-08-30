@@ -1,7 +1,8 @@
 {
-  "name": "2048-battle",
+  "name": "rinas-2048",
   "version": "1.0.0",
-  "description": "Multiplayer 2048 Battle",
+  "private": true,
+  "description": "Multiplayer 2048 race game",
   "main": "server/server.js",
   "scripts": {
     "start": "node server/server.js"
