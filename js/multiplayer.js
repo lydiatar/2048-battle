@@ -1064,266 +1064,270 @@
   // CREATE BATTLE SCREEN
   // =========================================================
 
-  function createBattleView() {
+ function createBattleView() {
 
-    if (battleShell) {
-      updateOwnSecondChanceUI();
-      return;
-    }
-
-
-    battleShell =
-      document.createElement("div");
-
-    battleShell.className =
-      "battle-shell";
+  if (battleShell) {
+    updateOwnSecondChanceUI();
+    return;
+  }
 
 
-    var heading =
-      document.createElement("div");
+  battleShell =
+    document.createElement("div");
 
-    heading.className =
-      "battle-heading";
-
-
-    heading.innerHTML = `
-
-      <h1>Rina's 2048</h1>
-
-      <div class="battle-meta">
-
-        <span class="mode-badge">
-          Player ${window.multiplayerPlayerNumber}
-        </span>
-
-        <span class="room-badge">
-          Room ${window.multiplayerRoomCode || "------"}
-        </span>
-
-      </div>
-
-      <p class="battle-rule-line">
-        First to 2048 wins.
-        One automatic Second Chance each.
-        Second game-over = elimination.
-      </p>
-
-    `;
+  battleShell.className =
+    "battle-shell";
 
 
-    var layout =
-      document.createElement("div");
+  var heading =
+    document.createElement("div");
 
-    layout.className =
-      "battle-layout";
-
-
-    // -------------------------
-    // YOUR SIDE
-    // -------------------------
-
-    var ownPanel =
-      document.createElement("div");
-
-    ownPanel.className =
-      "own-panel";
+  heading.className =
+    "battle-heading";
 
 
-    var ownStatusRow =
-      document.createElement("div");
+  heading.innerHTML = `
 
-    ownStatusRow.className =
-      "own-status-row";
+    <h1>Rina's 2048</h1>
 
+    <div class="battle-meta">
 
-    ownSecondChance =
-      document.createElement("span");
+      <span class="mode-badge">
+        Player ${window.multiplayerPlayerNumber}
+      </span>
 
+      <span class="room-badge">
+        Room ${window.multiplayerRoomCode || "------"}
+      </span>
 
-    ownStatusRow.appendChild(
-      ownSecondChance
-    );
+    </div>
 
+    <p class="battle-rule-line">
+      First to 2048 wins.
+      One automatic Second Chance each.
+      Second game-over = elimination.
+    </p>
 
-    ownPanel.appendChild(
-      ownStatusRow
-    );
-
-
-    ownPanel.appendChild(
-      gameContainer
-    );
-
-
-    // -------------------------
-    // OPPONENT SIDE
-    // -------------------------
-
-    var opponentPanel =
-      document.createElement("div");
-
-    opponentPanel.className =
-      "opponent-panel";
+  `;
 
 
-    opponentPanel.innerHTML = `
+  var layout =
+    document.createElement("div");
 
-      <div class="opponent-header">
+  layout.className =
+    "battle-layout";
 
-        <h2>Opponent</h2>
 
-        <div class="opponent-stats">
+  // -------------------------
+  // YOUR SIDE
+  // -------------------------
 
-          <div class="opponent-stat-box">
+  var ownPanel =
+    document.createElement("div");
 
-            <span class="opponent-stat-label">
-              Score
-            </span>
+  ownPanel.className =
+    "own-panel";
 
-            <span
-              id="opponent-score"
-              class="opponent-stat-value"
-            >
-              0
-            </span>
 
-          </div>
+  var ownStatusRow =
+    document.createElement("div");
 
-          <div class="opponent-stat-box">
+  ownStatusRow.className =
+    "own-status-row";
 
-            <span class="opponent-stat-label">
-              Highest
-            </span>
 
-            <span
-              id="opponent-highest"
-              class="opponent-stat-value"
-            >
-              0
-            </span>
+  ownSecondChance =
+    document.createElement("span");
 
-          </div>
+
+  ownStatusRow.appendChild(
+    ownSecondChance
+  );
+
+
+  ownPanel.appendChild(
+    ownStatusRow
+  );
+
+
+  // -------------------------
+  // OPPONENT SIDE
+  // -------------------------
+
+  var opponentPanel =
+    document.createElement("div");
+
+  opponentPanel.className =
+    "opponent-panel";
+
+
+  opponentPanel.innerHTML = `
+
+    <div class="opponent-header">
+
+      <h2>Opponent</h2>
+
+      <div class="opponent-stats">
+
+        <div class="opponent-stat-box">
+
+          <span class="opponent-stat-label">
+            Score
+          </span>
+
+          <span
+            id="opponent-score"
+            class="opponent-stat-value"
+          >
+            0
+          </span>
+
+        </div>
+
+        <div class="opponent-stat-box">
+
+          <span class="opponent-stat-label">
+            Highest
+          </span>
+
+          <span
+            id="opponent-highest"
+            class="opponent-stat-value"
+          >
+            0
+          </span>
 
         </div>
 
       </div>
 
-
-      <div class="opponent-chance-row">
-
-        <span
-          id="opponent-second-chance"
-          class="chance-badge available compact"
-        >
-          🛟 AVAILABLE
-        </span>
-
-      </div>
+    </div>
 
 
-      <div
-        id="opponent-grid"
-        class="opponent-grid"
-      ></div>
+    <div class="opponent-chance-row">
+
+      <span
+        id="opponent-second-chance"
+        class="chance-badge available compact"
+      >
+        🛟 AVAILABLE
+      </span>
+
+    </div>
 
 
-      <div id="opponent-status">
-        Waiting for opponent to make a move...
-      </div>
+    <div
+      id="opponent-grid"
+      class="opponent-grid"
+    ></div>
 
-    `;
+
+    <div id="opponent-status">
+      Waiting for opponent to make a move...
+    </div>
+
+  `;
 
 
-    battleShell.appendChild(
-      heading
+  // Build the shell FIRST while the original
+  // game container is still attached to <body>.
+
+  battleShell.appendChild(
+    heading
+  );
+
+  battleShell.appendChild(
+    layout
+  );
+
+
+  document.body.insertBefore(
+    battleShell,
+    gameContainer
+  );
+
+
+  // NOW move the original 2048 game
+  // into the left side of the battle layout.
+
+  ownPanel.appendChild(
+    gameContainer
+  );
+
+
+  layout.appendChild(
+    ownPanel
+  );
+
+  layout.appendChild(
+    opponentPanel
+  );
+
+
+  opponentGrid =
+    document.getElementById(
+      "opponent-grid"
     );
 
 
-    battleShell.appendChild(
-      layout
+  opponentScore =
+    document.getElementById(
+      "opponent-score"
     );
 
 
-    document.body.insertBefore(
-      battleShell,
-      gameContainer
+  opponentHighest =
+    document.getElementById(
+      "opponent-highest"
     );
 
 
-    layout.appendChild(
-      ownPanel
+  opponentStatus =
+    document.getElementById(
+      "opponent-status"
     );
 
 
-    layout.appendChild(
-      opponentPanel
+  opponentSecondChance =
+    document.getElementById(
+      "opponent-second-chance"
     );
 
 
-    opponentGrid =
-      document.getElementById(
-        "opponent-grid"
-      );
+  // Create the 16 opponent cells.
 
+  for (
+    var i = 0;
+    i < 16;
+    i++
+  ) {
 
-    opponentScore =
-      document.getElementById(
-        "opponent-score"
-      );
+    var cell =
+      document.createElement("div");
 
+    cell.className =
+      "opponent-cell";
 
-    opponentHighest =
-      document.getElementById(
-        "opponent-highest"
-      );
-
-
-    opponentStatus =
-      document.getElementById(
-        "opponent-status"
-      );
-
-
-    opponentSecondChance =
-      document.getElementById(
-        "opponent-second-chance"
-      );
-
-
-    // Make the 16 opponent cells.
-
-    for (
-      var i = 0;
-      i < 16;
-      i++
-    ) {
-
-      var cell =
-        document.createElement("div");
-
-      cell.className =
-        "opponent-cell";
-
-      opponentGrid.appendChild(
-        cell
-      );
-
-    }
-
-
-    updateOwnSecondChanceUI();
-
-    updateOpponentSecondChanceUI(
-      false
+    opponentGrid.appendChild(
+      cell
     );
 
-
-    if (latestOpponentState) {
-      renderOpponentState(
-        latestOpponentState
-      );
-    }
   }
+
+
+  updateOwnSecondChanceUI();
+
+  updateOpponentSecondChanceUI(
+    false
+  );
+
+
+  if (latestOpponentState) {
+    renderOpponentState(
+      latestOpponentState
+    );
+  }
+}
 
 
   // =========================================================
