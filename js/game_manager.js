@@ -1,8 +1,19 @@
-function GameManager(size, InputManager, Actuator, StorageManager) {
+function GameManager(
+  size,
+  InputManager,
+  Actuator,
+  StorageManager
+) {
   this.size = size;
-  this.inputManager = new InputManager;
-  this.storageManager = new StorageManager;
-  this.actuator = new Actuator;
+
+  this.inputManager =
+    new InputManager;
+
+  this.storageManager =
+    new StorageManager;
+
+  this.actuator =
+    new Actuator;
 
   this.startTiles = 2;
 
@@ -25,575 +36,859 @@ function GameManager(size, InputManager, Actuator, StorageManager) {
 }
 
 
-// -------------------------
+// =========================================================
 // RESTART
-// -------------------------
+// =========================================================
 
-GameManager.prototype.restart = function () {
-  // Players cannot manually restart during a multiplayer match.
-  // multiplayer.js temporarily enables this when the match
-  // itself needs to reset.
-  if (
-    window.multiplayerMode &&
-    !window.multiplayerAllowRestart
-  ) {
-    return;
-  }
+GameManager.prototype.restart =
+  function () {
 
-  this.storageManager.clearGameState();
-
-  this.actuator.continueGame();
-
-  this.setup();
-};
-
-
-// -------------------------
-// KEEP PLAYING
-// -------------------------
-
-GameManager.prototype.keepPlaying = function () {
-  this.keepPlaying = true;
-
-  this.actuator.continueGame();
-};
-
-
-// -------------------------
-// GAME TERMINATION
-// -------------------------
-
-GameManager.prototype.isGameTerminated = function () {
-  return this.over ||
-    (this.won && !this.keepPlaying);
-};
-
-
-// -------------------------
-// SETUP
-// -------------------------
-
-GameManager.prototype.setup = function () {
-  var previousState =
-    this.storageManager.getGameState();
-
-  if (previousState) {
-    this.grid = new Grid(
-      previousState.grid.size,
-      previousState.grid.cells
-    );
-
-    this.score =
-      previousState.score;
-
-    this.over =
-      previousState.over;
-
-    this.won =
-      previousState.won;
-
-    this.keepPlaying =
-      previousState.keepPlaying;
-
-  } else {
-    this.grid =
-      new Grid(this.size);
-
-    this.score = 0;
-    this.over = false;
-    this.won = false;
-    this.keepPlaying = false;
-
-    this.addStartTiles();
-  }
-
-  this.actuate();
-};
-
-
-// -------------------------
-// STARTING TILES
-// -------------------------
-
-GameManager.prototype.addStartTiles = function () {
-  for (
-    var i = 0;
-    i < this.startTiles;
-    i++
-  ) {
-    this.addRandomTile();
-  }
-};
-
-
-// -------------------------
-// RANDOM TILE
-// -------------------------
-
-GameManager.prototype.addRandomTile = function () {
-  if (this.grid.cellsAvailable()) {
-    var value =
-      Math.random() < 0.9 ? 2 : 4;
-
-    var tile = new Tile(
-      this.grid.randomAvailableCell(),
-      value
-    );
-
-    this.grid.insertTile(tile);
-  }
-};
-
-
-// -------------------------
-// UPDATE SCREEN / NETWORK
-// -------------------------
-
-GameManager.prototype.actuate = function () {
-  if (
-    this.storageManager.getBestScore() <
-    this.score
-  ) {
-    this.storageManager.setBestScore(
-      this.score
-    );
-  }
-
-  if (this.over) {
-    this.storageManager.clearGameState();
-  } else {
-    this.storageManager.setGameState(
-      this.serialize()
-    );
-  }
-
-  this.actuator.actuate(
-    this.grid,
-    {
-      score: this.score,
-      over: this.over,
-      won: this.won,
-
-      bestScore:
-        this.storageManager.getBestScore(),
-
-      terminated:
-        this.isGameTerminated()
+    if (
+      window.multiplayerMode &&
+      !window.multiplayerAllowRestart
+    ) {
+      return;
     }
-  );
 
-  // Send our latest board state
-  // to the opponent.
-  if (
-    window.multiplayerSocket &&
-    window.multiplayerPlayerNumber
-  ) {
-    window.multiplayerSocket.emit(
-      "playerState",
-      {
-        grid: this.grid.serialize(),
-        score: this.score,
-        over: this.over,
-        won: this.won,
-        secondChanceUsed:
-          !!window.multiplayerSecondChanceUsed
-      }
-    );
-  }
-};
+    this.storageManager
+      .clearGameState();
 
+    this.actuator
+      .continueGame();
 
-// -------------------------
-// SERIALIZE GAME
-// -------------------------
-
-GameManager.prototype.serialize = function () {
-  return {
-    grid: this.grid.serialize(),
-    score: this.score,
-    over: this.over,
-    won: this.won,
-    keepPlaying: this.keepPlaying
+    this.setup();
   };
-};
 
 
-// -------------------------
-// PREPARE TILES
-// -------------------------
+// =========================================================
+// KEEP PLAYING
+// =========================================================
 
-GameManager.prototype.prepareTiles = function () {
-  this.grid.eachCell(
-    function (x, y, tile) {
-      if (tile) {
-        tile.mergedFrom = null;
+GameManager.prototype.keepPlaying =
+  function () {
 
-        tile.savePosition();
-      }
+    this.keepPlaying = true;
+
+    this.actuator
+      .continueGame();
+  };
+
+
+// =========================================================
+// TERMINATION
+// =========================================================
+
+GameManager.prototype.isGameTerminated =
+  function () {
+
+    return (
+      this.over ||
+      (
+        this.won &&
+        !this.keepPlaying
+      )
+    );
+  };
+
+
+// =========================================================
+// SETUP
+// =========================================================
+
+GameManager.prototype.setup =
+  function () {
+
+    var previousState =
+      this.storageManager
+        .getGameState();
+
+    if (previousState) {
+
+      this.grid =
+        new Grid(
+          previousState.grid.size,
+          previousState.grid.cells
+        );
+
+      this.score =
+        previousState.score;
+
+      this.over =
+        previousState.over;
+
+      this.won =
+        previousState.won;
+
+      this.keepPlaying =
+        previousState.keepPlaying;
+
+    } else {
+
+      this.grid =
+        new Grid(this.size);
+
+      this.score = 0;
+
+      this.over = false;
+
+      this.won = false;
+
+      this.keepPlaying = false;
+
+      this.addStartTiles();
     }
-  );
-};
+
+    this.actuate();
+  };
 
 
-// -------------------------
-// MOVE TILE
-// -------------------------
+// =========================================================
+// STARTING TILES
+// =========================================================
 
-GameManager.prototype.moveTile = function (
-  tile,
-  cell
-) {
-  this.grid.cells[tile.x][tile.y] =
-    null;
+GameManager.prototype.addStartTiles =
+  function () {
 
-  this.grid.cells[cell.x][cell.y] =
-    tile;
+    for (
+      var i = 0;
+      i < this.startTiles;
+      i++
+    ) {
+      this.addRandomTile();
+    }
+  };
 
-  tile.updatePosition(cell);
-};
+
+// =========================================================
+// RANDOM TILE
+// =========================================================
+
+GameManager.prototype.addRandomTile =
+  function () {
+
+    if (
+      this.grid.cellsAvailable()
+    ) {
+
+      var value =
+        Math.random() < 0.9
+          ? 2
+          : 4;
+
+      var tile =
+        new Tile(
+          this.grid.randomAvailableCell(),
+          value
+        );
+
+      this.grid.insertTile(
+        tile
+      );
+    }
+  };
 
 
-// -------------------------
-// MOVE
-// -------------------------
+// =========================================================
+// HIGHEST TILE
+// =========================================================
 
-GameManager.prototype.move = function (
-  direction
-) {
-  // 0 = Up
-  // 1 = Right
-  // 2 = Down
-  // 3 = Left
+GameManager.prototype.getHighestTileValue =
+  function () {
 
-  var self = this;
+    var highest = 0;
 
-  // Multiplayer match already ended.
-  if (
-    window.multiplayerGameOver
-  ) {
-    return;
-  }
+    this.grid.eachCell(
+      function (x, y, tile) {
 
-  // Normal 2048 termination check.
-  if (
-    this.isGameTerminated()
-  ) {
-    return;
-  }
+        if (
+          tile &&
+          tile.value > highest
+        ) {
+          highest =
+            tile.value;
+        }
+      }
+    );
 
-  /*
-   * Save the board BEFORE the move.
-   *
-   * If this move causes the player's
-   * first game-over, we restore this
-   * state as their Second Chance.
-   */
-  var stateBeforeMove =
-    this.serialize();
+    return highest;
+  };
 
-  var cell;
-  var tile;
 
-  var vector =
-    this.getVector(direction);
+// =========================================================
+// SECOND CHANCE
+// =========================================================
 
-  var traversals =
-    this.buildTraversals(vector);
+GameManager.prototype.useSecondChance =
+  function () {
 
-  var moved = false;
+    var lowestValue =
+      Infinity;
 
-  this.prepareTiles();
+    var candidates =
+      [];
 
-  traversals.x.forEach(
-    function (x) {
+    this.grid.eachCell(
+      function (x, y, tile) {
 
-      traversals.y.forEach(
-        function (y) {
+        if (!tile) {
+          return;
+        }
 
-          cell = {
-            x: x,
-            y: y
-          };
+        if (
+          tile.value <
+          lowestValue
+        ) {
 
-          tile =
-            self.grid.cellContent(
-              cell
-            );
+          lowestValue =
+            tile.value;
 
-          if (!tile) {
-            return;
-          }
+          candidates =
+            [tile];
 
-          var positions =
-            self.findFarthestPosition(
-              cell,
-              vector
-            );
+        } else if (
+          tile.value ===
+          lowestValue
+        ) {
 
-          var next =
-            self.grid.cellContent(
-              positions.next
-            );
+          candidates.push(
+            tile
+          );
+        }
+      }
+    );
 
-          /*
-           * Merge two matching tiles.
-           */
-          if (
-            next &&
-            next.value === tile.value &&
-            !next.mergedFrom
-          ) {
-            var merged =
-              new Tile(
-                positions.next,
-                tile.value * 2
-              );
+    if (
+      !candidates.length
+    ) {
+      return null;
+    }
 
-            merged.mergedFrom = [
-              tile,
-              next
-            ];
+    var tileToRemove =
+      candidates[
+        Math.floor(
+          Math.random() *
+          candidates.length
+        )
+      ];
 
-            self.grid.insertTile(
-              merged
-            );
+    var removedValue =
+      tileToRemove.value;
 
-            self.grid.removeTile(
-              tile
-            );
+    this.grid.removeTile(
+      tileToRemove
+    );
 
-            tile.updatePosition(
-              positions.next
-            );
+    return removedValue;
+  };
 
-            self.score +=
-              merged.value;
 
-            /*
-             * FIRST TO 2048 WINS.
-             */
-            if (
-              merged.value === 2048
-            ) {
-              self.won = true;
+// =========================================================
+// ACTUATE
+// =========================================================
 
-              if (
-                window.multiplayerSocket &&
-                window.multiplayerPlayerNumber
-              ) {
-                window
-                  .multiplayerSocket
-                  .emit(
-                    "reached2048"
-                  );
-              }
-            }
+GameManager.prototype.actuate =
+  function () {
 
-          } else {
+    if (
+      this.storageManager
+        .getBestScore() <
+      this.score
+    ) {
 
-            self.moveTile(
-              tile,
-              positions.farthest
-            );
-          }
+      this.storageManager
+        .setBestScore(
+          this.score
+        );
+    }
 
-          if (
-            !self.positionsEqual(
-              cell,
-              tile
-            )
-          ) {
-            moved = true;
-          }
+    if (this.over) {
+
+      this.storageManager
+        .clearGameState();
+
+    } else {
+
+      this.storageManager
+        .setGameState(
+          this.serialize()
+        );
+    }
+
+    var displayBestScore =
+      window.multiplayerMode
+        ? this.getHighestTileValue()
+        : this.storageManager
+            .getBestScore();
+
+
+    /*
+     * In multiplayer we DO NOT
+     * use the original 2048
+     * Game Over / Try Again overlay.
+     *
+     * Our multiplayer popup handles
+     * wins and losses instead.
+     */
+
+    var displayOver =
+      window.multiplayerMode
+        ? false
+        : this.over;
+
+    var displayWon =
+      window.multiplayerMode
+        ? false
+        : this.won;
+
+    var displayTerminated =
+      window.multiplayerMode
+        ? false
+        : this.isGameTerminated();
+
+
+    this.actuator.actuate(
+      this.grid,
+      {
+        score:
+          this.score,
+
+        over:
+          displayOver,
+
+        won:
+          displayWon,
+
+        bestScore:
+          displayBestScore,
+
+        terminated:
+          displayTerminated
+      }
+    );
+
+
+    /*
+     * Send latest board to opponent.
+     */
+
+    if (
+      window.multiplayerSocket &&
+      window.multiplayerPlayerNumber
+    ) {
+
+      window.multiplayerSocket.emit(
+        "playerState",
+        {
+          grid:
+            this.grid.serialize(),
+
+          score:
+            this.score,
+
+          highestTile:
+            this.getHighestTileValue(),
+
+          over:
+            this.over,
+
+          won:
+            this.won,
+
+          secondChanceUsed:
+            !!window.multiplayerSecondChanceUsed
         }
       );
     }
-  );
+  };
 
 
-  // Nothing actually moved.
-  if (!moved) {
-    return;
-  }
+// =========================================================
+// SERIALIZE
+// =========================================================
+
+GameManager.prototype.serialize =
+  function () {
+
+    return {
+      grid:
+        this.grid.serialize(),
+
+      score:
+        this.score,
+
+      over:
+        this.over,
+
+      won:
+        this.won,
+
+      keepPlaying:
+        this.keepPlaying
+    };
+  };
 
 
-  // A successful move generates
-  // a new random tile.
-  this.addRandomTile();
+// =========================================================
+// PREPARE TILES
+// =========================================================
 
+GameManager.prototype.prepareTiles =
+  function () {
 
-  /*
-   * Reaching 2048 always takes
-   * priority over elimination.
-   */
-  if (
-    !this.won &&
-    !this.movesAvailable()
-  ) {
-    this.over = true;
-
-
-    // -------------------------
-    // MULTIPLAYER SECOND CHANCE
-    // -------------------------
-
-    if (window.multiplayerMode) {
-
-      /*
-       * FIRST GAME-OVER
-       *
-       * Automatically restore the
-       * board to before the fatal move.
-       */
-      if (
-        !window.multiplayerSecondChanceUsed
+    this.grid.eachCell(
+      function (
+        x,
+        y,
+        tile
       ) {
-        window.multiplayerSecondChanceUsed =
-          true;
 
-        this.grid =
-          new Grid(
-            stateBeforeMove.grid.size,
-            stateBeforeMove.grid.cells
-          );
+        if (tile) {
 
-        this.score =
-          stateBeforeMove.score;
+          tile.mergedFrom =
+            null;
 
-        this.over =
-          false;
-
-        this.won =
-          stateBeforeMove.won;
-
-        this.keepPlaying =
-          stateBeforeMove.keepPlaying;
-
-
-        // Show the player that their
-        // Second Chance was consumed.
-        if (
-          window.showSecondChanceUsed
-        ) {
-          window.showSecondChanceUsed();
-        }
-
-
-      /*
-       * SECOND GAME-OVER
-       *
-       * Player is eliminated.
-       */
-      } else {
-        window.multiplayerGameOver =
-          true;
-
-        if (
-          window.multiplayerSocket
-        ) {
-          window
-            .multiplayerSocket
-            .emit(
-              "playerEliminated"
-            );
+          tile.savePosition();
         }
       }
-    }
-  }
-
-
-  // Render our final state and
-  // send it to the opponent.
-  this.actuate();
-};
-
-
-// -------------------------
-// DIRECTION VECTOR
-// -------------------------
-
-GameManager.prototype.getVector = function (
-  direction
-) {
-  var map = {
-    0: {
-      x: 0,
-      y: -1
-    },
-
-    1: {
-      x: 1,
-      y: 0
-    },
-
-    2: {
-      x: 0,
-      y: 1
-    },
-
-    3: {
-      x: -1,
-      y: 0
-    }
+    );
   };
 
-  return map[direction];
-};
 
+// =========================================================
+// MOVE TILE
+// =========================================================
 
-// -------------------------
-// TRAVERSAL ORDER
-// -------------------------
-
-GameManager.prototype.buildTraversals = function (
-  vector
-) {
-  var traversals = {
-    x: [],
-    y: []
-  };
-
-  for (
-    var position = 0;
-    position < this.size;
-    position++
+GameManager.prototype.moveTile =
+  function (
+    tile,
+    cell
   ) {
-    traversals.x.push(
-      position
+
+    this.grid.cells[
+      tile.x
+    ][
+      tile.y
+    ] = null;
+
+
+    this.grid.cells[
+      cell.x
+    ][
+      cell.y
+    ] = tile;
+
+
+    tile.updatePosition(
+      cell
+    );
+  };
+
+
+// =========================================================
+// MOVE
+// =========================================================
+
+GameManager.prototype.move =
+  function (
+    direction
+  ) {
+
+    /*
+     * 0 = Up
+     * 1 = Right
+     * 2 = Down
+     * 3 = Left
+     */
+
+    var self = this;
+
+
+    if (
+      window.multiplayerGameOver
+    ) {
+      return;
+    }
+
+
+    if (
+      this.isGameTerminated()
+    ) {
+      return;
+    }
+
+
+    var cell;
+    var tile;
+
+
+    var vector =
+      this.getVector(
+        direction
+      );
+
+
+    var traversals =
+      this.buildTraversals(
+        vector
+      );
+
+
+    var moved =
+      false;
+
+
+    this.prepareTiles();
+
+
+    traversals.x.forEach(
+      function (x) {
+
+        traversals.y.forEach(
+          function (y) {
+
+            cell = {
+              x: x,
+              y: y
+            };
+
+
+            tile =
+              self.grid
+                .cellContent(
+                  cell
+                );
+
+
+            if (!tile) {
+              return;
+            }
+
+
+            var positions =
+              self
+                .findFarthestPosition(
+                  cell,
+                  vector
+                );
+
+
+            var next =
+              self.grid
+                .cellContent(
+                  positions.next
+                );
+
+
+            if (
+              next &&
+              next.value ===
+                tile.value &&
+              !next.mergedFrom
+            ) {
+
+              var merged =
+                new Tile(
+                  positions.next,
+                  tile.value * 2
+                );
+
+
+              merged.mergedFrom =
+                [
+                  tile,
+                  next
+                ];
+
+
+              self.grid
+                .insertTile(
+                  merged
+                );
+
+
+              self.grid
+                .removeTile(
+                  tile
+                );
+
+
+              tile.updatePosition(
+                positions.next
+              );
+
+
+              self.score +=
+                merged.value;
+
+
+              /*
+               * FIRST TO 2048 WINS
+               */
+
+              if (
+                merged.value ===
+                2048
+              ) {
+
+                self.won =
+                  true;
+
+
+                if (
+                  window.multiplayerMode &&
+                  window.multiplayerSocket &&
+                  window.multiplayerPlayerNumber
+                ) {
+
+                  window
+                    .multiplayerSocket
+                    .emit(
+                      "reached2048"
+                    );
+                }
+              }
+
+            } else {
+
+              self.moveTile(
+                tile,
+                positions.farthest
+              );
+            }
+
+
+            if (
+              !self.positionsEqual(
+                cell,
+                tile
+              )
+            ) {
+
+              moved =
+                true;
+            }
+          }
+        );
+      }
     );
 
-    traversals.y.push(
-      position
-    );
-  }
 
-  if (vector.x === 1) {
-    traversals.x.reverse();
-  }
-
-  if (vector.y === 1) {
-    traversals.y.reverse();
-  }
-
-  return traversals;
-};
+    if (!moved) {
+      return;
+    }
 
 
-// -------------------------
-// FIND FARTHEST POSITION
-// -------------------------
+    /*
+     * Successful move:
+     * spawn new tile.
+     */
+
+    this.addRandomTile();
+
+
+    /*
+     * Reaching 2048 wins even if
+     * this same move would otherwise
+     * leave no legal moves.
+     */
+
+    if (
+      !this.won &&
+      !this.movesAvailable()
+    ) {
+
+      if (
+        window.multiplayerMode
+      ) {
+
+        /*
+         * FIRST DEATH:
+         * consume Second Chance.
+         */
+
+        if (
+          !window.multiplayerSecondChanceUsed
+        ) {
+
+          window.multiplayerSecondChanceUsed =
+            true;
+
+
+          var removedValue =
+            this.useSecondChance();
+
+
+          this.over =
+            false;
+
+
+          if (
+            window.showSecondChanceUsed
+          ) {
+
+            window
+              .showSecondChanceUsed(
+                removedValue
+              );
+          }
+
+
+        /*
+         * SECOND DEATH:
+         * eliminated.
+         */
+
+        } else {
+
+          this.over =
+            true;
+
+
+          window.multiplayerGameOver =
+            true;
+
+
+          if (
+            window.multiplayerSocket
+          ) {
+
+            window
+              .multiplayerSocket
+              .emit(
+                "playerEliminated"
+              );
+          }
+        }
+
+      } else {
+
+        /*
+         * Normal single-player
+         * game over.
+         */
+
+        this.over =
+          true;
+      }
+    }
+
+
+    this.actuate();
+  };
+
+
+// =========================================================
+// DIRECTION VECTOR
+// =========================================================
+
+GameManager.prototype.getVector =
+  function (
+    direction
+  ) {
+
+    var map = {
+
+      0: {
+        x: 0,
+        y: -1
+      },
+
+      1: {
+        x: 1,
+        y: 0
+      },
+
+      2: {
+        x: 0,
+        y: 1
+      },
+
+      3: {
+        x: -1,
+        y: 0
+      }
+    };
+
+    return map[
+      direction
+    ];
+  };
+
+
+// =========================================================
+// TRAVERSALS
+// =========================================================
+
+GameManager.prototype.buildTraversals =
+  function (
+    vector
+  ) {
+
+    var traversals = {
+      x: [],
+      y: []
+    };
+
+
+    for (
+      var position = 0;
+      position < this.size;
+      position++
+    ) {
+
+      traversals.x.push(
+        position
+      );
+
+      traversals.y.push(
+        position
+      );
+    }
+
+
+    if (
+      vector.x === 1
+    ) {
+
+      traversals.x
+        .reverse();
+    }
+
+
+    if (
+      vector.y === 1
+    ) {
+
+      traversals.y
+        .reverse();
+    }
+
+
+    return traversals;
+  };
+
+
+// =========================================================
+// FARTHEST POSITION
+// =========================================================
 
 GameManager.prototype.findFarthestPosition =
   function (
     cell,
     vector
   ) {
+
     var previous;
 
+
     do {
-      previous = cell;
+
+      previous =
+        cell;
+
 
       cell = {
+
         x:
           previous.x +
           vector.x,
@@ -604,75 +899,98 @@ GameManager.prototype.findFarthestPosition =
       };
 
     } while (
-      this.grid.withinBounds(
-        cell
-      ) &&
-      this.grid.cellAvailable(
-        cell
-      )
+
+      this.grid
+        .withinBounds(
+          cell
+        ) &&
+
+      this.grid
+        .cellAvailable(
+          cell
+        )
     );
 
+
     return {
-      farthest: previous,
-      next: cell
+      farthest:
+        previous,
+
+      next:
+        cell
     };
   };
 
 
-// -------------------------
-// MOVES AVAILABLE?
-// -------------------------
+// =========================================================
+// MOVES AVAILABLE
+// =========================================================
 
 GameManager.prototype.movesAvailable =
   function () {
+
     return (
-      this.grid.cellsAvailable() ||
-      this.tileMatchesAvailable()
+      this.grid
+        .cellsAvailable() ||
+
+      this
+        .tileMatchesAvailable()
     );
   };
 
 
-// -------------------------
-// MATCHING TILES AVAILABLE?
-// -------------------------
+// =========================================================
+// TILE MATCHES AVAILABLE
+// =========================================================
 
 GameManager.prototype.tileMatchesAvailable =
   function () {
-    var self = this;
+
+    var self =
+      this;
 
     var tile;
+
 
     for (
       var x = 0;
       x < this.size;
       x++
     ) {
+
       for (
         var y = 0;
         y < this.size;
         y++
       ) {
+
         tile =
-          this.grid.cellContent({
-            x: x,
-            y: y
-          });
+          this.grid
+            .cellContent({
+              x: x,
+              y: y
+            });
+
 
         if (!tile) {
           continue;
         }
+
 
         for (
           var direction = 0;
           direction < 4;
           direction++
         ) {
+
           var vector =
             self.getVector(
               direction
             );
 
+
           var cell = {
+
             x:
               x +
               vector.x,
@@ -682,36 +1000,46 @@ GameManager.prototype.tileMatchesAvailable =
               vector.y
           };
 
+
           var other =
-            self.grid.cellContent(
-              cell
-            );
+            self.grid
+              .cellContent(
+                cell
+              );
+
 
           if (
             other &&
-            other.value === tile.value
+            other.value ===
+              tile.value
           ) {
+
             return true;
           }
         }
       }
     }
 
+
     return false;
   };
 
 
-// -------------------------
-// SAME POSITION?
-// -------------------------
+// =========================================================
+// POSITIONS EQUAL
+// =========================================================
 
 GameManager.prototype.positionsEqual =
   function (
     first,
     second
   ) {
+
     return (
-      first.x === second.x &&
-      first.y === second.y
+      first.x ===
+        second.x &&
+
+      first.y ===
+        second.y
     );
   };
