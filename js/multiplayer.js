@@ -5693,6 +5693,57 @@
     });
   }
 
+
+  function previewBoardMarkup(values, extraClass) {
+    var items = Array.isArray(values) ? values.slice(0, 16) : [];
+    while (items.length < 16) items.push(0);
+
+    return '<div class="ui-mini-board ' + (extraClass || '') + '">' + items.map(function (value) {
+      var number = Number(value || 0);
+      return '<span class="ui-mini-cell ' + (number ? 'filled pv-' + number : '') + '">' + (number ? number : '') + '</span>';
+    }).join('') + '</div>';
+  }
+
+  function savedSoloPreviewMarkup(state) {
+    var values = [];
+
+    for (var y = 0; y < 4; y++) {
+      for (var x = 0; x < 4; x++) {
+        var tile = state && state.grid && state.grid.cells && state.grid.cells[x]
+          ? state.grid.cells[x][y]
+          : null;
+        values.push(tile && tile.value ? tile.value : 0);
+      }
+    }
+
+    if (!values.some(function (value) { return value; })) {
+      values = [0, 2, 0, 4, 0, 0, 8, 0, 0, 16, 0, 0, 32, 0, 64, 0];
+    }
+
+    return previewBoardMarkup(values, 'solo-run-preview-board');
+  }
+
+  function modePreviewMarkup(mode) {
+    if (mode === 'tile-race') {
+      return '<div class="mode-visual-pair">' +
+        '<div class="mode-visual-player"><b>YOU</b>' + previewBoardMarkup([0,0,0,0,0,0,4,0,0,8,16,0,2,32,64,128], 'race-preview-a') + '<span>512</span></div>' +
+        '<div class="mode-visual-player"><b>RIVAL</b>' + previewBoardMarkup([0,0,0,0,0,2,0,0,4,8,0,0,16,32,64,0], 'race-preview-b') + '<span>256</span></div>' +
+      '</div>';
+    }
+
+    if (mode === 'freeplay') {
+      return '<div class="mode-freeplay-visual">' +
+        previewBoardMarkup([0,2,4,0,8,16,0,0,32,0,64,0,0,2,4,8], 'freeplay-preview') +
+        '<div class="undo-loop"><span>MOVE</span><i>↔</i><span>UNDO</span></div>' +
+      '</div>';
+    }
+
+    return '<div class="mode-custom-visual">' +
+      '<div class="custom-target"><small>PLAYER 1</small><strong>2048</strong><span>Target</span></div>' +
+      '<div class="custom-target harder"><small>PLAYER 2</small><strong>4096</strong><span>Target</span></div>' +
+    '</div>';
+  }
+
   function showSoloMenu() {
     window.currentGameMode = "solo-menu";
     window.multiplayerMode = false;
@@ -5701,6 +5752,7 @@
 
     withGame(function (game) {
       var hasSave = game.storageManager.hasGameState();
+      var savedState = game.storageManager.getGameState();
       var best = game.storageManager.getBestScore();
       var highest = game.storageManager.getHighestTileEver();
 
@@ -5708,24 +5760,42 @@
         "Solo 2048",
         showMainMenu,
         `
-          <div class="solo-launch-screen">
-            <div class="solo-launch-rule"><span>ENDLESS</span><strong>2048 is the milestone. Your run keeps going.</strong></div>
+          <div class="solo-launch-screen solo-launch-v43">
+            <section class="solo-launch-copy">
+              <span class="solo-launch-kicker">ENDLESS SOLO</span>
+              <h2>Pick up where you left off.</h2>
+              <p>2048 is a milestone, not the finish. Keep the board alive and chase a bigger run.</p>
 
-            <div class="solo-launch-stats" aria-label="Solo records">
-              <div class="solo-launch-stat">
-                <span>BEST SCORE</span>
-                <strong>${best}</strong>
+              <div class="solo-launch-stats" aria-label="Solo records">
+                <div class="solo-launch-stat">
+                  <span>BEST SCORE</span>
+                  <strong>${best}</strong>
+                </div>
+                <div class="solo-launch-stat">
+                  <span>HIGHEST TILE</span>
+                  <strong>${highest || 0}</strong>
+                </div>
               </div>
-              <div class="solo-launch-stat">
-                <span>HIGHEST TILE</span>
-                <strong>${highest || 0}</strong>
-              </div>
-            </div>
 
-            <div class="solo-launch-actions">
-              ${hasSave ? '<button class="primary-button solo-main-action" id="continue-solo">Continue Run</button>' : '<button class="primary-button solo-main-action" id="start-solo">Start Run</button>'}
-              ${hasSave ? '<button class="solo-text-action" id="new-solo">Start a new run</button>' : ''}
-            </div>
+              <div class="solo-launch-actions">
+                ${hasSave ? '<button class="solo-main-action" id="continue-solo">Continue Run <span>→</span></button>' : '<button class="solo-main-action" id="start-solo">Start Run <span>→</span></button>'}
+                ${hasSave ? '<button class="solo-text-action" id="new-solo">Start a new run</button>' : ''}
+              </div>
+            </section>
+
+            <aside class="solo-preview-stage" aria-label="Preview of your Solo board">
+              <div class="preview-orbit orbit-one"></div>
+              <div class="preview-orbit orbit-two"></div>
+              <div class="solo-preview-heading">
+                <span>${hasSave ? 'YOUR SAVED RUN' : 'YOUR BOARD'}</span>
+                <strong>${savedState && savedState.score ? savedState.score : 0}</strong>
+              </div>
+              ${savedSoloPreviewMarkup(savedState)}
+              <div class="solo-preview-caption">
+                <span>${window.rinasSettings.controlScheme === 'wasd' ? 'WASD' : 'ARROW KEYS'} TO MOVE</span>
+                ${window.rinasSettings.soloUndo ? '<span>Z TO UNDO</span>' : ''}
+              </div>
+            </aside>
           </div>
         `
       );
@@ -5956,83 +6026,56 @@
           <button class="nickname-link" id="change-nickname">Change</button>
         </div>
 
-        <div class="mode-selector-shell">
-          <nav class="mode-rail" aria-label="Multiplayer modes">
-            <button class="mode-rail-item selected" data-mode="tile-race">
-              <span class="mode-index">01</span><span><strong>Tile Race</strong><small>Competitive</small></span>
-            </button>
-            <button class="mode-rail-item" data-mode="freeplay">
-              <span class="mode-index">02</span><span><strong>Freeplay Duel</strong><small>Casual</small></span>
-            </button>
-            <button class="mode-rail-item" data-mode="custom-race">
-              <span class="mode-index">03</span><span><strong>Custom Race</strong><small>Handicap</small></span>
-            </button>
-            <button class="mode-rail-item locked" disabled><span class="mode-index">04</span><span><strong>Score Sprint</strong><small>Coming soon</small></span></button>
-            <button class="mode-rail-item locked" disabled><span class="mode-index">05</span><span><strong>Blitz</strong><small>Coming soon</small></span></button>
-            <button class="mode-rail-item locked" disabled><span class="mode-index">06</span><span><strong>Survival</strong><small>Coming soon</small></span></button>
-          </nav>
+        <div class="mode-showcase-list">
+          <button class="mode-showcase mode-showcase-race" id="mode-tile-race">
+            <div class="mode-showcase-copy">
+              <span class="mode-showcase-index">01 · COMPETITIVE</span>
+              <h2>Tile Race</h2>
+              <p>First player to reach the target tile wins. A stuck board loses.</p>
+              <div class="mode-showcase-facts"><span>Live position</span><span>No Undo</span><span>2048 / 4096 / 8192</span></div>
+              <strong class="mode-showcase-action">Play Tile Race →</strong>
+            </div>
+            <div class="mode-showcase-preview">${modePreviewMarkup('tile-race')}</div>
+          </button>
 
-          <section class="mode-stage" id="mode-stage" aria-live="polite"></section>
+          <button class="mode-showcase mode-showcase-freeplay" id="mode-freeplay">
+            <div class="mode-showcase-copy">
+              <span class="mode-showcase-index">02 · CASUAL</span>
+              <h2>Freeplay Duel</h2>
+              <p>Build side-by-side with no winner or elimination. Compare progress and rewind one move at a time.</p>
+              <div class="mode-showcase-facts"><span>No finish line</span><span>One-step Undo</span><span>Restart anytime</span></div>
+              <strong class="mode-showcase-action">Play Freeplay →</strong>
+            </div>
+            <div class="mode-showcase-preview">${modePreviewMarkup('freeplay')}</div>
+          </button>
+
+          <button class="mode-showcase mode-showcase-custom" id="mode-custom-race">
+            <div class="mode-showcase-copy">
+              <span class="mode-showcase-index">03 · HANDICAP</span>
+              <h2>Custom Race</h2>
+              <p>Give each player a different finish tile. Balance a beginner against an expert without hidden advantages.</p>
+              <div class="mode-showcase-facts"><span>Different targets</span><span>Live position</span><span>Transparent rules</span></div>
+              <strong class="mode-showcase-action">Build Custom Race →</strong>
+            </div>
+            <div class="mode-showcase-preview">${modePreviewMarkup('custom-race')}</div>
+          </button>
+        </div>
+
+        <div class="future-modes-strip" aria-label="Future multiplayer modes">
+          <span><b>Score Sprint</b> Coming soon</span>
+          <span><b>Blitz</b> Coming soon</span>
+          <span><b>Survival</b> Coming soon</span>
         </div>
       `
     );
-
-    var modes = {
-      "tile-race": {
-        eyebrow: "PURE 2048 RACE",
-        title: "Tile Race",
-        description: "First player to reach the target tile wins. If your board gets stuck, the race is over.",
-        facts: ["Same rules", "Live position", "No Undo"],
-        action: "Choose Tile Race",
-        next: showTileRaceLobby
-      },
-      "freeplay": {
-        eyebrow: "PLAY SIDE BY SIDE",
-        title: "Freeplay Duel",
-        description: "No winner and no elimination. Build freely beside a friend, compare progress, and use one-step Undo after each move.",
-        facts: ["No finish line", "One-step Undo", "Restart anytime"],
-        action: "Choose Freeplay",
-        next: showFreeplayLobby
-      },
-      "custom-race": {
-        eyebrow: "BALANCE THE MATCH",
-        title: "Custom Race",
-        description: "Give each player a different target. A newer player can race to 2048 while an expert races to 4096 or higher.",
-        facts: ["Different targets", "Live position", "No hidden handicap"],
-        action: "Choose Custom Race",
-        next: showCustomRaceLobby
-      }
-    };
-
-    function chooseMode(name) {
-      var mode = modes[name] || modes["tile-race"];
-      Array.prototype.forEach.call(document.querySelectorAll(".mode-rail-item[data-mode]"), function (button) {
-        button.classList.toggle("selected", button.getAttribute("data-mode") === name);
-      });
-
-      var stage = document.getElementById("mode-stage");
-      stage.classList.remove("mode-stage-pop");
-      void stage.offsetWidth;
-      stage.classList.add("mode-stage-pop");
-      stage.innerHTML = `
-        <span class="mode-stage-eyebrow">${mode.eyebrow}</span>
-        <h2>${mode.title}</h2>
-        <p>${mode.description}</p>
-        <div class="mode-stage-facts">${mode.facts.map(function (fact) { return '<span>' + fact + '</span>'; }).join("")}</div>
-        <button class="primary-button mode-stage-action" id="mode-stage-action">${mode.action}</button>
-      `;
-      document.getElementById("mode-stage-action").addEventListener("click", mode.next);
-    }
 
     document.getElementById("change-nickname").addEventListener("click", function () {
       openNicknamePrompt(showMultiplayerMenu);
     });
 
-    Array.prototype.forEach.call(document.querySelectorAll(".mode-rail-item[data-mode]"), function (button) {
-      button.addEventListener("click", function () { chooseMode(button.getAttribute("data-mode")); });
-    });
-
-    chooseMode("tile-race");
+    document.getElementById("mode-tile-race").addEventListener("click", showTileRaceLobby);
+    document.getElementById("mode-freeplay").addEventListener("click", showFreeplayLobby);
+    document.getElementById("mode-custom-race").addEventListener("click", showCustomRaceLobby);
   }
 
   function roomJoinMarkup() {
@@ -7737,6 +7780,432 @@
     }
   `;
   document.head.appendChild(v42Style);
+
+
+
+  // =========================================================
+  // v43: sophisticated playful puzzle-game UI
+  // =========================================================
+  var v43Style = document.createElement("style");
+  v43Style.textContent = `
+    /* Larger, friendlier base type without turning toy-like. */
+    body, button, input, output { font-size: 16px; }
+    .app-screen-inner { width: min(1120px, calc(100% - 56px)) !important; }
+    .app-title-stack h1 { font-size: 34px !important; letter-spacing: -.025em !important; }
+    .app-title-brand { font-size: 11px !important; }
+    .app-header { min-height: 86px !important; }
+    .nav-button, .settings-button { font-size: 14px !important; padding: 12px 2px !important; }
+
+    /* Motion stays tile-inspired rather than decorative shine. */
+    .progress-fill { animation: none !important; background-size: 100% 100% !important; }
+    .app-header::after, .solo-floating-header::after, .battle-topbar::after { animation: none !important; }
+    @keyframes tile-breathe-v43 {
+      0%, 100% { transform: translate3d(0,0,0) rotate(-2deg); }
+      50% { transform: translate3d(0,-5px,0) rotate(1deg); }
+    }
+    @keyframes preview-enter-v43 {
+      from { opacity: 0; transform: translateY(12px) scale(.985); }
+      to { opacity: 1; transform: translateY(0) scale(1); }
+    }
+
+    /* -----------------------------------------------------
+       SETTINGS: all core settings visible on desktop
+       ----------------------------------------------------- */
+    .settings-overlay {
+      display: flex !important;
+      align-items: center !important;
+      justify-content: center !important;
+      overflow: auto !important;
+      padding: 14px !important;
+    }
+    .settings-dialog.settings-dialog-v40 {
+      width: min(1040px, calc(100% - 20px)) !important;
+      max-width: 1040px !important;
+      max-height: calc(100vh - 28px) !important;
+      overflow-y: auto !important;
+      margin: auto !important;
+      padding: 0 30px 20px !important;
+      border-top-width: 3px !important;
+    }
+    .settings-dialog-header {
+      position: static !important;
+      margin: 0 -30px 16px !important;
+      padding: 18px 30px 14px !important;
+      backdrop-filter: none !important;
+    }
+    .settings-dialog-header h2 { font-size: 31px !important; }
+    .settings-kicker { font-size: 10px !important; }
+    .settings-grid-v40 {
+      grid-template-columns: 1fr 1fr !important;
+      grid-template-areas: "profile profile" "controls audio" "theme theme" !important;
+      gap: 18px 42px !important;
+    }
+    .settings-section h3 {
+      margin-bottom: 8px !important;
+      padding-bottom: 6px !important;
+      font-size: 21px !important;
+    }
+    .settings-help {
+      margin: 0 0 9px !important;
+      font-size: 14px !important;
+      line-height: 1.35 !important;
+    }
+    .field-label { font-size: 11px !important; margin-bottom: 5px !important; }
+    .nickname-field { min-height: 42px !important; padding: 8px 12px !important; }
+    .control-choice-row { gap: 14px !important; }
+    .control-choice, .toggle-button { padding: 8px 2px !important; font-size: 13px !important; }
+    .settings-inline-toggle { margin-top: 12px !important; padding-top: 10px !important; }
+    .settings-inline-toggle h4, .audio-control-group h4 { font-size: 16px !important; margin: 0 0 3px !important; }
+    .volume-row { margin-top: 8px !important; }
+    .theme-grid {
+      grid-template-columns: repeat(5, minmax(0, 1fr)) !important;
+      gap: 12px !important;
+    }
+    .theme-choice {
+      min-height: 68px !important;
+      padding: 8px 4px 5px !important;
+      font-size: 13px !important;
+    }
+    .theme-swatches { height: 19px !important; margin-top: 7px !important; }
+    .settings-footer {
+      position: static !important;
+      margin: 16px -30px -20px !important;
+      padding: 12px 30px 15px !important;
+      backdrop-filter: none !important;
+    }
+    #settings-done { min-width: 128px !important; padding: 11px 24px !important; }
+
+    /* -----------------------------------------------------
+       SOLO ENTRY: game preview + records, not a dashboard
+       ----------------------------------------------------- */
+    .screen-solo-menu #screen-content { width: min(980px, 100%) !important; }
+    .solo-launch-v43 {
+      display: grid !important;
+      grid-template-columns: minmax(0, 1fr) 400px !important;
+      align-items: center !important;
+      gap: 72px !important;
+      margin-top: 42px !important;
+      text-align: left !important;
+    }
+    .solo-launch-copy { min-width: 0; }
+    .solo-launch-kicker {
+      color: var(--app-accent);
+      font: 900 13px/1 var(--hud-display);
+      letter-spacing: .12em;
+    }
+    .solo-launch-copy h2 {
+      margin: 10px 0 10px;
+      font: 900 clamp(42px, 5vw, 66px)/.98 var(--hud-display);
+      letter-spacing: -.035em;
+      color: var(--app-text);
+    }
+    .solo-launch-copy > p {
+      max-width: 520px;
+      margin: 0 0 28px;
+      color: var(--app-muted);
+      font-size: 18px;
+      line-height: 1.5;
+    }
+    .solo-launch-v43 .solo-launch-stats {
+      width: 100% !important;
+      grid-template-columns: 1fr 1fr !important;
+      gap: 28px !important;
+      margin: 0 0 26px !important;
+      border: 0 !important;
+    }
+    .solo-launch-v43 .solo-launch-stat {
+      grid-column: auto !important;
+      padding: 0 !important;
+      text-align: left !important;
+      border: 0 !important;
+    }
+    .solo-launch-v43 .solo-launch-stat span { font-size: 12px !important; }
+    .solo-launch-v43 .solo-launch-stat strong {
+      display: block;
+      margin-top: 3px;
+      font: 900 48px/1 var(--tile-font) !important;
+      color: var(--app-text);
+    }
+    .solo-launch-actions { width: 100% !important; align-items: flex-start !important; }
+    .solo-main-action {
+      display: inline-flex !important;
+      align-items: center;
+      gap: 18px;
+      border: 0 !important;
+      border-bottom: 3px solid var(--app-accent) !important;
+      color: var(--app-text) !important;
+      background: transparent !important;
+      padding: 10px 0 !important;
+      font: 900 20px/1 var(--hud-display) !important;
+    }
+    .solo-main-action::after { content: none !important; }
+    .solo-main-action span { color: var(--app-accent); transition: transform 160ms ease; }
+    .solo-main-action:hover span { transform: translateX(6px); }
+    .solo-text-action { margin-top: 10px !important; font-size: 14px !important; }
+
+    .solo-preview-stage {
+      position: relative;
+      width: 400px;
+      min-height: 470px;
+      padding: 22px;
+      border-radius: 28px;
+      background: color-mix(in srgb, var(--game-panel-strong) 82%, transparent);
+      box-shadow: 0 18px 50px var(--app-shadow);
+      overflow: hidden;
+      animation: preview-enter-v43 300ms ease both;
+    }
+    .solo-preview-stage::before {
+      content: "";
+      position: absolute;
+      inset: 0;
+      border: 1px solid color-mix(in srgb, var(--app-accent) 28%, var(--game-line));
+      border-radius: inherit;
+      pointer-events: none;
+    }
+    .preview-orbit {
+      position: absolute;
+      border-radius: 50%;
+      border: 1px solid color-mix(in srgb, var(--app-accent) 22%, transparent);
+      pointer-events: none;
+    }
+    .orbit-one { width: 240px; height: 240px; right: -120px; top: -110px; }
+    .orbit-two { width: 180px; height: 180px; left: -100px; bottom: -90px; }
+    .solo-preview-heading {
+      position: relative;
+      display: flex;
+      align-items: baseline;
+      justify-content: space-between;
+      margin-bottom: 14px;
+    }
+    .solo-preview-heading span { font: 900 12px/1 var(--hud-display); letter-spacing: .1em; color: var(--app-muted); }
+    .solo-preview-heading strong { font: 900 26px/1 var(--tile-font); color: var(--app-accent); }
+    .solo-preview-caption {
+      position: relative;
+      display: flex;
+      justify-content: space-between;
+      gap: 12px;
+      margin-top: 13px;
+      color: var(--app-muted);
+      font: 800 11px/1 var(--hud-display);
+      letter-spacing: .08em;
+    }
+
+    .ui-mini-board {
+      position: relative;
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 8px;
+      width: 100%;
+      aspect-ratio: 1;
+      padding: 10px;
+      border-radius: 17px;
+      background: var(--app-board);
+    }
+    .ui-mini-cell {
+      display: grid;
+      place-items: center;
+      border-radius: 8px;
+      background: var(--app-cell);
+      color: var(--app-text);
+      font: 900 18px/1 var(--tile-font);
+    }
+    .ui-mini-cell.filled { background: color-mix(in srgb, var(--app-accent) 15%, var(--game-panel-strong)); }
+    .ui-mini-cell.pv-4, .ui-mini-cell.pv-16, .ui-mini-cell.pv-64 { background: color-mix(in srgb, var(--game-accent-2) 38%, var(--game-panel-strong)); }
+    .ui-mini-cell.pv-8, .ui-mini-cell.pv-32, .ui-mini-cell.pv-128 { background: color-mix(in srgb, var(--app-accent) 42%, var(--game-panel-strong)); color: var(--app-on-accent); }
+    .ui-mini-cell.pv-256, .ui-mini-cell.pv-512, .ui-mini-cell.pv-1024, .ui-mini-cell.pv-2048 { background: var(--game-accent-3); color: var(--game-deep); }
+
+    /* -----------------------------------------------------
+       MULTIPLAYER ENTRY: all modes understood at a glance
+       ----------------------------------------------------- */
+    .screen-multiplayer-menu #screen-content { width: min(1050px, 100%) !important; }
+    .multiplayer-entry-head {
+      display: flex !important;
+      justify-content: flex-end !important;
+      gap: 10px !important;
+      margin: 20px 0 18px !important;
+      padding: 0 0 12px !important;
+      font-size: 13px !important;
+    }
+    .mode-showcase-list { display: grid; gap: 16px; }
+    .mode-showcase {
+      --mode-hue: var(--app-accent);
+      position: relative;
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) 310px;
+      align-items: center;
+      gap: 36px;
+      width: 100%;
+      min-height: 176px;
+      padding: 24px 26px 24px 30px;
+      border: 0;
+      border-radius: 22px;
+      background:
+        linear-gradient(100deg, color-mix(in srgb, var(--mode-hue) 10%, var(--game-panel-strong)), color-mix(in srgb, var(--game-panel-strong) 94%, transparent) 64%);
+      color: var(--app-text);
+      text-align: left;
+      overflow: hidden;
+      cursor: pointer;
+      box-shadow: inset 4px 0 0 var(--mode-hue);
+      transition: transform 180ms ease, box-shadow 180ms ease, background 180ms ease;
+    }
+    .mode-showcase::after {
+      content: "";
+      position: absolute;
+      width: 160px;
+      height: 160px;
+      right: 72px;
+      top: 8px;
+      border: 1px solid color-mix(in srgb, var(--mode-hue) 22%, transparent);
+      border-radius: 50%;
+      pointer-events: none;
+    }
+    .mode-showcase-freeplay { --mode-hue: var(--game-accent-2); }
+    .mode-showcase-custom { --mode-hue: var(--game-accent-3); }
+    @media (hover:hover) and (pointer:fine) {
+      .mode-showcase:hover {
+        transform: translateX(7px);
+        box-shadow: inset 5px 0 0 var(--mode-hue), 0 14px 36px var(--app-shadow);
+      }
+      .mode-showcase:hover .mode-showcase-action { letter-spacing: .02em; }
+      .mode-showcase:hover .ui-mini-board { transform: rotate(.8deg) scale(1.015); }
+    }
+    .mode-showcase:active { transform: translateX(3px) scale(.995); }
+    .mode-showcase-copy { position: relative; z-index: 1; }
+    .mode-showcase-index { color: var(--mode-hue); font: 900 12px/1 var(--hud-display); letter-spacing: .11em; }
+    .mode-showcase h2 {
+      margin: 6px 0 5px;
+      font: 900 34px/1 var(--hud-display);
+      letter-spacing: -.025em;
+      color: var(--app-text);
+    }
+    .mode-showcase p { margin: 0; max-width: 590px; color: var(--app-muted); font-size: 16px; line-height: 1.4; }
+    .mode-showcase-facts { display: flex; flex-wrap: wrap; gap: 8px 18px; margin-top: 12px; }
+    .mode-showcase-facts span { font: 800 12px/1 var(--hud-display); color: var(--app-muted); }
+    .mode-showcase-facts span::before { content: "·"; margin-right: 6px; color: var(--mode-hue); }
+    .mode-showcase-action {
+      display: inline-block;
+      margin-top: 16px;
+      color: var(--app-text);
+      font: 900 15px/1 var(--hud-display);
+      transition: color 150ms ease, letter-spacing 150ms ease;
+    }
+    .mode-showcase:hover .mode-showcase-action { color: var(--mode-hue); }
+    .mode-showcase-preview { position: relative; z-index: 1; min-width: 0; }
+
+    .mode-visual-pair { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; align-items: end; }
+    .mode-visual-player { min-width: 0; }
+    .mode-visual-player b { display: block; margin-bottom: 5px; color: var(--app-muted); font: 800 9px/1 var(--hud-display); letter-spacing: .08em; }
+    .mode-visual-player > span { display: block; margin-top: 5px; font: 900 17px/1 var(--tile-font); color: var(--mode-hue); }
+    .mode-showcase .ui-mini-board { gap: 3px; padding: 5px; border-radius: 9px; transition: transform 180ms ease; }
+    .mode-showcase .ui-mini-cell { border-radius: 4px; font-size: 8px; }
+    .mode-freeplay-visual { display: grid; grid-template-columns: 140px 1fr; align-items: center; gap: 20px; }
+    .undo-loop { display: flex; align-items: center; justify-content: center; gap: 8px; color: var(--app-muted); font: 800 10px/1 var(--hud-display); }
+    .undo-loop i { color: var(--mode-hue); font-size: 27px; font-style: normal; }
+    .mode-custom-visual { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+    .custom-target {
+      display: flex;
+      min-height: 108px;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+      border-radius: 18px;
+      background: color-mix(in srgb, var(--mode-hue) 12%, var(--game-panel-strong));
+    }
+    .custom-target small, .custom-target span { color: var(--app-muted); font: 800 9px/1 var(--hud-display); letter-spacing: .07em; }
+    .custom-target strong { margin: 5px 0; font: 900 26px/1 var(--tile-font); color: var(--mode-hue); }
+    .custom-target.harder { transform: translateY(7px); }
+    .future-modes-strip {
+      display: flex;
+      gap: 28px;
+      justify-content: center;
+      padding: 20px 0 0;
+      color: var(--app-muted);
+      font-size: 13px;
+    }
+    .future-modes-strip b { margin-right: 5px; color: var(--app-text); }
+
+    /* -----------------------------------------------------
+       ACTIVE SOLO: fix stat collisions and keep board dominant
+       ----------------------------------------------------- */
+    body.solo-active #solo-toolbar { width: min(980px, calc(100% - 48px)) !important; }
+    .solo-floating-header { min-height: 82px !important; }
+    .solo-floating-center strong { font-size: 27px !important; }
+    body.solo-active .container {
+      width: min(570px, calc(100% - 32px)) !important;
+      margin-top: 18px !important;
+      padding: 14px 14px 18px !important;
+      border-left: 0 !important;
+      border-top: 3px solid var(--app-accent) !important;
+    }
+    body.solo-active .container .heading {
+      min-height: 96px !important;
+      display: grid !important;
+      grid-template-columns: 1fr auto !important;
+      align-items: center !important;
+      gap: 24px !important;
+      padding: 4px 0 16px !important;
+    }
+    body.solo-active .container .title { font-size: 38px !important; }
+    body.solo-active .scores-container { display: flex !important; border: 0 !important; gap: 10px !important; }
+    body.solo-active .score-container,
+    body.solo-active .best-container {
+      position: relative !important;
+      display: flex !important;
+      align-items: flex-end !important;
+      justify-content: center !important;
+      width: 118px !important;
+      min-width: 118px !important;
+      min-height: 82px !important;
+      padding: 31px 12px 12px !important;
+      border: 1px solid color-mix(in srgb, var(--game-line) 78%, transparent) !important;
+      border-radius: 13px !important;
+      background: color-mix(in srgb, var(--game-panel-strong) 82%, transparent) !important;
+      color: var(--app-text) !important;
+      font: 900 30px/1 var(--tile-font) !important;
+    }
+    body.solo-active .score-container::after,
+    body.solo-active .best-container::after {
+      position: absolute !important;
+      top: 10px !important;
+      left: 0 !important;
+      right: 0 !important;
+      width: auto !important;
+      color: var(--app-muted) !important;
+      font: 800 10px/1 var(--hud-display) !important;
+      letter-spacing: .1em !important;
+    }
+    .solo-card-actions { margin: 0 0 14px !important; padding: 0 2px 10px !important; border-bottom: 1px solid var(--game-line) !important; }
+    .solo-card-actions .small-button { font-size: 13px !important; }
+    #solo-control-strip { font-size: 12px !important; }
+
+    /* -----------------------------------------------------
+       ACTIVE MATCH: slightly larger readable text
+       ----------------------------------------------------- */
+    .battle-shell { max-width: 1180px !important; }
+    .battle-mode-title strong { font-size: 28px !important; }
+    .battle-rule-line { font-size: 15px !important; }
+    .player-card-header h2 { font-size: 31px !important; }
+    .player-subline { font-size: 13px !important; }
+    .highest-box span { font-size: 10px !important; }
+    .progress-meta { font-size: 12px !important; }
+
+    @media (max-width: 900px) {
+      .solo-launch-v43 { grid-template-columns: 1fr !important; gap: 32px !important; }
+      .solo-preview-stage { width: min(400px, 100%); margin: 0 auto; }
+      .mode-showcase { grid-template-columns: 1fr 250px; gap: 24px; }
+    }
+    @media (max-width: 720px) {
+      .settings-overlay { align-items: flex-start !important; padding: 10px !important; }
+      .settings-dialog.settings-dialog-v40 { width: 100% !important; max-height: none !important; }
+      .settings-grid-v40 { grid-template-columns: 1fr !important; grid-template-areas: "profile" "controls" "audio" "theme" !important; }
+      .theme-grid { grid-template-columns: repeat(2, minmax(0, 1fr)) !important; }
+      .mode-showcase { grid-template-columns: 1fr !important; }
+      .mode-showcase-preview { max-width: 300px; }
+      .future-modes-strip { flex-direction: column; gap: 7px; align-items: center; }
+      body.solo-active .container .heading { grid-template-columns: 1fr !important; }
+    }
+  `;
+  document.head.appendChild(v43Style);
 
   restoreGameContainer();
   showMainMenu();
