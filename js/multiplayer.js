@@ -593,14 +593,16 @@
 
   socket.on("gameStart", function (data) {
     window.multiplayerPlayerNumber = data.playerNumber;
-    
+    window.multiplayerAllowRestart = true;
 // Multiplayer matches always start with a fresh board.
 localStorage.removeItem("gameState");
 
 var restartButton = document.querySelector(".restart-button");
 
 if (restartButton) {
+  window.multiplayerAllowRestart = true;
   restartButton.click();
+  window.multiplayerAllowRestart = false;
 }
     status.textContent =
       "Opponent found! You are Player " +
