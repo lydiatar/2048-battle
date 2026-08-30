@@ -129,6 +129,29 @@ io.on("connection", (socket) => {
   /*
    * Player reports that they reached 2048.
    */
+  socket.on("playerState", (state) => {
+  for (const [roomCode, room] of rooms.entries()) {
+    if (!room.players.includes(socket.id)) {
+      continue;
+    }
+
+    if (room.status !== "playing") {
+      return;
+    }
+
+    var playerNumber =
+      room.players.indexOf(socket.id) + 1;
+
+    // Send this player's latest board to their opponent.
+    socket.to(roomCode).emit("opponentState", {
+      playerNumber: playerNumber,
+      state: state
+    });
+
+    return;
+  }
+});
+  
   socket.on("reached2048", () => {
     for (const [roomCode, room] of rooms.entries()) {
       if (!room.players.includes(socket.id)) {
