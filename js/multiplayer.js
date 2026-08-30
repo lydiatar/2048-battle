@@ -20,6 +20,10 @@
   var TARGETS = [2048, 4096, 8192];
   var CUSTOM_TARGETS = [1024, 2048, 4096, 8192, 16384];
 
+  // Optional support links. Leave blank until the owner supplies exact URLs.
+  var KOFI_URL = "";
+  var PAYPAL_URL = "";
+
   function safeStorageGet(key, fallback) {
     try {
       var value = window.localStorage.getItem(key);
@@ -5424,21 +5428,21 @@
     });
   }
 
-  function createScreenGhost(direction) {
-    var outgoing = appRoot.querySelector(".app-screen");
+  function createScreenGhost() {
+    // v47: intentionally disabled. Cloning live screens caused a visible jump
+    // on Back/Change. Incoming screens now animate without duplicating UI.
+  }
 
-    if (!outgoing) return;
+  function animateCurrentScreenOut(direction, callback) {
+    var screen = appRoot.querySelector(".app-screen");
+    if (!screen) {
+      callback();
+      return;
+    }
 
-    var ghost = outgoing.cloneNode(true);
-    removeIdsFromClone(ghost);
-    ghost.classList.remove("enter-forward", "enter-back");
-    ghost.classList.add("screen-ghost", direction < 0 ? "back" : "forward");
-
-    document.body.appendChild(ghost);
-
-    setTimeout(function () {
-      if (ghost.parentNode) ghost.remove();
-    }, 330);
+    screen.classList.remove("screen-exit-forward", "screen-exit-back");
+    screen.classList.add(direction < 0 ? "screen-exit-back" : "screen-exit-forward");
+    setTimeout(callback, 150);
   }
 
   function getScreenClass() {
@@ -5486,8 +5490,10 @@
 
     if (backHandler) {
       document.getElementById("screen-back").addEventListener("click", function () {
-        nextScreenTransitionDirection = -1;
-        backHandler();
+        animateCurrentScreenOut(-1, function () {
+          nextScreenTransitionDirection = -1;
+          backHandler();
+        });
       });
     }
 
@@ -5793,9 +5799,13 @@
       `
     );
 
-    document.getElementById("choose-solo").addEventListener("click", showSoloMenu);
+    document.getElementById("choose-solo").addEventListener("click", function () {
+      animateCurrentScreenOut(1, showSoloMenu);
+    });
     document.getElementById("choose-multiplayer").addEventListener("click", function () {
-      ensureNickname(showMultiplayerMenu);
+      animateCurrentScreenOut(1, function () {
+        ensureNickname(showMultiplayerMenu);
+      });
     });
   }
 
@@ -5957,7 +5967,7 @@
     actionRow.className = "solo-card-actions";
     actionRow.innerHTML = `
       <button class="small-button" id="solo-new">New Game</button>
-      <button class="small-button" id="solo-undo" data-no-ui-sound="true">Undo <kbd>Z</kbd></button>
+      <button class="small-button" id="solo-undo" data-no-ui-sound="true">Undo <span class="undo-shortcut">· Z</span></button>
     `;
 
     var board = gameContainer.querySelector(".game-container");
@@ -6193,9 +6203,9 @@
       openNicknamePrompt(showMultiplayerMenu);
     });
 
-    document.getElementById("mode-tile-race").addEventListener("click", showTileRaceLobby);
-    document.getElementById("mode-freeplay").addEventListener("click", showFreeplayLobby);
-    document.getElementById("mode-custom-race").addEventListener("click", showCustomRaceLobby);
+    document.getElementById("mode-tile-race").addEventListener("click", function () { animateCurrentScreenOut(1, showTileRaceLobby); });
+    document.getElementById("mode-freeplay").addEventListener("click", function () { animateCurrentScreenOut(1, showFreeplayLobby); });
+    document.getElementById("mode-custom-race").addEventListener("click", function () { animateCurrentScreenOut(1, showCustomRaceLobby); });
   }
 
   function roomJoinMarkup() {
@@ -6611,7 +6621,7 @@
       var controls = document.createElement("div");
       controls.className = "freeplay-controls";
       controls.innerHTML = `
-        <button class="small-button" id="freeplay-undo" data-no-ui-sound="true">Undo <kbd>Z</kbd></button>
+        <button class="small-button" id="freeplay-undo" data-no-ui-sound="true">Undo <span class="undo-shortcut">· Z</span></button>
         <button class="small-button" id="freeplay-restart">Restart Board</button>
       `;
       ownPanel.appendChild(controls);
@@ -7113,20 +7123,17 @@
             <h2>Settings</h2>
           </div>
           <div class="settings-header-actions">
-            <button class="settings-done-inline" id="settings-done">Done</button>
-            <button class="close-settings" id="close-settings" aria-label="Close">×</button>
+            <button class="settings-done-inline" id="settings-save">Save</button>
           </div>
         </div>
 
         <div class="settings-grid-v40">
           <section class="settings-section settings-profile-section">
             <h3>Profile</h3>
-            <div class="nickname-setting-row">
-              <div class="nickname-setting-copy">
-                <label class="field-label" for="settings-nickname">Nickname</label>
-                <p class="settings-help">Shown to the other player in multiplayer rooms.</p>
-              </div>
+            <div class="nickname-setting-centered">
+              <label class="field-label" for="settings-nickname">Nickname</label>
               <input id="settings-nickname" class="nickname-field nickname-field-centered" type="text" maxlength="16" autocomplete="nickname" placeholder="Nickname" value="${escapeHtml(window.rinasSettings.nickname || "")}">
+              <p class="settings-help">This is the name your opponent sees.</p>
             </div>
           </section>
 
@@ -7219,9 +7226,7 @@
       });
     }
 
-    document.getElementById("close-settings").addEventListener("click", close);
-    document.getElementById("settings-done").addEventListener("click", close);
-    overlay.addEventListener("click", function (event) { if (event.target === overlay) close(); });
+    document.getElementById("settings-save").addEventListener("click", close);
     nicknameInput.addEventListener("change", saveNickname);
 
     Array.prototype.forEach.call(overlay.querySelectorAll(".control-choice"), function (button) {
@@ -7276,6 +7281,24 @@
       window.refreshSoloControls();
     });
   }
+
+  function configureSupportFooter() {
+    var support = document.getElementById("support-links");
+    if (!support) return;
+
+    var links = [];
+    if (KOFI_URL) links.push('<a href="' + escapeHtml(KOFI_URL) + '" target="_blank" rel="noopener noreferrer">Ko-fi</a>');
+    if (PAYPAL_URL) links.push('<a href="' + escapeHtml(PAYPAL_URL) + '" target="_blank" rel="noopener noreferrer">PayPal</a>');
+
+    if (links.length) {
+      support.innerHTML = ' · Support: ' + links.join(' · ');
+      support.hidden = false;
+    } else {
+      support.hidden = true;
+    }
+  }
+
+  configureSupportFooter();
 
   // =========================================================
   // SOCKET EVENTS
@@ -8872,33 +8895,33 @@
 
   function fitActiveGameToViewport() {
     var isSolo = document.body.classList.contains("solo-active");
-    var layout = document.querySelector(".battle-layout");
+    var shell = document.querySelector(".battle-shell");
 
-    document.body.classList.toggle("battle-fit-active", !!layout);
+    document.body.classList.toggle("battle-fit-active", !!shell);
 
     if (window.innerWidth <= 900) {
+      if (gameHost) gameHost.style.zoom = "1";
+      if (shell) shell.style.zoom = "1";
       return;
     }
 
-    if (isSolo) {
-      var soloContainer = document.querySelector("body.solo-active .container");
-      if (soloContainer) {
-        soloContainer.style.zoom = "1";
-        var soloTop = soloContainer.getBoundingClientRect().top;
-        var soloAvailable = Math.max(320, window.innerHeight - soloTop - 18);
-        var soloNatural = Math.max(1, soloContainer.scrollHeight);
-        var soloZoom = Math.max(0.70, Math.min(1, soloAvailable / soloNatural));
-        soloContainer.style.zoom = String(soloZoom);
-      }
+    if (isSolo && gameHost) {
+      gameHost.style.zoom = "1";
+      var soloNatural = Math.max(1, gameHost.scrollHeight);
+      var soloAvailable = Math.max(360, window.innerHeight - 8);
+      var soloZoom = Math.max(0.58, Math.min(1, soloAvailable / soloNatural));
+      gameHost.style.zoom = String(soloZoom);
+    } else if (gameHost) {
+      gameHost.style.zoom = "1";
     }
 
-    if (layout) {
-      layout.style.zoom = "1";
-      var layoutTop = layout.getBoundingClientRect().top;
-      var available = Math.max(300, window.innerHeight - layoutTop - 16);
-      var natural = Math.max(1, layout.scrollHeight);
-      var matchZoom = Math.max(0.70, Math.min(1, available / natural));
-      layout.style.zoom = String(matchZoom);
+    if (shell) {
+      shell.style.zoom = "1";
+      var shellTop = Math.max(0, shell.getBoundingClientRect().top);
+      var shellNatural = Math.max(1, shell.scrollHeight);
+      var shellAvailable = Math.max(360, window.innerHeight - shellTop - 8);
+      var shellZoom = Math.max(0.58, Math.min(1, shellAvailable / shellNatural));
+      shell.style.zoom = String(shellZoom);
     }
   }
 
@@ -10160,6 +10183,361 @@
     }
   `;
   document.head.appendChild(v46Style);
+
+  var v47Style = document.createElement("style");
+  v47Style.id = "rinas-v47-style";
+  v47Style.textContent = `
+    /* =========================================================
+       v47 — deliberate adult-game polish
+       ========================================================= */
+
+    html, body { min-height: 100%; }
+
+    /* One consistent transition system. No cloned ghost screens. */
+    .app-screen.enter-forward { animation: v47ScreenInForward 260ms cubic-bezier(.2,.78,.2,1) both !important; }
+    .app-screen.enter-back { animation: v47ScreenInBack 260ms cubic-bezier(.2,.78,.2,1) both !important; }
+    .app-screen.screen-exit-forward { animation: v47ScreenOutForward 150ms ease both !important; pointer-events:none; }
+    .app-screen.screen-exit-back { animation: v47ScreenOutBack 150ms ease both !important; pointer-events:none; }
+    @keyframes v47ScreenInForward { from { opacity:0; transform:translate3d(18px,0,0); } to { opacity:1; transform:none; } }
+    @keyframes v47ScreenInBack { from { opacity:0; transform:translate3d(-18px,0,0); } to { opacity:1; transform:none; } }
+    @keyframes v47ScreenOutForward { to { opacity:0; transform:translate3d(-10px,0,0); } }
+    @keyframes v47ScreenOutBack { to { opacity:0; transform:translate3d(10px,0,0); } }
+
+    .game-modal-overlay, .settings-overlay { animation: v47OverlayIn 180ms ease both !important; }
+    .game-modal, .settings-dialog { animation: v47ModalIn 220ms cubic-bezier(.2,.8,.2,1) both !important; }
+    .ui-overlay-leaving { animation: v47OverlayOut 170ms ease both !important; }
+    .ui-overlay-leaving .game-modal, .ui-overlay-leaving .settings-dialog { animation: v47ModalOut 170ms ease both !important; }
+    @keyframes v47OverlayIn { from { opacity:0; } to { opacity:1; } }
+    @keyframes v47OverlayOut { from { opacity:1; } to { opacity:0; } }
+    @keyframes v47ModalIn { from { opacity:0; transform:translateY(10px) scale(.985); } to { opacity:1; transform:none; } }
+    @keyframes v47ModalOut { to { opacity:0; transform:translateY(6px) scale(.99); } }
+
+    /* SETTINGS — breathing room and one clear Save action. */
+    .settings-overlay { padding: 22px !important; align-items: center !important; }
+    .settings-dialog.settings-dialog-v40 {
+      width: min(940px, calc(100vw - 44px)) !important;
+      max-height: calc(100vh - 44px) !important;
+      border-radius: 22px !important;
+      overflow: hidden !important;
+      box-shadow: 0 30px 80px color-mix(in srgb, var(--app-shadow) 52%, transparent) !important;
+    }
+    .settings-dialog-header {
+      padding: 20px 26px 18px !important;
+      min-height: 78px !important;
+      align-items: center !important;
+    }
+    .settings-dialog-header h2 { margin: 3px 0 0 !important; font-size: 30px !important; line-height: 1 !important; }
+    .settings-kicker { font-size: 10px !important; letter-spacing: .13em !important; }
+    .settings-header-actions { gap: 10px !important; }
+    .settings-done-inline {
+      min-width: 120px !important;
+      min-height: 44px !important;
+      padding: 0 24px !important;
+      border: 0 !important;
+      border-radius: 13px !important;
+      background: var(--app-accent) !important;
+      color: var(--app-on-accent, #fff) !important;
+      box-shadow: 0 9px 22px color-mix(in srgb, var(--app-accent) 28%, transparent) !important;
+      font-size: 14px !important;
+    }
+    .settings-done-inline:hover { transform: translateY(-1px) !important; }
+    .close-settings { display:none !important; }
+
+    .settings-grid-v40 {
+      padding: 18px 26px 22px !important;
+      gap: 24px 30px !important;
+      grid-template-columns: 1.05fr .9fr 1.05fr !important;
+      align-items: start !important;
+    }
+    .settings-section { min-width:0; padding:0 !important; }
+    .settings-section h3 {
+      position:relative !important;
+      margin:0 0 18px !important;
+      padding:0 0 9px !important;
+      border:0 !important;
+      font-size:18px !important;
+      line-height:1.05 !important;
+    }
+    .settings-section h3::after {
+      content:"";
+      position:absolute;
+      left:0;
+      bottom:0;
+      width:36px;
+      height:3px;
+      border-radius:999px;
+      background:var(--app-accent);
+    }
+    .settings-help { margin:6px 0 0 !important; font-size:13px !important; line-height:1.42 !important; }
+    .settings-profile-section { grid-column:1 / -1 !important; }
+    .nickname-setting-row, .nickname-setting-copy { display:none !important; }
+    .nickname-setting-centered {
+      display:grid !important;
+      justify-items:center !important;
+      gap:7px !important;
+      max-width:360px !important;
+      margin:0 auto !important;
+      text-align:center !important;
+    }
+    .nickname-setting-centered .field-label { font-size:12px !important; letter-spacing:.08em !important; }
+    .settings-profile-section .nickname-field {
+      width:300px !important;
+      max-width:100% !important;
+      min-height:44px !important;
+      padding:8px 18px !important;
+      border-radius:13px !important;
+      text-align:center !important;
+      font-size:18px !important;
+      font-weight:800 !important;
+    }
+
+    /* Controls explain themselves visually without becoming toy-like. */
+    .control-choice-visual-row { gap:12px !important; margin-top:12px !important; }
+    .control-choice-visual {
+      min-height:116px !important;
+      padding:14px 10px 12px !important;
+      border-radius:16px !important;
+      border:1px solid color-mix(in srgb, var(--app-accent) 24%, var(--game-line)) !important;
+      background:color-mix(in srgb, var(--game-panel-strong) 90%, transparent) !important;
+      box-shadow:0 8px 18px color-mix(in srgb, var(--app-shadow) 18%, transparent) !important;
+    }
+    .control-choice-visual.selected {
+      border-color:var(--app-accent) !important;
+      box-shadow:0 0 0 2px color-mix(in srgb, var(--app-accent) 18%, transparent), 0 10px 22px color-mix(in srgb, var(--app-shadow) 22%, transparent) !important;
+    }
+    .scheme-keys { min-height:56px !important; gap:5px !important; }
+    .scheme-keys kbd {
+      min-width:27px !important;
+      height:27px !important;
+      padding:0 6px !important;
+      border-radius:7px !important;
+      font-size:12px !important;
+      box-shadow:inset 0 -2px 0 color-mix(in srgb, var(--app-text) 14%, transparent) !important;
+    }
+    .scheme-name { margin-top:7px !important; font-size:13px !important; }
+    .settings-inline-toggle { margin-top:14px !important; padding-top:13px !important; }
+    .toggle-row h4 { margin:0 0 5px !important; font-size:15px !important; }
+    .volume-row { margin-top:16px !important; }
+
+    .settings-theme-section .settings-section-heading-row { margin-bottom:10px !important; }
+    .theme-grid { gap:7px !important; }
+    .theme-choice {
+      min-height:34px !important;
+      padding:5px 7px !important;
+      border-radius:9px !important;
+    }
+    .theme-swatches { gap:3px !important; }
+
+    /* SOLO ENTRY — records are typography, not little cards. */
+    .solo-launch-v43 {
+      width:min(880px, calc(100vw - 48px)) !important;
+      min-height:0 !important;
+      margin:26px auto 0 !important;
+      grid-template-columns:minmax(0, .95fr) minmax(320px, 1.05fr) !important;
+      gap:48px !important;
+      align-items:center !important;
+    }
+    .solo-launch-copy h2 { margin:6px 0 12px !important; font-size:48px !important; line-height:.94 !important; }
+    .solo-launch-copy > p { max-width:390px !important; font-size:16px !important; line-height:1.45 !important; }
+    .solo-launch-stats {
+      display:grid !important;
+      grid-template-columns:1fr 1fr !important;
+      gap:26px !important;
+      margin:26px 0 24px !important;
+      padding:0 0 18px !important;
+      border-bottom:2px solid color-mix(in srgb, var(--app-accent) 36%, transparent) !important;
+    }
+    .solo-launch-stat {
+      padding:0 !important;
+      border:0 !important;
+      border-radius:0 !important;
+      background:transparent !important;
+      box-shadow:none !important;
+    }
+    .solo-launch-stat span { display:block; margin-bottom:7px !important; font-size:11px !important; letter-spacing:.10em !important; }
+    .solo-launch-stat strong { font-size:46px !important; line-height:1 !important; }
+    .solo-launch-actions { display:grid !important; gap:10px !important; }
+    .solo-main-action, .solo-text-action {
+      min-height:50px !important;
+      border-radius:13px !important;
+      font-size:16px !important;
+      font-weight:900 !important;
+    }
+    .solo-main-action {
+      padding:0 20px !important;
+      background:var(--app-accent) !important;
+      color:var(--app-on-accent, #fff) !important;
+      border:1px solid var(--app-accent) !important;
+      box-shadow:0 10px 24px color-mix(in srgb, var(--app-accent) 22%, transparent) !important;
+    }
+    .solo-text-action {
+      padding:0 20px !important;
+      border:1px solid color-mix(in srgb, var(--app-accent) 32%, var(--game-line)) !important;
+      background:color-mix(in srgb, var(--game-panel-strong) 78%, transparent) !important;
+      color:var(--app-text) !important;
+    }
+    .solo-preview-stage {
+      border-radius:18px !important;
+      padding:18px !important;
+      box-shadow:0 18px 40px color-mix(in srgb, var(--app-shadow) 30%, transparent) !important;
+    }
+    .preview-orbit { display:none !important; }
+
+    /* ACTIVE SOLO — one shared stat ribbon; no point pop-ups. */
+    body.solo-active .score-addition { display:none !important; }
+    body.solo-active .container {
+      width:500px !important;
+      padding:0 !important;
+      margin:0 auto !important;
+    }
+    body.solo-active .container .heading {
+      display:grid !important;
+      grid-template-columns:110px 1fr !important;
+      gap:14px !important;
+      align-items:center !important;
+      min-height:76px !important;
+      margin:0 0 10px !important;
+      padding:0 !important;
+      border:0 !important;
+    }
+    body.solo-active .container .title { font-size:44px !important; }
+    body.solo-active .scores-container {
+      display:grid !important;
+      grid-template-columns:1fr 1fr !important;
+      gap:0 !important;
+      min-height:72px !important;
+      padding:8px 6px !important;
+      border:1px solid color-mix(in srgb, var(--app-accent) 22%, var(--game-line)) !important;
+      border-radius:16px !important;
+      background:color-mix(in srgb, var(--game-panel-strong) 88%, transparent) !important;
+      box-shadow:0 10px 24px color-mix(in srgb, var(--app-shadow) 23%, transparent) !important;
+      overflow:hidden !important;
+    }
+    body.solo-active .score-container,
+    body.solo-active .best-container {
+      display:flex !important;
+      align-items:flex-end !important;
+      justify-content:center !important;
+      min-height:56px !important;
+      padding:24px 12px 7px !important;
+      border:0 !important;
+      border-radius:0 !important;
+      background:transparent !important;
+      box-shadow:none !important;
+      color:var(--app-text) !important;
+      font:900 31px/1 var(--tile-font) !important;
+    }
+    body.solo-active .best-container { border-left:1px solid color-mix(in srgb, var(--game-line) 70%, transparent) !important; }
+    body.solo-active .score-container::after,
+    body.solo-active .best-container::after {
+      top:9px !important;
+      font-size:10px !important;
+      letter-spacing:.11em !important;
+      color:var(--app-muted) !important;
+    }
+    body.solo-active .solo-card-actions { margin:0 0 10px !important; }
+    body.solo-active .solo-card-actions .small-button {
+      min-height:39px !important;
+      padding:0 15px !important;
+      border-radius:11px !important;
+      box-shadow:none !important;
+    }
+    body.solo-active #solo-new { border-color:color-mix(in srgb, var(--app-accent) 42%, var(--game-line)) !important; }
+    body.solo-active #solo-undo { border-color:var(--game-line) !important; }
+    .undo-shortcut { opacity:.68; margin-left:3px; font-weight:800; }
+    body.solo-active .game-container { border-radius:14px !important; }
+    #solo-control-strip { margin-top:7px !important; padding-top:5px !important; }
+
+    /* MULTIPLAYER MODE SELECTOR — larger, adult, playful live previews. */
+    .screen-multiplayer-menu #screen-content { max-width:980px !important; margin:0 auto !important; }
+    .screen-multiplayer-menu .multiplayer-entry-head { margin:10px 0 14px !important; }
+    .mode-showcase-list {
+      display:grid !important;
+      grid-template-columns:1fr 1fr !important;
+      gap:14px !important;
+      overflow:visible !important;
+    }
+    .mode-showcase {
+      min-height:184px !important;
+      padding:20px 22px !important;
+      border-radius:18px !important;
+      border:1px solid color-mix(in srgb, var(--mode-hue) 34%, var(--game-line)) !important;
+      background:linear-gradient(135deg, color-mix(in srgb, var(--mode-hue) 8%, var(--game-panel-strong)), var(--game-panel-strong) 64%) !important;
+      box-shadow:0 12px 28px color-mix(in srgb, var(--app-shadow) 20%, transparent) !important;
+      overflow:visible !important;
+      transform:none !important;
+    }
+    #mode-tile-race { grid-column:1 / -1 !important; min-height:176px !important; grid-template-columns:minmax(0,1fr) 330px !important; }
+    #mode-freeplay, #mode-custom-race { grid-template-columns:minmax(0,1fr) 180px !important; }
+    .mode-showcase:hover { transform:none !important; box-shadow:0 16px 34px color-mix(in srgb, var(--app-shadow) 27%, transparent) !important; }
+    .mode-showcase h2 { font-size:31px !important; }
+    .mode-showcase p { font-size:15px !important; line-height:1.38 !important; }
+    .mode-showcase-preview {
+      min-height:120px !important;
+      max-height:none !important;
+      overflow:visible !important;
+      display:flex !important;
+      align-items:center !important;
+      justify-content:center !important;
+    }
+    .mode-showcase .ui-mini-board { width:112px !important; height:112px !important; max-height:none !important; transform:none !important; }
+    .mode-showcase .ui-mini-cell.filled:nth-child(4n+1) { animation:v47PreviewPulse 3.6s ease-in-out infinite; }
+    .mode-showcase .ui-mini-cell.filled:nth-child(4n+3) { animation:v47PreviewPulse 3.6s 1.2s ease-in-out infinite; }
+    @keyframes v47PreviewPulse { 0%,88%,100% { transform:scale(1); } 94% { transform:scale(1.045); } }
+    .mode-showcase:active { transform:scale(.997) !important; }
+    .future-modes-strip { margin-top:12px !important; }
+
+    /* Lobby/form surfaces speak the same rounded game language. */
+    .race-rules, .race-box, .waiting-card, .game-modal {
+      border-radius:18px !important;
+      box-shadow:0 16px 34px color-mix(in srgb, var(--app-shadow) 22%, transparent) !important;
+    }
+    .primary-button, .target-button, .game-modal-button, .room-input {
+      border-radius:11px !important;
+    }
+
+    /* Footer credit. */
+    #site-footer {
+      position:fixed;
+      left:0;
+      right:0;
+      bottom:7px;
+      z-index:25;
+      text-align:center;
+      color:var(--app-muted, #776e65);
+      opacity:.52;
+      font:600 11px/1.2 var(--body-font, sans-serif);
+      letter-spacing:.01em;
+      pointer-events:none;
+    }
+    #site-footer a { color:inherit; text-decoration:none; pointer-events:auto; }
+    #site-footer a:hover { opacity:1; text-decoration:underline; }
+    body.solo-active #site-footer, body.battle-fit-active #site-footer { opacity:.32; bottom:3px; }
+
+    /* Hard desktop requirement: active games do not page-scroll. */
+    @media (min-width:901px) {
+      body.solo-active, body.battle-fit-active { height:100vh !important; overflow:hidden !important; }
+      body.solo-active #game-host { transform-origin:top center !important; }
+      .battle-shell { transform-origin:top center !important; }
+    }
+
+    @media (max-width:900px) {
+      .settings-overlay { align-items:flex-start !important; overflow-y:auto !important; padding:10px !important; }
+      .settings-dialog.settings-dialog-v40 { width:100% !important; max-height:none !important; overflow:visible !important; border-radius:16px !important; }
+      .settings-grid-v40 { grid-template-columns:1fr !important; }
+      .nickname-setting-centered .nickname-field { width:min(300px,100%) !important; }
+      .mode-showcase-list { grid-template-columns:1fr !important; }
+      #mode-tile-race, #mode-freeplay, #mode-custom-race { grid-column:auto !important; grid-template-columns:1fr !important; }
+      .mode-showcase-preview { min-height:0 !important; }
+      .solo-launch-v43 { grid-template-columns:1fr !important; width:min(560px, calc(100vw - 24px)) !important; }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      .app-screen, .game-modal-overlay, .settings-overlay, .game-modal, .settings-dialog,
+      .mode-showcase .ui-mini-cell { animation:none !important; transition:none !important; }
+    }
+  `;
+  document.head.appendChild(v47Style);
 
   restoreGameContainer();
   showMainMenu();
