@@ -131,7 +131,14 @@ LocalStorageManager.prototype.getUndoStack = function () {
 
   try {
     var stack = JSON.parse(stackJSON);
-    return Array.isArray(stack) ? stack : [];
+
+    if (!Array.isArray(stack) || !stack.length) {
+      return [];
+    }
+
+    // v37 uses a single-step Undo. Keep only the newest saved
+    // move so an old multi-step history cannot be chained.
+    return [stack[stack.length - 1]];
   } catch (error) {
     return [];
   }
@@ -142,7 +149,9 @@ LocalStorageManager.prototype.setUndoStack = function (stack) {
     return;
   }
 
-  var safeStack = Array.isArray(stack) ? stack.slice() : [];
+  var safeStack = Array.isArray(stack) && stack.length
+    ? [stack[stack.length - 1]]
+    : [];
 
   try {
     this.storage.setItem(
@@ -150,20 +159,7 @@ LocalStorageManager.prototype.setUndoStack = function (stack) {
       JSON.stringify(safeStack)
     );
   } catch (error) {
-    // If browser storage fills up, trim the oldest history and retry.
-    while (safeStack.length > 50) {
-      safeStack.splice(0, 50);
-
-      try {
-        this.storage.setItem(
-          this.undoStackKey,
-          JSON.stringify(safeStack)
-        );
-        return;
-      } catch (retryError) {
-        // Keep trimming until it fits.
-      }
-    }
+    // Undo is optional. If storage is unavailable/full, fail softly.
   }
 };
 
