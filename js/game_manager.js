@@ -88,13 +88,26 @@ GameManager.prototype.actuate = function () {
     this.storageManager.setGameState(this.serialize());
   }
 
-  this.actuator.actuate(this.grid, {
-    score:      this.score,
-    over:       this.over,
-    won:        this.won,
-    bestScore:  this.storageManager.getBestScore(),
-    terminated: this.isGameTerminated()
+ this.actuator.actuate(this.grid, {
+  score:      this.score,
+  over:       this.over,
+  won:        this.won,
+  bestScore:  this.storageManager.getBestScore(),
+  terminated: this.isGameTerminated()
+});
+
+// Send our latest board to the opponent.
+if (
+  window.multiplayerSocket &&
+  window.multiplayerPlayerNumber
+) {
+  window.multiplayerSocket.emit("playerState", {
+    grid: this.grid.serialize(),
+    score: this.score,
+    over: this.over,
+    won: this.won
   });
+}
 
 };
 
