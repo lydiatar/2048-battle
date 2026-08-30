@@ -4,6 +4,7 @@ function GameManager(size, InputManager, Actuator, StorageManager) {
   this.storageManager = new StorageManager;
   this.actuator = new Actuator;
   this.startTiles = 2;
+  this.undoAnimating = false;
 
   this.inputManager.on("move", this.move.bind(this));
   this.inputManager.on("restart", this.restart.bind(this));
@@ -94,7 +95,10 @@ GameManager.prototype.addRandomTile = function () {
     var tile = new Tile(this.grid.randomAvailableCell(), value);
 
     this.grid.insertTile(tile);
+    return tile;
   }
+
+  return null;
 };
 
 GameManager.prototype.getHighestTileValue = function () {
@@ -149,39 +153,74 @@ GameManager.prototype.soloUndoEnabled = function () {
   );
 };
 
-GameManager.prototype.pushUndoState = function (state) {
+GameManager.prototype.pushUndoState = function (state, transitions, spawnedTile) {
   if (!this.soloUndoEnabled()) {
     return;
   }
 
   var stack = this.storageManager.getUndoStack();
-  stack.push(state);
+
+  stack.push({
+    state: state,
+    transitions: Array.isArray(transitions) ? transitions : [],
+    spawnedTile: spawnedTile
+      ? {
+          x: spawnedTile.x,
+          y: spawnedTile.y,
+          value: spawnedTile.value
+        }
+      : null
+  });
+
   this.storageManager.setUndoStack(stack);
 };
 
-GameManager.prototype.undo = function () {
-  if (!this.soloUndoEnabled()) {
+GameManager.prototype.restoreUndoEntry = function (entry, milestoneAlreadyReached) {
+  var previousState = entry && entry.state
+    ? entry.state
+    : entry;
+
+  if (!previousState || !previousState.grid) {
+    this.undoAnimating = false;
+
+    if (window.refreshSoloControls) {
+      window.refreshSoloControls();
+    }
+
     return false;
   }
-
-  var milestoneAlreadyReached = Number(
-    this.soloHighestMilestone || 0
-  );
-
-  var stack = this.storageManager.getUndoStack();
-
-  if (!stack.length) {
-    return false;
-  }
-
-  var previousState = stack.pop();
-
-  this.storageManager.setUndoStack(stack);
 
   this.grid = new Grid(
     previousState.grid.size,
     previousState.grid.cells
   );
+
+  var transitions = entry && Array.isArray(entry.transitions)
+    ? entry.transitions
+    : [];
+
+  // Re-create the previous board with each tile starting from
+  // the position it occupied AFTER the move. HTMLActuator then
+  // uses the same CSS movement system as a normal forward move,
+  // only in reverse. Merges naturally split because both old
+  // tiles start from the merged tile's destination.
+  transitions.forEach(function (transition) {
+    if (!transition || !transition.from || !transition.to) {
+      return;
+    }
+
+    var restoredTile = this.grid.cellContent({
+      x: transition.from.x,
+      y: transition.from.y
+    });
+
+    if (restoredTile) {
+      restoredTile.previousPosition = {
+        x: transition.to.x,
+        y: transition.to.y
+      };
+    }
+  }, this);
 
   this.score = previousState.score;
   this.over = previousState.over;
@@ -197,6 +236,99 @@ GameManager.prototype.undo = function () {
 
   this.actuator.continueGame();
   this.actuate();
+
+  var self = this;
+
+  // Original 2048 tile movement is about 100 ms. Keep the input
+  // locked just long enough for the reverse motion to complete.
+  window.setTimeout(function () {
+    self.undoAnimating = false;
+
+    if (window.refreshSoloControls) {
+      window.refreshSoloControls();
+    }
+  }, 140);
+
+  return true;
+};
+
+GameManager.prototype.undo = function () {
+  if (!this.soloUndoEnabled() || this.undoAnimating) {
+    return false;
+  }
+
+  var milestoneAlreadyReached = Number(
+    this.soloHighestMilestone || 0
+  );
+
+  var stack = this.storageManager.getUndoStack();
+
+  if (!stack.length) {
+    return false;
+  }
+
+  var entry = stack.pop();
+
+  // Older v32/v33 undo history stored the state directly.
+  // Keep it compatible; those old entries simply use the
+  // previous instant restore once, while all new moves animate.
+  var isAnimatedEntry = !!(
+    entry &&
+    entry.state &&
+    Array.isArray(entry.transitions)
+  );
+
+  this.storageManager.setUndoStack(stack);
+  this.undoAnimating = true;
+
+  if (window.rinasPlaySound) {
+    window.rinasPlaySound("undo");
+  }
+
+  if (window.refreshSoloControls) {
+    window.refreshSoloControls();
+  }
+
+  var self = this;
+
+  if (!isAnimatedEntry || !entry.spawnedTile) {
+    return this.restoreUndoEntry(
+      entry,
+      milestoneAlreadyReached
+    );
+  }
+
+  // A normal move ends by spawning a fresh 2/4. Reverse that
+  // tiny pop first, then slide/split the rest of the board back.
+  var positionClass =
+    '.tile-position-' +
+    (entry.spawnedTile.x + 1) +
+    '-' +
+    (entry.spawnedTile.y + 1);
+
+  var tileContainer = document.querySelector(
+    '.game-container .tile-container'
+  );
+
+  var spawnedElement = tileContainer
+    ? tileContainer.querySelector(positionClass)
+    : null;
+
+  if (spawnedElement) {
+    spawnedElement.classList.add('rinas-undo-removing');
+
+    window.setTimeout(function () {
+      self.restoreUndoEntry(
+        entry,
+        milestoneAlreadyReached
+      );
+    }, 70);
+  } else {
+    self.restoreUndoEntry(
+      entry,
+      milestoneAlreadyReached
+    );
+  }
 
   return true;
 };
@@ -260,8 +392,19 @@ GameManager.prototype.actuate = function () {
       targetTile: Number(window.multiplayerTargetTile || 2048),
       theme: window.rinasSettings
         ? window.rinasSettings.theme
-        : "classic"
+        : "classic",
+      nickname: window.rinasSettings
+        ? window.rinasSettings.nickname
+        : "Player"
     });
+  }
+
+  if (
+    window.multiplayerMode &&
+    window.multiplayerMatchActive &&
+    window.updateRacePosition
+  ) {
+    window.updateRacePosition(highestTile);
   }
 
   if (window.refreshSoloControls) {
@@ -299,8 +442,10 @@ GameManager.prototype.move = function (direction) {
   var self = this;
   var soloShow2048Prompt = false;
   var soloMilestoneToast = null;
+  var mergedAny = false;
+  var rescueActivated = false;
 
-  if (window.multiplayerGameOver) {
+  if (window.multiplayerGameOver || this.undoAnimating) {
     return;
   }
 
@@ -309,6 +454,7 @@ GameManager.prototype.move = function (direction) {
   }
 
   var stateBeforeMove = this.serialize();
+  var undoTransitions = [];
   var cell;
   var tile;
   var vector = this.getVector(direction);
@@ -326,6 +472,11 @@ GameManager.prototype.move = function (direction) {
         return;
       }
 
+      var originalPosition = {
+        x: tile.x,
+        y: tile.y
+      };
+
       var positions = self.findFarthestPosition(cell, vector);
       var next = self.grid.cellContent(positions.next);
 
@@ -339,12 +490,23 @@ GameManager.prototype.move = function (direction) {
           tile.value * 2
         );
 
+        mergedAny = true;
+
         merged.mergedFrom = [tile, next];
 
         self.grid.insertTile(merged);
         self.grid.removeTile(tile);
 
         tile.updatePosition(positions.next);
+
+        undoTransitions.push({
+          from: originalPosition,
+          to: {
+            x: positions.next.x,
+            y: positions.next.y
+          },
+          value: tile.value
+        });
 
         self.score += merged.value;
 
@@ -392,6 +554,15 @@ GameManager.prototype.move = function (direction) {
         }
       } else {
         self.moveTile(tile, positions.farthest);
+
+        undoTransitions.push({
+          from: originalPosition,
+          to: {
+            x: positions.farthest.x,
+            y: positions.farthest.y
+          },
+          value: tile.value
+        });
       }
 
       if (!self.positionsEqual(cell, tile)) {
@@ -404,11 +575,15 @@ GameManager.prototype.move = function (direction) {
     return;
   }
 
-  if (!window.multiplayerMode) {
-    this.pushUndoState(stateBeforeMove);
-  }
+  var spawnedTile = this.addRandomTile();
 
-  this.addRandomTile();
+  if (!window.multiplayerMode) {
+    this.pushUndoState(
+      stateBeforeMove,
+      undoTransitions,
+      spawnedTile
+    );
+  }
 
   if (!this.movesAvailable()) {
     if (window.multiplayerMode) {
@@ -420,7 +595,12 @@ GameManager.prototype.move = function (direction) {
 
           var removedValue = this.useSecondChance();
 
+          rescueActivated = true;
           this.over = false;
+
+          if (window.rinasPlaySound) {
+            window.rinasPlaySound("rescue");
+          }
 
           if (window.showSecondChanceUsed) {
             window.showSecondChanceUsed(removedValue);
@@ -443,10 +623,18 @@ GameManager.prototype.move = function (direction) {
       // the exact move that first made 2048, let the milestone
       // dialog appear first; Continue will re-check the board.
       this.over = true;
+
+      if (window.rinasPlaySound) {
+        window.rinasPlaySound("lose");
+      }
     }
   }
 
   this.actuate();
+
+  if (!rescueActivated && window.rinasPlaySound) {
+    window.rinasPlaySound(mergedAny ? "merge" : "move");
+  }
 
   if (soloShow2048Prompt && window.showSolo2048Milestone) {
     window.showSolo2048Milestone();
