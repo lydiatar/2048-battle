@@ -5,6 +5,7 @@ function GameManager(size, InputManager, Actuator, StorageManager) {
   this.actuator = new Actuator;
   this.startTiles = 2;
   this.undoAnimating = false;
+  this.freeplayUndoEntry = null;
 
   this.inputManager.on("move", this.move.bind(this));
   this.inputManager.on("restart", this.restart.bind(this));
@@ -23,6 +24,7 @@ GameManager.prototype.restart = function () {
 
   this.storageManager.clearGameState();
   this.storageManager.clearUndoStack();
+  this.freeplayUndoEntry = null;
   this.actuator.continueGame();
   this.setup();
 };
@@ -113,54 +115,27 @@ GameManager.prototype.getHighestTileValue = function () {
   return highest;
 };
 
-GameManager.prototype.useSecondChance = function () {
-  var lowestValue = Infinity;
-  var candidates = [];
-
-  this.grid.eachCell(function (x, y, tile) {
-    if (!tile) {
-      return;
-    }
-
-    if (tile.value < lowestValue) {
-      lowestValue = tile.value;
-      candidates = [tile];
-    } else if (tile.value === lowestValue) {
-      candidates.push(tile);
-    }
-  });
-
-  if (!candidates.length) {
-    return null;
+GameManager.prototype.undoEnabled = function () {
+  if (!window.multiplayerMode) {
+    return !!(
+      window.rinasSettings &&
+      window.rinasSettings.soloUndo
+    );
   }
 
-  var tileToRemove = candidates[
-    Math.floor(Math.random() * candidates.length)
-  ];
-
-  var removedValue = tileToRemove.value;
-
-  this.grid.removeTile(tileToRemove);
-
-  return removedValue;
-};
-
-GameManager.prototype.soloUndoEnabled = function () {
+  // Freeplay intentionally includes a forgiving single-step Undo.
   return !!(
-    !window.multiplayerMode &&
-    window.rinasSettings &&
-    window.rinasSettings.soloUndo
+    window.multiplayerMatchActive &&
+    window.multiplayerModeName === "freeplay"
   );
 };
 
 GameManager.prototype.pushUndoState = function (state, transitions, spawnedTile) {
-  if (!this.soloUndoEnabled()) {
+  if (!this.undoEnabled()) {
     return;
   }
 
-  var stack = this.storageManager.getUndoStack();
-
-  stack.push({
+  var entry = {
     state: state,
     transitions: Array.isArray(transitions) ? transitions : [],
     spawnedTile: spawnedTile
@@ -170,9 +145,17 @@ GameManager.prototype.pushUndoState = function (state, transitions, spawnedTile)
           value: spawnedTile.value
         }
       : null
-  });
+  };
 
-  this.storageManager.setUndoStack(stack);
+  if (window.multiplayerMode && window.multiplayerModeName === "freeplay") {
+    // One forward move earns one Undo. Undo consumes this entry.
+    this.freeplayUndoEntry = entry;
+    return;
+  }
+
+  // Solo is also single-step in v37. A new successful move replaces
+  // the previous Undo point instead of building a history stack.
+  this.storageManager.setUndoStack([entry]);
 };
 
 GameManager.prototype.restoreUndoEntry = function (entry, milestoneAlreadyReached) {
@@ -185,6 +168,10 @@ GameManager.prototype.restoreUndoEntry = function (entry, milestoneAlreadyReache
 
     if (window.refreshSoloControls) {
       window.refreshSoloControls();
+    }
+
+    if (window.refreshFreeplayControls) {
+      window.refreshFreeplayControls();
     }
 
     return false;
@@ -247,38 +234,53 @@ GameManager.prototype.restoreUndoEntry = function (entry, milestoneAlreadyReache
     if (window.refreshSoloControls) {
       window.refreshSoloControls();
     }
+
+    if (window.refreshFreeplayControls) {
+      window.refreshFreeplayControls();
+    }
   }, 140);
 
   return true;
 };
 
 GameManager.prototype.undo = function () {
-  if (!this.soloUndoEnabled() || this.undoAnimating) {
+  if (!this.undoEnabled() || this.undoAnimating) {
     return false;
   }
 
-  var milestoneAlreadyReached = Number(
-    this.soloHighestMilestone || 0
+  var isFreeplay = !!(
+    window.multiplayerMode &&
+    window.multiplayerModeName === "freeplay"
   );
 
-  var stack = this.storageManager.getUndoStack();
+  var milestoneAlreadyReached = !window.multiplayerMode
+    ? Number(this.soloHighestMilestone || 0)
+    : 0;
 
-  if (!stack.length) {
+  var entry = null;
+
+  if (isFreeplay) {
+    entry = this.freeplayUndoEntry;
+    this.freeplayUndoEntry = null;
+  } else {
+    var stack = this.storageManager.getUndoStack();
+
+    if (stack.length) {
+      entry = stack[stack.length - 1];
+      this.storageManager.setUndoStack([]);
+    }
+  }
+
+  if (!entry) {
     return false;
   }
 
-  var entry = stack.pop();
-
-  // Older v32/v33 undo history stored the state directly.
-  // Keep it compatible; those old entries simply use the
-  // previous instant restore once, while all new moves animate.
   var isAnimatedEntry = !!(
     entry &&
     entry.state &&
     Array.isArray(entry.transitions)
   );
 
-  this.storageManager.setUndoStack(stack);
   this.undoAnimating = true;
 
   if (window.rinasPlaySound) {
@@ -287,6 +289,10 @@ GameManager.prototype.undo = function () {
 
   if (window.refreshSoloControls) {
     window.refreshSoloControls();
+  }
+
+  if (window.refreshFreeplayControls) {
+    window.refreshFreeplayControls();
   }
 
   var self = this;
@@ -298,16 +304,14 @@ GameManager.prototype.undo = function () {
     );
   }
 
-  // A normal move ends by spawning a fresh 2/4. Reverse that
-  // tiny pop first, then slide/split the rest of the board back.
   var positionClass =
-    '.tile-position-' +
+    ".tile-position-" +
     (entry.spawnedTile.x + 1) +
-    '-' +
+    "-" +
     (entry.spawnedTile.y + 1);
 
   var tileContainer = document.querySelector(
-    '.game-container .tile-container'
+    ".game-container .tile-container"
   );
 
   var spawnedElement = tileContainer
@@ -315,7 +319,7 @@ GameManager.prototype.undo = function () {
     : null;
 
   if (spawnedElement) {
-    spawnedElement.classList.add('rinas-undo-removing');
+    spawnedElement.classList.add("rinas-undo-removing");
 
     window.setTimeout(function () {
       self.restoreUndoEntry(
@@ -388,8 +392,9 @@ GameManager.prototype.actuate = function () {
       highestTile: highestTile,
       over: this.over,
       won: this.won,
-      secondChanceUsed: !!window.multiplayerSecondChanceUsed,
-      targetTile: Number(window.multiplayerTargetTile || 2048),
+      mode: window.multiplayerModeName || "tile-race",
+      targetTile: Number(window.multiplayerTargetTile || 0),
+      ownTarget: Number(window.multiplayerOwnTarget || 0),
       theme: window.rinasSettings
         ? window.rinasSettings.theme
         : "classic",
@@ -402,13 +407,17 @@ GameManager.prototype.actuate = function () {
   if (
     window.multiplayerMode &&
     window.multiplayerMatchActive &&
-    window.updateRacePosition
+    window.updateMatchProgress
   ) {
-    window.updateRacePosition(highestTile);
+    window.updateMatchProgress(highestTile, this.score);
   }
 
   if (window.refreshSoloControls) {
     window.refreshSoloControls();
+  }
+
+  if (window.refreshFreeplayControls) {
+    window.refreshFreeplayControls();
   }
 };
 
@@ -443,7 +452,7 @@ GameManager.prototype.move = function (direction) {
   var soloShow2048Prompt = false;
   var soloMilestoneToast = null;
   var mergedAny = false;
-  var rescueActivated = false;
+  var freeplayBoardEnded = false;
 
   if (window.multiplayerGameOver || this.undoAnimating) {
     return;
@@ -511,20 +520,24 @@ GameManager.prototype.move = function (direction) {
         self.score += merged.value;
 
         if (window.multiplayerMode) {
-          var targetTile = Number(
-            window.multiplayerTargetTile || 2048
-          );
+          var multiplayerModeName = window.multiplayerModeName || "tile-race";
 
-          if (merged.value >= targetTile) {
-            self.won = true;
+          if (multiplayerModeName !== "freeplay") {
+            var targetTile = multiplayerModeName === "custom-race"
+              ? Number(window.multiplayerOwnTarget || 2048)
+              : Number(window.multiplayerTargetTile || 2048);
 
-            if (
-              window.multiplayerSocket &&
-              window.multiplayerMatchActive
-            ) {
-              window.multiplayerSocket.emit("reachedTarget", {
-                tileValue: merged.value
-              });
+            if (merged.value >= targetTile) {
+              self.won = true;
+
+              if (
+                window.multiplayerSocket &&
+                window.multiplayerMatchActive
+              ) {
+                window.multiplayerSocket.emit("reachedTarget", {
+                  tileValue: merged.value
+                });
+              }
             }
           }
         } else {
@@ -577,51 +590,33 @@ GameManager.prototype.move = function (direction) {
 
   var spawnedTile = this.addRandomTile();
 
-  if (!window.multiplayerMode) {
-    this.pushUndoState(
-      stateBeforeMove,
-      undoTransitions,
-      spawnedTile
-    );
-  }
+  this.pushUndoState(
+    stateBeforeMove,
+    undoTransitions,
+    spawnedTile
+  );
 
   if (!this.movesAvailable()) {
     if (window.multiplayerMode) {
-      // A player who already hit the multiplayer target has
-      // finished the race, so elimination no longer matters.
-      if (!this.won) {
-        if (!window.multiplayerSecondChanceUsed) {
-          window.multiplayerSecondChanceUsed = true;
+      var activeMode = window.multiplayerModeName || "tile-race";
 
-          var removedValue = this.useSecondChance();
+      if (activeMode === "freeplay") {
+        this.over = true;
+        freeplayBoardEnded = true;
+      } else if (!this.won) {
+        // Competitive race modes are intentionally simple. If your board
+        // has no legal moves before the target, you lose the race.
+        this.over = true;
+        window.multiplayerGameOver = true;
 
-          rescueActivated = true;
-          this.over = false;
-
-          if (window.rinasPlaySound) {
-            window.rinasPlaySound("rescue");
-          }
-
-          if (window.showSecondChanceUsed) {
-            window.showSecondChanceUsed(removedValue);
-          }
-        } else {
-          this.over = true;
-          window.multiplayerGameOver = true;
-
-          if (
-            window.multiplayerSocket &&
-            window.multiplayerMatchActive
-          ) {
-            window.multiplayerSocket.emit("playerEliminated");
-          }
+        if (
+          window.multiplayerSocket &&
+          window.multiplayerMatchActive
+        ) {
+          window.multiplayerSocket.emit("playerEliminated");
         }
       }
     } else if (!soloShow2048Prompt) {
-      // Solo remains endless after 2048, but it can still end
-      // normally when the board has no legal moves. If this is
-      // the exact move that first made 2048, let the milestone
-      // dialog appear first; Continue will re-check the board.
       this.over = true;
 
       if (window.rinasPlaySound) {
@@ -632,8 +627,12 @@ GameManager.prototype.move = function (direction) {
 
   this.actuate();
 
-  if (!rescueActivated && window.rinasPlaySound) {
+  if (window.rinasPlaySound) {
     window.rinasPlaySound(mergedAny ? "merge" : "move");
+  }
+
+  if (freeplayBoardEnded && window.showFreeplayBoardOver) {
+    window.showFreeplayBoardOver();
   }
 
   if (soloShow2048Prompt && window.showSolo2048Milestone) {
