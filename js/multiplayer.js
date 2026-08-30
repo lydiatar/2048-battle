@@ -1003,6 +1003,334 @@
     .tile.tile-4096 .tile-inner { background: var(--tile-4096) !important; color: var(--tile-light-text) !important; }
     .tile.tile-8192 .tile-inner { background: var(--tile-8192) !important; color: var(--tile-light-text) !important; }
 
+    /* =======================================================
+       FULL APP THEMES
+       Each theme now controls the whole interface, not just tiles.
+       ======================================================= */
+
+    body.theme-classic {
+      --app-bg: #faf8ef;
+      --app-card: #ffffff;
+      --app-soft: #f1ece3;
+      --app-border: #eee4da;
+      --app-text: #776e65;
+      --app-muted: #8f7a66;
+      --app-accent: #8f7a66;
+      --app-accent-hover: #7f6b59;
+      --app-on-accent: #ffffff;
+      --app-board: #bbada0;
+      --app-cell: rgba(238, 228, 218, 0.35);
+      --app-stat: #bbada0;
+      --app-danger: #a85f4b;
+      --app-overlay: rgba(40, 36, 32, 0.72);
+      --app-message-bg: rgba(250, 248, 239, 0.82);
+      --app-shadow: rgba(0, 0, 0, 0.12);
+    }
+
+    body.theme-pastel {
+      --app-bg: #ffffff;
+      --app-card: #fbfbfe;
+      --app-soft: #f4f2f8;
+      --app-border: #e6e1ec;
+      --app-text: #57515f;
+      --app-muted: #7b7382;
+      --app-accent: #a88fba;
+      --app-accent-hover: #947aa8;
+      --app-on-accent: #ffffff;
+      --app-board: #ded9e7;
+      --app-cell: #f1eef5;
+      --app-stat: #b8a9c5;
+      --app-danger: #c97985;
+      --app-overlay: rgba(71, 62, 77, 0.48);
+      --app-message-bg: rgba(255, 255, 255, 0.88);
+      --app-shadow: rgba(76, 61, 88, 0.11);
+    }
+
+    body.theme-ocean {
+      --app-bg: #edf8fb;
+      --app-card: #f9fdff;
+      --app-soft: #dff1f6;
+      --app-border: #c8e4ec;
+      --app-text: #27505c;
+      --app-muted: #4f7480;
+      --app-accent: #2f8198;
+      --app-accent-hover: #286f83;
+      --app-on-accent: #ffffff;
+      --app-board: #8eb7c3;
+      --app-cell: #d7eaf0;
+      --app-stat: #5f9bad;
+      --app-danger: #b76565;
+      --app-overlay: rgba(20, 50, 61, 0.60);
+      --app-message-bg: rgba(237, 248, 251, 0.88);
+      --app-shadow: rgba(30, 89, 105, 0.14);
+    }
+
+    body.theme-candy {
+      --app-bg: #fff3f8;
+      --app-card: #fffafd;
+      --app-soft: #fde4ef;
+      --app-border: #f4c9dc;
+      --app-text: #704b59;
+      --app-muted: #9a6479;
+      --app-accent: #d65d91;
+      --app-accent-hover: #c44d80;
+      --app-on-accent: #ffffff;
+      --app-board: #dfa8bd;
+      --app-cell: #f8dce7;
+      --app-stat: #cf7da0;
+      --app-danger: #bd5d73;
+      --app-overlay: rgba(84, 42, 62, 0.55);
+      --app-message-bg: rgba(255, 243, 248, 0.88);
+      --app-shadow: rgba(132, 70, 97, 0.13);
+    }
+
+    body.theme-midnight {
+      --app-bg: #121622;
+      --app-card: #1b2130;
+      --app-soft: #252d40;
+      --app-border: #343e55;
+      --app-text: #eef1ff;
+      --app-muted: #b4bdd8;
+      --app-accent: #6975c7;
+      --app-accent-hover: #7c87d7;
+      --app-on-accent: #ffffff;
+      --app-board: #30384d;
+      --app-cell: #3b455d;
+      --app-stat: #485372;
+      --app-danger: #a75469;
+      --app-overlay: rgba(4, 7, 13, 0.78);
+      --app-message-bg: rgba(18, 22, 34, 0.90);
+      --app-shadow: rgba(0, 0, 0, 0.35);
+    }
+
+    /* Opponent mini-board keeps the opponent's chosen board/tile theme. */
+    #opponent-grid[data-theme="classic"] {
+      --opponent-board: #bbada0;
+      --opponent-cell: rgba(238, 228, 218, 0.35);
+    }
+
+    #opponent-grid[data-theme="pastel"] {
+      --opponent-board: #ded9e7;
+      --opponent-cell: #f1eef5;
+    }
+
+    #opponent-grid[data-theme="ocean"] {
+      --opponent-board: #8eb7c3;
+      --opponent-cell: #d7eaf0;
+    }
+
+    #opponent-grid[data-theme="candy"] {
+      --opponent-board: #dfa8bd;
+      --opponent-cell: #f8dce7;
+    }
+
+    #opponent-grid[data-theme="midnight"] {
+      --opponent-board: #30384d;
+      --opponent-cell: #3b455d;
+    }
+
+    html,
+    body {
+      background: var(--app-bg) !important;
+      color: var(--app-text) !important;
+    }
+
+    body,
+    .app-screen,
+    .battle-shell,
+    #game-host {
+      background: var(--app-bg) !important;
+      color: var(--app-text) !important;
+    }
+
+    .app-header h1,
+    .hero-title,
+    .mode-card h2,
+    .mode-card h3,
+    .race-box h2,
+    .battle-heading,
+    .battle-heading h1,
+    .opponent-header h2,
+    .settings-dialog h2,
+    .settings-dialog h3,
+    .result-box h1,
+    .container,
+    .container .heading,
+    .container .heading:before,
+    .battle-layout .container .heading:before,
+    .game-explanation,
+    .game-explanation strong,
+    .container p,
+    .container a {
+      color: var(--app-text) !important;
+    }
+
+    .hero-subtitle,
+    .mode-card p,
+    .status-text,
+    .settings-help,
+    #opponent-status,
+    .battle-rule-line,
+    .race-box p {
+      color: var(--app-muted) !important;
+    }
+
+    .mode-card,
+    .race-box,
+    .result-box,
+    .settings-dialog,
+    .theme-choice {
+      background: var(--app-card) !important;
+      color: var(--app-text) !important;
+      border-color: var(--app-border) !important;
+      box-shadow: 0 4px 18px var(--app-shadow);
+    }
+
+    .info-card,
+    .rules-card,
+    .coming-soon-badge,
+    .nav-button,
+    .settings-button,
+    .secondary-button,
+    .small-button,
+    .mode-badge,
+    .target-badge,
+    .chance-badge.available,
+    .toggle-button.off {
+      background: var(--app-soft) !important;
+      color: var(--app-text) !important;
+      border-color: var(--app-border) !important;
+    }
+
+    .primary-button,
+    .target-button.selected,
+    .toggle-button.on,
+    #second-chance-toast,
+    #solo-milestone-toast {
+      background: var(--app-accent) !important;
+      color: var(--app-on-accent) !important;
+    }
+
+    .primary-button:hover,
+    .target-button.selected:hover,
+    .toggle-button.on:hover {
+      background: var(--app-accent-hover) !important;
+    }
+
+    .danger-button {
+      background: var(--app-danger) !important;
+      color: #ffffff !important;
+    }
+
+    .room-badge,
+    .stat-card,
+    .opponent-stat-box,
+    .chance-badge.used {
+      background: var(--app-stat) !important;
+      color: var(--app-on-accent) !important;
+    }
+
+    .target-button,
+    .room-input {
+      background: var(--app-card) !important;
+      color: var(--app-text) !important;
+      border-color: var(--app-border) !important;
+    }
+
+    .room-input::placeholder {
+      color: var(--app-muted) !important;
+      opacity: 0.75;
+    }
+
+    .room-input:focus,
+    .target-button.selected,
+    .theme-choice.selected {
+      border-color: var(--app-accent) !important;
+    }
+
+    .settings-section + .settings-section {
+      border-top-color: var(--app-border) !important;
+    }
+
+    .close-settings {
+      color: var(--app-text) !important;
+    }
+
+    .result-overlay,
+    .settings-overlay {
+      background: var(--app-overlay) !important;
+    }
+
+    .result-box,
+    .settings-dialog {
+      box-shadow: 0 16px 50px var(--app-shadow) !important;
+    }
+
+    /* Original 2048 board + Solo UI */
+    .container .score-container,
+    .container .best-container {
+      background: var(--app-stat) !important;
+      color: var(--app-on-accent) !important;
+    }
+
+    .container .score-container:after,
+    .container .best-container:after {
+      color: rgba(255, 255, 255, 0.78) !important;
+    }
+
+    .game-container {
+      background: var(--app-board) !important;
+    }
+
+    .grid-cell {
+      background: var(--app-cell) !important;
+    }
+
+    .game-message {
+      background: var(--app-message-bg) !important;
+      color: var(--app-text) !important;
+    }
+
+    .game-message p {
+      color: var(--app-text) !important;
+    }
+
+    .game-message .retry-button,
+    .game-message .keep-playing-button,
+    .restart-button {
+      background: var(--app-accent) !important;
+      color: var(--app-on-accent) !important;
+    }
+
+    hr {
+      border-color: var(--app-border) !important;
+    }
+
+    /* Multiplayer mini board. The surrounding page uses your theme;
+       the mini board itself uses the opponent's theme. */
+    .opponent-grid {
+      background: var(--opponent-board, var(--app-board)) !important;
+    }
+
+    .opponent-cell {
+      background: var(--opponent-cell, var(--app-cell)) !important;
+    }
+
+    .opponent-cell.has-tile,
+    .opponent-cell.tile-2 { background: var(--tile-2) !important; }
+    .opponent-cell.tile-4 { background: var(--tile-4) !important; }
+    .opponent-cell.tile-8 { background: var(--tile-8) !important; }
+    .opponent-cell.tile-16 { background: var(--tile-16) !important; }
+    .opponent-cell.tile-32 { background: var(--tile-32) !important; }
+    .opponent-cell.tile-64 { background: var(--tile-64) !important; }
+    .opponent-cell.tile-128 { background: var(--tile-128) !important; }
+    .opponent-cell.tile-256 { background: var(--tile-256) !important; }
+    .opponent-cell.tile-512 { background: var(--tile-512) !important; }
+    .opponent-cell.tile-1024 { background: var(--tile-1024) !important; }
+    .opponent-cell.tile-2048 { background: var(--tile-2048) !important; }
+    .opponent-cell.tile-4096 { background: var(--tile-4096) !important; }
+    .opponent-cell.tile-8192 { background: var(--tile-8192) !important; }
+
     @media (max-width: 850px) {
       .battle-layout {
         flex-direction: column;
@@ -1943,11 +2271,11 @@
 
   function themePreview(theme) {
     var previews = {
-      classic: ["#eee4da", "#f2b179", "#f65e3b", "#edc22e"],
-      pastel: ["#f8e8ee", "#cfe8f6", "#ffd6b8", "#ffafcc"],
-      ocean: ["#d9f0f7", "#83c5d5", "#2589a5", "#063747"],
-      candy: ["#ffe1ec", "#ffc3a0", "#ff5d8f", "#845ec2"],
-      midnight: ["#dce1f2", "#9ea7d8", "#4d579e", "#211e3d"]
+      classic: ["#faf8ef", "#bbada0", "#eee4da", "#f65e3b", "#edc22e"],
+      pastel: ["#ffffff", "#ded9e7", "#f8e8ee", "#ffd6b8", "#ffafcc"],
+      ocean: ["#edf8fb", "#8eb7c3", "#d9f0f7", "#2589a5", "#063747"],
+      candy: ["#fff3f8", "#dfa8bd", "#ffe1ec", "#ff5d8f", "#845ec2"],
+      midnight: ["#121622", "#30384d", "#dce1f2", "#4d579e", "#211e3d"]
     };
 
     return previews[theme].map(function (color) {
@@ -1977,8 +2305,8 @@
         </div>
 
         <div class="settings-section">
-          <h3>Tile Theme</h3>
-          <p class="settings-help">Your theme is saved on this browser. In multiplayer, your opponent can see your chosen tile theme on your mini board.</p>
+          <h3>Theme</h3>
+          <p class="settings-help">Changes the whole app: background, menus, board, controls, and tiles. Your choice is saved on this browser. In multiplayer, your opponent can see your chosen board and tile theme on your mini board.</p>
 
           <div class="theme-grid">
             ${THEMES.map(function (theme) {
