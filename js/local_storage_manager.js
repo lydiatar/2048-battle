@@ -41,10 +41,18 @@ LocalStorageManager.prototype.localStorageSupported = function () {
 
 // Best score getters/setters
 LocalStorageManager.prototype.getBestScore = function () {
+  if (window.multiplayerMode) {
+    return 0;
+  }
+
   return this.storage.getItem(this.bestScoreKey) || 0;
 };
 
 LocalStorageManager.prototype.setBestScore = function (score) {
+  if (window.multiplayerMode) {
+    return;
+  }
+
   this.storage.setItem(this.bestScoreKey, score);
 };
 
