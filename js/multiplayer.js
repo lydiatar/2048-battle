@@ -25,7 +25,7 @@
 
   lobby.innerHTML =
     '<div class="lobby-box">' +
-      '<h1>2048 Battle</h1>' +
+      '<h1>Rina\'s 2048</h1>' +
       '<p class="lobby-subtitle">First player to reach 2048 wins!</p>' +
 
       '<button id="create-game" class="lobby-button">' +
@@ -443,7 +443,7 @@
     heading.className = "battle-heading";
 
     heading.innerHTML =
-      "<h1>2048 Battle</h1>" +
+     "<h1>Rina's 2048</h1>" +
       "<p>You are Player " +
       window.multiplayerPlayerNumber +
       " — first to reach 2048 wins!</p>";
