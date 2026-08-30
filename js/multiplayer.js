@@ -5490,6 +5490,12 @@
         backHandler();
       });
     }
+
+    window.requestAnimationFrame(function () {
+      window.scrollTo(0, 0);
+      document.documentElement.scrollTop = 0;
+      document.body.scrollTop = 0;
+    });
   }
 
   function openNicknamePrompt(onComplete) {
@@ -5541,11 +5547,17 @@
 
       window.rinasSettings.nickname = nickname;
       saveSettings();
-      overlay.remove();
 
-      if (onComplete) {
-        onComplete();
-      }
+      overlay.classList.add("ui-overlay-leaving");
+
+      setTimeout(function () {
+        if (overlay.parentNode) overlay.remove();
+
+        if (onComplete) {
+          nextScreenTransitionDirection = 1;
+          onComplete();
+        }
+      }, 190);
     }
 
     document.getElementById("nickname-prompt-save").addEventListener("click", saveNicknameAndContinue);
@@ -5891,6 +5903,12 @@
     gameContainer.style.display = "block";
 
     renderSoloChrome();
+
+    window.requestAnimationFrame(function () {
+      window.scrollTo(0, 0);
+      document.documentElement.scrollTop = 0;
+      document.body.scrollTop = 0;
+    });
 
     withGame(function (game) {
       game.actuator.continueGame();
@@ -6982,7 +7000,10 @@
             <span class="settings-kicker">RINA'S 2048</span>
             <h2>Settings</h2>
           </div>
-          <button class="close-settings" id="close-settings" aria-label="Close">×</button>
+          <div class="settings-header-actions">
+            <button class="settings-done-inline" id="settings-done">Done</button>
+            <button class="close-settings" id="close-settings" aria-label="Close">×</button>
+          </div>
         </div>
 
         <div class="settings-grid-v40">
@@ -7044,7 +7065,6 @@
           </section>
         </div>
 
-        <div class="settings-footer"><button class="primary-button" id="settings-done">Done</button></div>
       </div>
     `;
 
@@ -8206,6 +8226,1151 @@
     }
   `;
   document.head.appendChild(v43Style);
+
+
+
+  // =========================================================
+  // v44: viewport-fit, readable themes, compact settings,
+  //      and game-first mode navigation
+  // =========================================================
+
+  var v44Style = document.createElement("style");
+  v44Style.textContent = `
+    /* Remove the decorative shine sweep from controls entirely. */
+    button::after,
+    .target-button::after,
+    .control-choice::after,
+    .toggle-button::after,
+    .settings-done-inline::after {
+      display: none !important;
+      content: none !important;
+    }
+
+    /* Remove the floating circular ornament in multiplayer mode rows. */
+    .mode-showcase::after {
+      display: none !important;
+      content: none !important;
+    }
+
+    /* Make type readable across every theme. */
+    #app-root,
+    .battle-shell,
+    .settings-dialog,
+    .result-box {
+      font-size: 16px !important;
+    }
+
+    body.theme-ocean {
+      --app-muted: #c2e8ef;
+      --game-line: rgba(117, 226, 235, .30);
+    }
+
+    body.theme-candy {
+      --app-muted: #f2c2df;
+      --game-line: rgba(255, 139, 205, .30);
+    }
+
+    body.theme-midnight {
+      --app-muted: #c8cff0;
+      --game-line: rgba(166, 151, 255, .32);
+    }
+
+    .settings-help,
+    .mode-showcase p,
+    .battle-rule-line,
+    .player-subline,
+    #opponent-status {
+      color: var(--app-muted) !important;
+    }
+
+    /* -----------------------------------------------------
+       SETTINGS: one-screen desktop control deck
+       ----------------------------------------------------- */
+    .settings-overlay {
+      display: flex !important;
+      align-items: center !important;
+      justify-content: center !important;
+      overflow: hidden !important;
+      padding: 14px !important;
+    }
+
+    .settings-dialog.settings-dialog-v40,
+    #nickname-overlay .settings-dialog {
+      width: min(980px, calc(100vw - 32px)) !important;
+      max-width: 980px !important;
+      max-height: calc(100vh - 28px) !important;
+      overflow: hidden !important;
+      margin: 0 auto !important;
+      padding: 0 30px 24px !important;
+      border: 1px solid var(--game-line) !important;
+      border-top: 3px solid var(--app-accent) !important;
+      border-radius: 14px !important;
+      background: var(--game-panel-strong) !important;
+      box-shadow: 0 26px 70px var(--app-shadow) !important;
+    }
+
+    .settings-dialog-header {
+      position: static !important;
+      margin: 0 -30px 18px !important;
+      padding: 17px 30px 14px !important;
+      min-height: 72px !important;
+      border-bottom: 1px solid var(--game-line) !important;
+      background: transparent !important;
+      backdrop-filter: none !important;
+    }
+
+    .settings-dialog-header h2 {
+      font-size: 30px !important;
+    }
+
+    .settings-kicker {
+      font-size: 10px !important;
+      letter-spacing: .13em !important;
+    }
+
+    .settings-header-actions {
+      display: flex;
+      align-items: center;
+      gap: 18px;
+    }
+
+    .settings-done-inline,
+    .close-settings {
+      position: relative !important;
+      width: auto !important;
+      height: auto !important;
+      min-height: 38px !important;
+      padding: 8px 2px !important;
+      border: 0 !important;
+      border-radius: 0 !important;
+      background: transparent !important;
+      box-shadow: none !important;
+      color: var(--app-text) !important;
+      font: 900 13px/1 var(--hud-display) !important;
+      text-transform: uppercase !important;
+    }
+
+    .settings-done-inline {
+      color: var(--app-accent) !important;
+    }
+
+    .close-settings {
+      font-size: 25px !important;
+      color: var(--app-muted) !important;
+    }
+
+    .settings-grid-v40 {
+      display: grid !important;
+      grid-template-columns: 1fr 1fr !important;
+      grid-template-areas:
+        "profile profile"
+        "controls audio"
+        "theme theme" !important;
+      gap: 18px 42px !important;
+    }
+
+    .settings-profile-section { grid-area: profile !important; }
+    .settings-grid-v40 > .settings-section:nth-child(2) { grid-area: controls !important; }
+    .settings-audio-section { grid-area: audio !important; }
+    .settings-theme-section { grid-area: theme !important; }
+
+    .settings-section h3 {
+      margin: 0 0 8px !important;
+      padding-bottom: 6px !important;
+      font-size: 19px !important;
+    }
+
+    .settings-help {
+      margin: 0 0 9px !important;
+      font-size: 14px !important;
+      line-height: 1.32 !important;
+    }
+
+    .field-label {
+      margin-bottom: 5px !important;
+      font-size: 11px !important;
+    }
+
+    .nickname-field {
+      min-height: 42px !important;
+      height: 42px !important;
+      padding: 8px 11px !important;
+      font-size: 16px !important;
+    }
+
+    .control-choice-row {
+      display: flex !important;
+      gap: 24px !important;
+      margin-bottom: 8px !important;
+    }
+
+    .control-choice {
+      min-height: 34px !important;
+      padding: 6px 1px 8px !important;
+      border: 0 !important;
+      border-bottom: 2px solid var(--game-line) !important;
+      border-radius: 0 !important;
+      background: transparent !important;
+      box-shadow: none !important;
+      color: var(--app-muted) !important;
+      font-size: 13px !important;
+      overflow: visible !important;
+    }
+
+    .control-choice.selected {
+      border-bottom-color: var(--app-accent) !important;
+      background: transparent !important;
+      color: var(--app-text) !important;
+      box-shadow: none !important;
+    }
+
+    .toggle-row.settings-inline-toggle,
+    .audio-control-group .toggle-row {
+      min-height: 66px !important;
+      gap: 18px !important;
+      align-items: center !important;
+    }
+
+    .toggle-row h4 {
+      margin: 0 0 3px !important;
+      font-size: 16px !important;
+    }
+
+    /* Switch treatment instead of another rectangular ON/OFF box. */
+    .toggle-button {
+      position: relative !important;
+      flex: 0 0 54px !important;
+      width: 54px !important;
+      min-width: 54px !important;
+      height: 28px !important;
+      min-height: 28px !important;
+      padding: 0 !important;
+      border: 1px solid var(--game-line) !important;
+      border-radius: 999px !important;
+      background: var(--app-soft) !important;
+      box-shadow: none !important;
+      color: transparent !important;
+      font-size: 0 !important;
+      overflow: visible !important;
+    }
+
+    .toggle-button::before {
+      content: "" !important;
+      display: block !important;
+      position: absolute !important;
+      top: 3px !important;
+      left: 3px !important;
+      width: 20px !important;
+      height: 20px !important;
+      border-radius: 50% !important;
+      background: var(--app-muted) !important;
+      transition: transform 160ms ease, background 160ms ease !important;
+    }
+
+    .toggle-button.on {
+      border-color: color-mix(in srgb, var(--app-accent) 75%, transparent) !important;
+      background: color-mix(in srgb, var(--app-accent) 24%, var(--game-panel-strong)) !important;
+    }
+
+    .toggle-button.on::before {
+      transform: translateX(26px) !important;
+      background: var(--app-accent) !important;
+    }
+
+    .volume-row {
+      grid-template-columns: 78px minmax(130px, 1fr) 48px !important;
+      gap: 10px !important;
+      margin-top: 4px !important;
+      font-size: 13px !important;
+    }
+
+    .theme-grid {
+      display: grid !important;
+      grid-template-columns: repeat(5, minmax(0, 1fr)) !important;
+      gap: 18px !important;
+    }
+
+    .theme-choice {
+      min-height: 54px !important;
+      padding: 5px 0 8px !important;
+      border: 0 !important;
+      border-bottom: 2px solid var(--game-line) !important;
+      border-radius: 0 !important;
+      background: transparent !important;
+      box-shadow: none !important;
+      color: var(--app-muted) !important;
+      font-size: 12px !important;
+      overflow: visible !important;
+    }
+
+    .theme-choice.selected {
+      border-bottom-color: var(--app-accent) !important;
+      color: var(--app-text) !important;
+    }
+
+    .theme-swatches {
+      display: grid !important;
+      grid-template-columns: repeat(5, 1fr) !important;
+      gap: 3px !important;
+      height: 12px !important;
+      margin-top: 7px !important;
+      border-radius: 0 !important;
+      overflow: visible !important;
+    }
+
+    .theme-swatches i {
+      min-height: 12px !important;
+      border-radius: 2px !important;
+    }
+
+    .settings-footer {
+      display: none !important;
+    }
+
+    /* -----------------------------------------------------
+       MULTIPLAYER MODE MENU: lanes, not cards
+       ----------------------------------------------------- */
+    .screen-multiplayer-menu #screen-content {
+      width: min(1060px, 100%) !important;
+    }
+
+    .mode-showcase-list {
+      gap: 0 !important;
+      border-top: 1px solid var(--game-line);
+    }
+
+    .mode-showcase {
+      --mode-hue: var(--app-accent);
+      min-height: 158px !important;
+      grid-template-columns: minmax(0, 1fr) 300px !important;
+      gap: 30px !important;
+      padding: 20px 12px 20px 18px !important;
+      border: 0 !important;
+      border-bottom: 1px solid var(--game-line) !important;
+      border-radius: 0 !important;
+      background: transparent !important;
+      box-shadow: inset 3px 0 0 transparent !important;
+      overflow: visible !important;
+    }
+
+    .mode-showcase:hover {
+      transform: none !important;
+      background: color-mix(in srgb, var(--mode-hue) 7%, transparent) !important;
+      box-shadow: inset 3px 0 0 var(--mode-hue) !important;
+    }
+
+    .mode-showcase h2 {
+      font-size: 32px !important;
+    }
+
+    .mode-showcase p {
+      max-width: 620px !important;
+      font-size: 16px !important;
+      line-height: 1.35 !important;
+    }
+
+    .mode-showcase-action {
+      margin-top: 12px !important;
+      font-size: 14px !important;
+    }
+
+    .mode-showcase .ui-mini-board {
+      box-shadow: none !important;
+      transform: none !important;
+    }
+
+    .custom-target {
+      min-height: 84px !important;
+      border-radius: 0 !important;
+      border-bottom: 2px solid var(--game-line) !important;
+      background: transparent !important;
+    }
+
+    .custom-target.harder {
+      transform: none !important;
+    }
+
+    /* -----------------------------------------------------
+       ACTIVE SOLO: score/best are HUD stats, not dark cards
+       ----------------------------------------------------- */
+    body.solo-active .container {
+      width: 540px !important;
+      max-width: 540px !important;
+      margin-top: 8px !important;
+      padding: 10px 12px 12px !important;
+      border: 0 !important;
+      border-top: 3px solid var(--app-accent) !important;
+      background: transparent !important;
+      box-shadow: none !important;
+    }
+
+    body.solo-active .container .heading {
+      min-height: 76px !important;
+      display: grid !important;
+      grid-template-columns: 1fr auto !important;
+      align-items: center !important;
+      gap: 20px !important;
+      padding: 0 0 10px !important;
+      border-bottom: 1px solid var(--game-line) !important;
+    }
+
+    body.solo-active .container .title {
+      font-size: 40px !important;
+      line-height: 1 !important;
+    }
+
+    body.solo-active .scores-container {
+      display: grid !important;
+      grid-template-columns: 112px 112px !important;
+      gap: 0 !important;
+      margin: 0 !important;
+      border: 0 !important;
+      background: transparent !important;
+    }
+
+    body.solo-active .score-container,
+    body.solo-active .best-container {
+      position: relative !important;
+      display: flex !important;
+      align-items: flex-end !important;
+      justify-content: center !important;
+      width: 112px !important;
+      min-width: 112px !important;
+      min-height: 66px !important;
+      padding: 25px 12px 7px !important;
+      border: 0 !important;
+      border-radius: 0 !important;
+      background: transparent !important;
+      box-shadow: none !important;
+      color: var(--app-text) !important;
+      font: 900 30px/1 var(--tile-font) !important;
+    }
+
+    body.solo-active .best-container {
+      border-left: 1px solid var(--game-line) !important;
+    }
+
+    body.solo-active .score-container::after,
+    body.solo-active .best-container::after {
+      position: absolute !important;
+      top: 7px !important;
+      left: 0 !important;
+      right: 0 !important;
+      width: auto !important;
+      color: var(--app-muted) !important;
+      font: 800 10px/1 var(--hud-display) !important;
+      letter-spacing: .09em !important;
+    }
+
+    .solo-card-actions {
+      margin: 0 0 10px !important;
+      padding: 8px 0 8px !important;
+    }
+
+    body.solo-active .game-container {
+      margin-top: 0 !important;
+    }
+
+    #solo-control-strip {
+      margin-top: 8px !important;
+      padding-top: 8px !important;
+      font-size: 11px !important;
+    }
+
+    /* Keep active match compact and readable. */
+    .battle-shell {
+      margin: 8px auto 0 !important;
+      padding-bottom: 0 !important;
+    }
+
+    .battle-topbar {
+      min-height: 68px !important;
+      margin-bottom: 6px !important;
+    }
+
+    .battle-rule-line {
+      margin: 4px auto 8px !important;
+    }
+
+    .battle-layout {
+      margin-top: 0 !important;
+    }
+
+    /* Desktop height fitting. The board stays completely visible without page scroll. */
+    @media (min-width: 901px) and (max-height: 920px) {
+      body.solo-active #solo-toolbar {
+        min-height: 68px !important;
+        margin-bottom: 0 !important;
+      }
+      body.solo-active .container {
+        zoom: .84;
+      }
+      .battle-layout {
+        zoom: .86;
+      }
+    }
+
+    @media (min-width: 901px) and (max-height: 790px) {
+      body.solo-active .container {
+        zoom: .75;
+      }
+      .battle-layout {
+        zoom: .77;
+      }
+    }
+
+    @media (max-width: 720px) {
+      .settings-overlay {
+        display: block !important;
+        overflow-y: auto !important;
+        padding: 8px !important;
+      }
+      .settings-dialog.settings-dialog-v40 {
+        max-height: none !important;
+        overflow: visible !important;
+      }
+      .settings-grid-v40 {
+        grid-template-columns: 1fr !important;
+        grid-template-areas: "profile" "controls" "audio" "theme" !important;
+      }
+      .theme-grid {
+        grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+      }
+      .mode-showcase {
+        grid-template-columns: 1fr !important;
+      }
+      body.solo-active .container {
+        width: min(500px, calc(100% - 18px)) !important;
+        zoom: 1 !important;
+      }
+    }
+  `;
+  document.head.appendChild(v44Style);
+
+  function fitActiveGameToViewport() {
+    var isSolo = document.body.classList.contains("solo-active");
+    var layout = document.querySelector(".battle-layout");
+
+    document.body.classList.toggle("battle-fit-active", !!layout);
+
+    if (window.innerWidth <= 900) {
+      return;
+    }
+
+    if (isSolo) {
+      var soloContainer = document.querySelector("body.solo-active .container");
+      if (soloContainer) {
+        soloContainer.style.zoom = "1";
+        var soloTop = soloContainer.getBoundingClientRect().top;
+        var soloAvailable = Math.max(320, window.innerHeight - soloTop - 18);
+        var soloNatural = Math.max(1, soloContainer.scrollHeight);
+        var soloZoom = Math.max(0.70, Math.min(1, soloAvailable / soloNatural));
+        soloContainer.style.zoom = String(soloZoom);
+      }
+    }
+
+    if (layout) {
+      layout.style.zoom = "1";
+      var layoutTop = layout.getBoundingClientRect().top;
+      var available = Math.max(300, window.innerHeight - layoutTop - 16);
+      var natural = Math.max(1, layout.scrollHeight);
+      var matchZoom = Math.max(0.70, Math.min(1, available / natural));
+      layout.style.zoom = String(matchZoom);
+    }
+  }
+
+  window.addEventListener("resize", function () {
+    window.requestAnimationFrame(fitActiveGameToViewport);
+  });
+
+  var v44FitObserver = new MutationObserver(function () {
+    window.requestAnimationFrame(function () {
+      fitActiveGameToViewport();
+    });
+  });
+
+  v44FitObserver.observe(document.body, {
+    childList: true,
+    attributes: true,
+    attributeFilter: ["class"]
+  });
+
+  window.setTimeout(fitActiveGameToViewport, 80);
+
+
+  // =========================================================
+  // v45: desktop game-flow polish
+  // - no accidental page-scroll on desktop menus/matches
+  // - stable hover targets (no edge shake)
+  // - smooth nickname handoff
+  // - game-HUD overlays instead of generic cards
+  // - theme-colored segmented dividers
+  // =========================================================
+
+  var v45Style = document.createElement("style");
+  v45Style.textContent = `
+    /* -----------------------------------------------------
+       DESKTOP VIEWPORT: use the available screen like a game
+       ----------------------------------------------------- */
+    @media (min-width: 901px) {
+      html, body {
+        min-height: 100% !important;
+      }
+
+      body:not(.solo-active):not(.battle-fit-active) {
+        overflow: hidden !important;
+      }
+
+      .app-screen {
+        height: 100vh !important;
+        min-height: 0 !important;
+        overflow: hidden !important;
+        padding: 10px 20px 14px !important;
+      }
+
+      .app-screen-inner {
+        height: 100% !important;
+        min-height: 0 !important;
+        display: flex !important;
+        flex-direction: column !important;
+      }
+
+      #screen-content {
+        min-height: 0 !important;
+        flex: 1 1 auto !important;
+      }
+
+      .app-header {
+        min-height: 66px !important;
+        margin-bottom: 10px !important;
+        padding: 5px 0 8px !important;
+        flex: 0 0 auto !important;
+      }
+
+      .screen-menu .title-stage {
+        min-height: 205px !important;
+        margin-bottom: 8px !important;
+      }
+
+      .screen-menu .home-mode-stack {
+        margin-top: 10px !important;
+        gap: 10px !important;
+      }
+
+      .screen-menu .home-brush-button {
+        min-height: 76px !important;
+        padding-top: 11px !important;
+        padding-bottom: 11px !important;
+      }
+
+      .screen-menu .home-controls-ribbon {
+        margin-top: 12px !important;
+        padding-top: 8px !important;
+        padding-bottom: 8px !important;
+      }
+
+      .screen-menu .home-footnote {
+        margin-top: 9px !important;
+      }
+
+      .screen-multiplayer-menu #screen-content,
+      .screen-solo-menu #screen-content {
+        overflow: hidden !important;
+      }
+    }
+
+    /* -----------------------------------------------------
+       DIVIDERS: color/competition rather than gray web rules
+       ----------------------------------------------------- */
+    .app-header,
+    .solo-floating-header,
+    .battle-topbar {
+      border-bottom: 0 !important;
+    }
+
+    .app-header::after,
+    .solo-floating-header::after,
+    .battle-topbar::after {
+      left: 0 !important;
+      right: 0 !important;
+      bottom: -1px !important;
+      width: 100% !important;
+      height: 3px !important;
+      transform: none !important;
+      opacity: .92 !important;
+      background:
+        linear-gradient(90deg,
+          transparent 0%,
+          transparent 4%,
+          color-mix(in srgb, var(--app-accent) 28%, transparent) 4%,
+          color-mix(in srgb, var(--app-accent) 28%, transparent) 35%,
+          var(--app-accent) 43%,
+          var(--game-accent-2) 57%,
+          color-mix(in srgb, var(--app-accent) 28%, transparent) 65%,
+          color-mix(in srgb, var(--app-accent) 28%, transparent) 96%,
+          transparent 96%,
+          transparent 100%) !important;
+    }
+
+    .settings-section h3,
+    .race-rules h2,
+    .race-box h2 {
+      border-bottom: 0 !important;
+      position: relative !important;
+      padding-bottom: 9px !important;
+    }
+
+    .settings-section h3::after,
+    .race-rules h2::after,
+    .race-box h2::after {
+      content: "";
+      position: absolute;
+      left: 0;
+      bottom: 0;
+      width: 68px;
+      height: 3px;
+      background: linear-gradient(90deg, var(--app-accent), var(--game-accent-2));
+    }
+
+    /* -----------------------------------------------------
+       STABLE HOVER: feedback without moving the hit target
+       ----------------------------------------------------- */
+    .home-brush-button,
+    .mode-showcase,
+    .ui-mini-board,
+    .ui-mini-cell,
+    .theme-choice,
+    .control-choice {
+      transform: none !important;
+    }
+
+    @media (hover:hover) and (pointer:fine) {
+      .home-brush-button:hover,
+      .mode-showcase:hover,
+      .theme-choice:hover,
+      .control-choice:hover {
+        transform: none !important;
+      }
+
+      .home-brush-button:hover {
+        filter: brightness(1.035) saturate(1.025) !important;
+      }
+
+      .home-brush-button:hover .brush-arrow,
+      .mode-showcase:hover .mode-showcase-action {
+        transform: translateX(4px) !important;
+      }
+
+      .mode-showcase:hover .ui-mini-board,
+      .mode-showcase:hover .ui-mini-cell {
+        transform: none !important;
+      }
+    }
+
+    /* -----------------------------------------------------
+       SETTINGS: desktop HUD deck, never a tall modal card
+       ----------------------------------------------------- */
+    .settings-overlay {
+      padding: 10px !important;
+      background: color-mix(in srgb, #000 58%, transparent) !important;
+      backdrop-filter: blur(8px) !important;
+      animation: overlay-in-v45 160ms ease both;
+    }
+
+    @keyframes overlay-in-v45 {
+      from { opacity: 0; }
+      to { opacity: 1; }
+    }
+
+    @keyframes hud-deck-in-v45 {
+      from { opacity: 0; transform: translateY(10px) scale(.992); }
+      to { opacity: 1; transform: translateY(0) scale(1); }
+    }
+
+    @keyframes overlay-out-v45 {
+      to { opacity: 0; }
+    }
+
+    @keyframes hud-deck-out-v45 {
+      to { opacity: 0; transform: translateY(-8px) scale(.993); }
+    }
+
+    .settings-overlay.ui-overlay-leaving {
+      animation: overlay-out-v45 190ms ease both !important;
+      pointer-events: none !important;
+    }
+
+    .settings-overlay.ui-overlay-leaving .settings-dialog {
+      animation: hud-deck-out-v45 190ms ease both !important;
+    }
+
+    .settings-dialog.settings-dialog-v40,
+    #nickname-overlay .settings-dialog {
+      animation: hud-deck-in-v45 180ms cubic-bezier(.2,.8,.2,1) both !important;
+      border-radius: 0 !important;
+      border: 0 !important;
+      border-left: 4px solid var(--app-accent) !important;
+      border-right: 4px solid var(--game-accent-2) !important;
+      box-shadow: 0 24px 70px var(--app-shadow) !important;
+      background:
+        linear-gradient(110deg,
+          color-mix(in srgb, var(--app-accent) 7%, var(--game-panel-strong)),
+          var(--game-panel-strong) 42%,
+          color-mix(in srgb, var(--game-accent-2) 6%, var(--game-panel-strong))) !important;
+    }
+
+    .settings-dialog.settings-dialog-v40::before,
+    #nickname-overlay .settings-dialog::before {
+      content: "";
+      position: absolute;
+      left: 20px;
+      right: 20px;
+      top: 0;
+      height: 3px;
+      background: linear-gradient(90deg, var(--app-accent), var(--game-accent-2));
+      pointer-events: none;
+    }
+
+    @media (min-width: 901px) {
+      .settings-overlay {
+        overflow: hidden !important;
+      }
+
+      .settings-dialog.settings-dialog-v40 {
+        width: min(1060px, calc(100vw - 54px)) !important;
+        max-width: 1060px !important;
+        height: auto !important;
+        max-height: min(610px, calc(100vh - 22px)) !important;
+        overflow: hidden !important;
+        padding: 0 26px 18px !important;
+      }
+
+      .settings-dialog-header {
+        min-height: 60px !important;
+        margin: 0 -26px 12px !important;
+        padding: 12px 26px 10px !important;
+      }
+
+      .settings-dialog-header h2 {
+        font-size: 27px !important;
+      }
+
+      .settings-grid-v40 {
+        display: grid !important;
+        grid-template-columns: 1.15fr .95fr 1.2fr !important;
+        grid-template-areas:
+          "profile profile profile"
+          "controls audio theme" !important;
+        gap: 12px 30px !important;
+        align-items: start !important;
+      }
+
+      .settings-profile-section { grid-area: profile !important; }
+      .settings-grid-v40 > .settings-section:nth-child(2) { grid-area: controls !important; }
+      .settings-audio-section { grid-area: audio !important; }
+      .settings-theme-section { grid-area: theme !important; }
+
+      .settings-section h3 {
+        margin-bottom: 7px !important;
+        font-size: 18px !important;
+      }
+
+      .settings-help {
+        margin-bottom: 7px !important;
+        font-size: 13px !important;
+        line-height: 1.28 !important;
+      }
+
+      .nickname-field {
+        height: 38px !important;
+        min-height: 38px !important;
+      }
+
+      .toggle-row.settings-inline-toggle,
+      .audio-control-group .toggle-row {
+        min-height: 56px !important;
+      }
+
+      .theme-grid {
+        grid-template-columns: 1fr !important;
+        gap: 2px !important;
+      }
+
+      .theme-choice {
+        min-height: 35px !important;
+        display: grid !important;
+        grid-template-columns: 82px 1fr !important;
+        align-items: center !important;
+        gap: 10px !important;
+        padding: 5px 0 !important;
+        text-align: left !important;
+      }
+
+      .theme-swatches {
+        margin-top: 0 !important;
+        height: 11px !important;
+      }
+
+      #nickname-overlay .settings-dialog {
+        width: min(720px, calc(100vw - 52px)) !important;
+        max-width: 720px !important;
+        min-height: 0 !important;
+        max-height: none !important;
+        padding: 0 34px 26px !important;
+        overflow: visible !important;
+      }
+
+      #nickname-overlay .settings-dialog-header {
+        margin: 0 -34px 16px !important;
+        padding-left: 34px !important;
+        padding-right: 34px !important;
+      }
+
+      #nickname-overlay .result-actions {
+        margin-top: 14px !important;
+      }
+    }
+
+    /* -----------------------------------------------------
+       MODE SELECTOR: game lanes, not rounded cards
+       ----------------------------------------------------- */
+    .screen-multiplayer-menu .multiplayer-entry-head {
+      margin: 0 0 8px !important;
+      min-height: 28px !important;
+    }
+
+    .mode-showcase-list {
+      border-top: 0 !important;
+      display: grid !important;
+      gap: 4px !important;
+    }
+
+    .mode-showcase {
+      position: relative !important;
+      min-height: 122px !important;
+      grid-template-columns: minmax(0, 1fr) 250px !important;
+      gap: 22px !important;
+      padding: 14px 14px 14px 18px !important;
+      border: 0 !important;
+      border-radius: 0 !important;
+      box-shadow: none !important;
+      background:
+        linear-gradient(90deg,
+          color-mix(in srgb, var(--mode-hue) 10%, transparent) 0%,
+          color-mix(in srgb, var(--mode-hue) 4%, transparent) 54%,
+          transparent 100%) !important;
+      overflow: hidden !important;
+    }
+
+    .mode-showcase::before {
+      content: "" !important;
+      display: block !important;
+      position: absolute !important;
+      left: 0 !important;
+      top: 12px !important;
+      bottom: 12px !important;
+      width: 4px !important;
+      background: var(--mode-hue) !important;
+      pointer-events: none !important;
+    }
+
+    .mode-showcase + .mode-showcase {
+      border-top: 0 !important;
+    }
+
+    .mode-showcase-copy {
+      align-self: center !important;
+    }
+
+    .mode-showcase h2 {
+      margin: 3px 0 3px !important;
+      font-size: 28px !important;
+    }
+
+    .mode-showcase p {
+      margin-bottom: 6px !important;
+      font-size: 14px !important;
+      line-height: 1.28 !important;
+    }
+
+    .mode-showcase-index,
+    .mode-showcase-facts,
+    .mode-showcase-action {
+      font-size: 11px !important;
+    }
+
+    .mode-showcase-action {
+      display: inline-block !important;
+      transition: color 150ms ease, transform 150ms ease !important;
+    }
+
+    .mode-showcase-preview {
+      align-self: center !important;
+      max-height: 104px !important;
+      overflow: hidden !important;
+    }
+
+    .mode-showcase .ui-mini-board {
+      max-height: 102px !important;
+      width: auto !important;
+    }
+
+    .future-modes-strip {
+      margin-top: 7px !important;
+      padding-top: 6px !important;
+      border-top: 0 !important;
+      color: var(--app-muted) !important;
+      background:
+        linear-gradient(90deg,
+          var(--app-accent) 0 42px,
+          transparent 42px 54px,
+          var(--game-accent-2) 54px 96px,
+          transparent 96px) left top / 120px 2px no-repeat !important;
+    }
+
+    @media (min-width: 901px) and (max-height: 820px) {
+      .screen-multiplayer-menu .app-header {
+        min-height: 58px !important;
+      }
+
+      .mode-showcase {
+        min-height: 108px !important;
+        grid-template-columns: minmax(0, 1fr) 220px !important;
+        padding-top: 10px !important;
+        padding-bottom: 10px !important;
+      }
+
+      .mode-showcase h2 { font-size: 25px !important; }
+      .mode-showcase-preview { max-height: 90px !important; }
+      .mode-showcase .ui-mini-board { max-height: 88px !important; }
+    }
+
+    /* -----------------------------------------------------
+       SOLO ENTRY: less blank air, board preview floats
+       ----------------------------------------------------- */
+    .solo-launch-v43 {
+      gap: 38px !important;
+      margin-top: 14px !important;
+      align-items: center !important;
+    }
+
+    .solo-launch-copy h2 {
+      font-size: clamp(38px, 4vw, 54px) !important;
+      margin-top: 7px !important;
+    }
+
+    .solo-launch-copy > p {
+      margin-bottom: 18px !important;
+      font-size: 16px !important;
+    }
+
+    .solo-preview-stage {
+      width: 340px !important;
+      min-height: 0 !important;
+      padding: 12px !important;
+      border-radius: 0 !important;
+      background: transparent !important;
+      box-shadow: none !important;
+      overflow: visible !important;
+    }
+
+    .solo-preview-stage::before,
+    .preview-orbit {
+      display: none !important;
+    }
+
+    .solo-preview-stage .ui-mini-board {
+      width: 300px !important;
+      margin: 0 auto !important;
+      border-radius: 12px !important;
+      box-shadow: 0 12px 34px var(--app-shadow) !important;
+    }
+
+    .solo-preview-heading,
+    .solo-preview-caption {
+      width: 300px !important;
+      margin-left: auto !important;
+      margin-right: auto !important;
+    }
+
+    /* -----------------------------------------------------
+       ACTIVE SOLO + MATCH: guaranteed no desktop page scroll
+       ----------------------------------------------------- */
+    @media (min-width: 901px) {
+      body.solo-active,
+      body.battle-fit-active {
+        height: 100vh !important;
+        overflow: hidden !important;
+      }
+
+      body.solo-active #game-host,
+      body.battle-fit-active .battle-shell {
+        max-height: 100vh !important;
+      }
+
+      body.solo-active .scores-container {
+        grid-template-columns: 128px 128px !important;
+        gap: 14px !important;
+      }
+
+      body.solo-active .score-container,
+      body.solo-active .best-container {
+        width: 128px !important;
+        min-width: 128px !important;
+        min-height: 70px !important;
+        padding-top: 29px !important;
+        padding-bottom: 7px !important;
+      }
+
+      body.solo-active .best-container {
+        border-left: 0 !important;
+      }
+
+      body.solo-active .score-container,
+      body.solo-active .best-container {
+        border-bottom: 3px solid color-mix(in srgb, var(--app-accent) 38%, transparent) !important;
+      }
+    }
+
+    /* Mobile retains natural document scrolling. */
+    @media (max-width: 900px) {
+      body,
+      body.solo-active,
+      body.battle-fit-active {
+        height: auto !important;
+        overflow-y: auto !important;
+      }
+
+      .app-screen {
+        height: auto !important;
+        min-height: 100vh !important;
+        overflow: visible !important;
+      }
+
+      .settings-overlay {
+        overflow-y: auto !important;
+      }
+    }
+  `;
+  document.head.appendChild(v45Style);
+
+  // Reset inherited scroll position whenever the app changes modes.
+  var v45ScrollObserver = new MutationObserver(function () {
+    window.requestAnimationFrame(function () {
+      if (window.innerWidth > 900) {
+        window.scrollTo(0, 0);
+        document.documentElement.scrollTop = 0;
+        document.body.scrollTop = 0;
+      }
+    });
+  });
+
+  v45ScrollObserver.observe(document.body, {
+    attributes: true,
+    attributeFilter: ["class"],
+    childList: true,
+    subtree: false
+  });
 
   restoreGameContainer();
   showMainMenu();
