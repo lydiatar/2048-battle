@@ -5,6 +5,17 @@
 
   var socket = io("https://two048-battle-oc8k.onrender.com");
 
+  function resetMultiplayerGame() {
+  if (!window.multiplayerGame) {
+    setTimeout(resetMultiplayerGame, 50);
+    return;
+  }
+
+  window.multiplayerAllowRestart = true;
+  window.multiplayerGame.restart();
+  window.multiplayerAllowRestart = false;
+}
+  
   window.multiplayerSocket = socket;
 
   var gameContainer = document.querySelector(".container");
@@ -593,17 +604,11 @@
 
   socket.on("gameStart", function (data) {
     window.multiplayerPlayerNumber = data.playerNumber;
-    window.multiplayerAllowRestart = true;
+    window.multiplayerGameOver = false;
+
+resetMultiplayerGame();
 // Multiplayer matches always start with a fresh board.
-localStorage.removeItem("gameState");
 
-var restartButton = document.querySelector(".restart-button");
-
-if (restartButton) {
-  window.multiplayerAllowRestart = true;
-  restartButton.click();
-  window.multiplayerAllowRestart = false;
-}
     status.textContent =
       "Opponent found! You are Player " +
       data.playerNumber +
@@ -665,14 +670,7 @@ socket.on("rematchStart", function () {
     }
   }
 
-  var restartButton =
-    document.querySelector(".restart-button");
-
-  if (restartButton) {
-    window.multiplayerAllowRestart = true;
-    restartButton.click();
-    window.multiplayerAllowRestart = false;
-  }
+ resetMultiplayerGame();
 });
   
 socket.on("gameWinner", function (data) {
