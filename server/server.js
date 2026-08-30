@@ -12,6 +12,7 @@ const io = new Server(server, {
 });
 
 const rooms = new Map();
+const ALLOWED_TARGETS = [2048, 4096, 8192];
 
 app.get("/", (req, res) => {
   res.send("Rina's 2048 multiplayer server is running!");
@@ -40,47 +41,35 @@ function createRoomCode() {
 function findRoomForSocket(socketId) {
   for (const [roomCode, room] of rooms.entries()) {
     if (room.players.includes(socketId)) {
-      return {
-        roomCode: roomCode,
-        room: room
-      };
+      return { roomCode, room };
     }
   }
 
   return null;
 }
 
-function removePlayerFromRooms(socketId) {
-  for (const [roomCode, room] of rooms.entries()) {
-    if (!room.players.includes(socketId)) {
-      continue;
-    }
+function removeSocketFromRoom(socket, notifyOpponent) {
+  const found = findRoomForSocket(socket.id);
 
-    if (room.players.length > 1) {
-      io.to(roomCode).emit("opponentDisconnected");
-    }
-
-    rooms.delete(roomCode);
-
-    console.log(
-      "Room",
-      roomCode,
-      "deleted because a player left."
-    );
+  if (!found) {
+    return;
   }
+
+  const { roomCode, room } = found;
+
+  socket.leave(roomCode);
+
+  if (notifyOpponent && room.players.length > 1) {
+    socket.to(roomCode).emit("opponentLeftMatch");
+  }
+
+  rooms.delete(roomCode);
+
+  console.log("Room", roomCode, "deleted because a player left.");
 }
 
-function finishRoom(
-  roomCode,
-  room,
-  winnerNumber,
-  reason,
-  loserNumber
-) {
-  if (
-    room.status !== "playing" ||
-    room.winner !== null
-  ) {
+function finishRoom(roomCode, room, winnerNumber, reason, loserNumber) {
+  if (room.status !== "playing" || room.winner !== null) {
     return;
   }
 
@@ -100,15 +89,21 @@ function finishRoom(
   io.to(roomCode).emit("gameWinner", {
     winner: winnerNumber,
     loser: loserNumber || null,
-    reason: reason
+    reason,
+    targetTile: room.targetTile
   });
 }
 
 io.on("connection", (socket) => {
   console.log("Player connected:", socket.id);
 
-  socket.on("createRoom", () => {
-    removePlayerFromRooms(socket.id);
+  socket.on("createRoom", (settings) => {
+    removeSocketFromRoom(socket, true);
+
+    const requestedTarget = Number(settings && settings.targetTile);
+    const targetTile = ALLOWED_TARGETS.includes(requestedTarget)
+      ? requestedTarget
+      : 2048;
 
     const roomCode = createRoomCode();
 
@@ -116,61 +111,58 @@ io.on("connection", (socket) => {
       players: [socket.id],
       status: "waiting",
       winner: null,
-      rematchVotes: []
+      rematchVotes: [],
+      mode: "tile-race",
+      targetTile
     });
 
     socket.join(roomCode);
 
     socket.emit("roomCreated", {
-      roomCode: roomCode,
-      playerNumber: 1
+      roomCode,
+      playerNumber: 1,
+      mode: "tile-race",
+      targetTile
     });
 
     console.log(
       "Room",
       roomCode,
       "created by",
-      socket.id
+      socket.id,
+      "target:",
+      targetTile
     );
   });
 
   socket.on("joinRoom", (rawRoomCode) => {
-    const roomCode = String(
-      rawRoomCode || ""
-    )
+    const roomCode = String(rawRoomCode || "")
       .trim()
       .toUpperCase();
 
     const room = rooms.get(roomCode);
 
     if (!room) {
-      socket.emit(
-        "joinError",
-        "Room not found."
-      );
-
+      socket.emit("joinError", "Room not found.");
       return;
     }
 
     if (room.players.includes(socket.id)) {
       socket.emit("gameStart", {
-        playerNumber:
-          room.players.indexOf(socket.id) + 1
+        playerNumber: room.players.indexOf(socket.id) + 1,
+        mode: room.mode,
+        targetTile: room.targetTile,
+        roomCode
       });
-
       return;
     }
 
     if (room.players.length >= 2) {
-      socket.emit(
-        "joinError",
-        "Room is full."
-      );
-
+      socket.emit("joinError", "Room is full.");
       return;
     }
 
-    removePlayerFromRooms(socket.id);
+    removeSocketFromRoom(socket, true);
 
     room.players.push(socket.id);
     room.status = "playing";
@@ -179,16 +171,14 @@ io.on("connection", (socket) => {
 
     socket.join(roomCode);
 
-    room.players.forEach(
-      (playerId, index) => {
-        io.to(playerId).emit(
-          "gameStart",
-          {
-            playerNumber: index + 1
-          }
-        );
-      }
-    );
+    room.players.forEach((playerId, index) => {
+      io.to(playerId).emit("gameStart", {
+        playerNumber: index + 1,
+        mode: room.mode,
+        targetTile: room.targetTile,
+        roomCode
+      });
+    });
 
     console.log(
       "Player",
@@ -200,87 +190,70 @@ io.on("connection", (socket) => {
     );
   });
 
+  socket.on("leaveRoom", () => {
+    removeSocketFromRoom(socket, true);
+  });
+
   socket.on("playerState", (state) => {
-    const found =
-      findRoomForSocket(socket.id);
+    const found = findRoomForSocket(socket.id);
 
     if (!found) {
       return;
     }
 
-    const roomCode =
-      found.roomCode;
-
-    const room =
-      found.room;
+    const { roomCode, room } = found;
 
     if (room.status !== "playing") {
       return;
     }
 
-    const playerNumber =
-      room.players.indexOf(socket.id) + 1;
+    const playerNumber = room.players.indexOf(socket.id) + 1;
 
-    socket
-      .to(roomCode)
-      .emit(
-        "opponentState",
-        {
-          playerNumber: playerNumber,
-          state: state
-        }
-      );
+    socket.to(roomCode).emit("opponentState", {
+      playerNumber,
+      state
+    });
   });
 
-  socket.on("reached2048", () => {
-    const found =
-      findRoomForSocket(socket.id);
+  socket.on("reachedTarget", (data) => {
+    const found = findRoomForSocket(socket.id);
 
     if (!found) {
       return;
     }
 
-    const roomCode =
-      found.roomCode;
+    const { roomCode, room } = found;
 
-    const room =
-      found.room;
-
-    if (
-      room.status !== "playing" ||
-      room.winner !== null
-    ) {
+    if (room.status !== "playing" || room.winner !== null) {
       return;
     }
 
-    const playerNumber =
-      room.players.indexOf(socket.id) + 1;
+    const reportedTile = Number(data && data.tileValue);
 
-    const loserNumber =
-      playerNumber === 1 ? 2 : 1;
+    if (!Number.isFinite(reportedTile) || reportedTile < room.targetTile) {
+      return;
+    }
+
+    const playerNumber = room.players.indexOf(socket.id) + 1;
+    const loserNumber = playerNumber === 1 ? 2 : 1;
 
     finishRoom(
       roomCode,
       room,
       playerNumber,
-      "2048",
+      "target",
       loserNumber
     );
   });
 
   socket.on("playerEliminated", () => {
-    const found =
-      findRoomForSocket(socket.id);
+    const found = findRoomForSocket(socket.id);
 
     if (!found) {
       return;
     }
 
-    const roomCode =
-      found.roomCode;
-
-    const room =
-      found.room;
+    const { roomCode, room } = found;
 
     if (
       room.status !== "playing" ||
@@ -290,11 +263,8 @@ io.on("connection", (socket) => {
       return;
     }
 
-    const loserNumber =
-      room.players.indexOf(socket.id) + 1;
-
-    const winnerNumber =
-      loserNumber === 1 ? 2 : 1;
+    const loserNumber = room.players.indexOf(socket.id) + 1;
+    const winnerNumber = loserNumber === 1 ? 2 : 1;
 
     finishRoom(
       roomCode,
@@ -306,34 +276,20 @@ io.on("connection", (socket) => {
   });
 
   socket.on("requestRematch", () => {
-    const found =
-      findRoomForSocket(socket.id);
+    const found = findRoomForSocket(socket.id);
 
     if (!found) {
       return;
     }
 
-    const roomCode =
-      found.roomCode;
+    const { roomCode, room } = found;
 
-    const room =
-      found.room;
-
-    if (
-      room.status !== "finished" ||
-      room.players.length !== 2
-    ) {
+    if (room.status !== "finished" || room.players.length !== 2) {
       return;
     }
 
-    if (
-      !room.rematchVotes.includes(
-        socket.id
-      )
-    ) {
-      room.rematchVotes.push(
-        socket.id
-      );
+    if (!room.rematchVotes.includes(socket.id)) {
+      room.rematchVotes.push(socket.id);
     }
 
     if (room.rematchVotes.length < 2) {
@@ -345,33 +301,23 @@ io.on("connection", (socket) => {
     room.winner = null;
     room.rematchVotes = [];
 
-    io.to(roomCode).emit(
-      "rematchStart"
-    );
-
-    console.log(
-      "Rematch started in room",
+    io.to(roomCode).emit("rematchStart", {
+      mode: room.mode,
+      targetTile: room.targetTile,
       roomCode
-    );
+    });
+
+    console.log("Rematch started in room", roomCode);
   });
 
   socket.on("disconnect", () => {
-    console.log(
-      "Player disconnected:",
-      socket.id
-    );
-
-    removePlayerFromRooms(
-      socket.id
-    );
+    console.log("Player disconnected:", socket.id);
+    removeSocketFromRoom(socket, true);
   });
 });
 
-const PORT =
-  process.env.PORT || 3000;
+const PORT = process.env.PORT || 3000;
 
 server.listen(PORT, () => {
-  console.log(
-    `Rina's 2048 server running on port ${PORT}`
-  );
+  console.log(`Rina's 2048 server running on port ${PORT}`);
 });
