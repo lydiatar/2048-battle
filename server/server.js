@@ -41,8 +41,7 @@ io.on("connection", (socket) => {
   console.log("Player connected:", socket.id);
 
   socket.on("createRoom", () => {
-    // If this player was already in another room,
-    // remove them from that room first.
+    // Remove this player from any previous room.
     for (const [roomCode, room] of rooms.entries()) {
       if (room.players.includes(socket.id)) {
         room.players = room.players.filter(
@@ -59,7 +58,8 @@ io.on("connection", (socket) => {
 
     rooms.set(roomCode, {
       players: [socket.id],
-      status: "waiting"
+      status: "waiting",
+      winner: null
     });
 
     socket.join(roomCode);
@@ -71,7 +71,10 @@ io.on("connection", (socket) => {
       socket.id
     );
 
-    socket.emit("roomCreated", roomCode);
+    socket.emit("roomCreated", {
+      roomCode: roomCode,
+      playerNumber: 1
+    });
   });
 
   socket.on("joinRoom", (roomCode) => {
@@ -80,37 +83,19 @@ io.on("connection", (socket) => {
     const room = rooms.get(roomCode);
 
     if (!room) {
-      console.log(
-        "Join failed:",
-        roomCode,
-        "does not exist"
-      );
-
       socket.emit("joinError", "Room not found.");
       return;
     }
 
     // Don't add the same player twice.
     if (room.players.includes(socket.id)) {
-      console.log(
-        "Player",
-        socket.id,
-        "is already in room",
-        roomCode
-      );
-
-      socket.emit("gameStart");
+      socket.emit("gameStart", {
+        playerNumber: room.players.indexOf(socket.id) + 1
+      });
       return;
     }
 
     if (room.players.length >= 2) {
-      console.log(
-        "Join failed:",
-        roomCode,
-        "is full. Players:",
-        room.players
-      );
-
       socket.emit("joinError", "Room is full.");
       return;
     }
@@ -135,7 +120,12 @@ io.on("connection", (socket) => {
       "players."
     );
 
-    io.to(roomCode).emit("gameStart");
+    // Tell each player which side they are on.
+    room.players.forEach((playerId, index) => {
+      io.to(playerId).emit("gameStart", {
+        playerNumber: index + 1
+      });
+    });
   });
 
   socket.on("disconnect", () => {
@@ -145,13 +135,6 @@ io.on("connection", (socket) => {
       if (room.players.includes(socket.id)) {
         room.players = room.players.filter(
           (id) => id !== socket.id
-        );
-
-        console.log(
-          "Removed",
-          socket.id,
-          "from room",
-          roomCode
         );
 
         if (room.players.length === 0) {
