@@ -63,7 +63,13 @@
   var lastOwnHighest = 0;
   var lastOwnScore = 0;
   var lastLeaderNumber = null;
+  var lastOwnOneAway = false;
+  var lastOpponentOneAway = false;
   var audioContext = null;
+  var raceMusic = null;
+  var musicFadeFrame = null;
+  var audioUnlocked = false;
+  var opponentPanelElement = null;
 
   if (TARGETS.indexOf(selectedTarget) === -1) {
     selectedTarget = 2048;
@@ -118,6 +124,9 @@
       theme: "classic",
       soloUndo: false,
       soundEffects: true,
+      sfxVolume: 0.75,
+      backgroundMusic: true,
+      musicVolume: 0.32,
       nickname: "",
       controlScheme: "arrows"
     };
@@ -133,6 +142,18 @@
 
       if (typeof saved.soundEffects === "boolean") {
         defaults.soundEffects = saved.soundEffects;
+      }
+
+      if (typeof saved.sfxVolume === "number") {
+        defaults.sfxVolume = Math.max(0, Math.min(1, saved.sfxVolume));
+      }
+
+      if (typeof saved.backgroundMusic === "boolean") {
+        defaults.backgroundMusic = saved.backgroundMusic;
+      }
+
+      if (typeof saved.musicVolume === "number") {
+        defaults.musicVolume = Math.max(0, Math.min(1, saved.musicVolume));
       }
 
       if (typeof saved.nickname === "string") {
@@ -192,6 +213,8 @@
 
   function playTone(ctx, frequency, duration, volume, type, delay, endFrequency) {
     var start = ctx.currentTime + (delay || 0);
+    var sfxScale = Math.max(0, Math.min(1, Number(typeof window.rinasSettings.sfxVolume === "number" ? window.rinasSettings.sfxVolume : 0.75)));
+    volume = Math.min(0.18, (volume || 0.025) * sfxScale * 2.8);
     var oscillator = ctx.createOscillator();
     var gain = ctx.createGain();
 
@@ -241,8 +264,18 @@
       playTone(ctx, 260, 0.07, 0.014, "sine", 0.045, 170);
 
     } else if (name === "lead") {
-      playTone(ctx, 520, 0.08, 0.02, "sine", 0, 650);
-      playTone(ctx, 700, 0.10, 0.022, "sine", 0.06, 840);
+      playTone(ctx, 520, 0.08, 0.022, "triangle", 0, 650);
+      playTone(ctx, 700, 0.10, 0.024, "triangle", 0.06, 840);
+    } else if (name === "lead-lost") {
+      playTone(ctx, 420, 0.09, 0.024, "triangle", 0, 310);
+      playTone(ctx, 300, 0.12, 0.020, "triangle", 0.07, 220);
+    } else if (name === "tie") {
+      playTone(ctx, 470, 0.07, 0.022, "square", 0, 520);
+      playTone(ctx, 470, 0.07, 0.022, "square", 0.10, 520);
+    } else if (name === "danger") {
+      playTone(ctx, 620, 0.06, 0.024, "square", 0, 700);
+      playTone(ctx, 820, 0.07, 0.026, "square", 0.08, 920);
+      playTone(ctx, 1040, 0.09, 0.022, "square", 0.16, 1160);
     } else if (name === "milestone") {
       playTone(ctx, 440, 0.12, 0.025, "sine", 0, 520);
       playTone(ctx, 660, 0.13, 0.024, "sine", 0.08, 780);
@@ -258,6 +291,111 @@
   }
 
   window.rinasPlaySound = playSound;
+
+  function ensureRaceMusic() {
+    if (!raceMusic) {
+      raceMusic = new Audio("audio/rinas-race-loop.mp3");
+      raceMusic.loop = true;
+      raceMusic.preload = "auto";
+      raceMusic.volume = 0;
+    }
+    return raceMusic;
+  }
+
+  function unlockAudio() {
+    if (audioUnlocked) return;
+    audioUnlocked = true;
+
+    var music = ensureRaceMusic();
+    var previousVolume = music.volume;
+    music.volume = 0;
+    var promise = music.play();
+
+    if (promise && promise.then) {
+      promise.then(function () {
+        music.pause();
+        music.currentTime = 0;
+        music.volume = previousVolume;
+      }).catch(function () {
+        music.volume = previousVolume;
+      });
+    }
+  }
+
+  document.addEventListener("pointerdown", unlockAudio, { once: true, capture: true });
+  document.addEventListener("keydown", unlockAudio, { once: true, capture: true });
+
+  function currentMusicTargetVolume() {
+    if (!window.rinasSettings.backgroundMusic || !window.multiplayerMatchActive) return 0;
+    var base = Math.max(0, Math.min(1, Number(typeof window.rinasSettings.musicVolume === "number" ? window.rinasSettings.musicVolume : 0.32)));
+    var intense = lastOwnOneAway || lastOpponentOneAway;
+    var modeScale = window.multiplayerModeName === "freeplay" ? 0.72 : 1;
+    return Math.min(1, base * modeScale * (intense ? 1.14 : 1));
+  }
+
+  function fadeMusicTo(target, duration, pauseWhenDone) {
+    var music = ensureRaceMusic();
+    target = Math.max(0, Math.min(1, Number(target || 0)));
+    duration = Math.max(0, Number(duration || 0));
+
+    if (musicFadeFrame) cancelAnimationFrame(musicFadeFrame);
+
+    var startVolume = Number(music.volume || 0);
+    var startTime = performance.now();
+
+    function step(now) {
+      var progress = duration ? Math.min(1, (now - startTime) / duration) : 1;
+      var eased = 1 - Math.pow(1 - progress, 3);
+      music.volume = startVolume + (target - startVolume) * eased;
+
+      if (progress < 1) {
+        musicFadeFrame = requestAnimationFrame(step);
+      } else {
+        musicFadeFrame = null;
+        music.volume = target;
+        if (pauseWhenDone && target <= 0.001) {
+          music.pause();
+        }
+      }
+    }
+
+    musicFadeFrame = requestAnimationFrame(step);
+  }
+
+  function startCompetitiveMusic() {
+    if (!window.rinasSettings.backgroundMusic) return;
+    var music = ensureRaceMusic();
+    music.playbackRate = lastOwnOneAway || lastOpponentOneAway ? 1.055 : 1;
+    var promise = music.play();
+    if (promise && promise.catch) promise.catch(function () {});
+    fadeMusicTo(currentMusicTargetVolume(), 650, false);
+  }
+
+  function stopCompetitiveMusic(duration) {
+    if (!raceMusic) return;
+    fadeMusicTo(0, duration == null ? 350 : duration, true);
+  }
+
+  function updateCompetitiveMusicIntensity() {
+    if (!raceMusic || !window.multiplayerMatchActive) return;
+    raceMusic.playbackRate = lastOwnOneAway || lastOpponentOneAway ? 1.055 : 1;
+    if (window.rinasSettings.backgroundMusic) {
+      var promise = raceMusic.play();
+      if (promise && promise.catch) promise.catch(function () {});
+      fadeMusicTo(currentMusicTargetVolume(), 260, false);
+    }
+  }
+
+  function duckCompetitiveMusic() {
+    if (!raceMusic || raceMusic.paused) return;
+    fadeMusicTo(currentMusicTargetVolume() * 0.28, 180, false);
+  }
+
+  window.rinasAudio = {
+    startMusic: startCompetitiveMusic,
+    stopMusic: stopCompetitiveMusic,
+    refreshMusic: updateCompetitiveMusicIntensity
+  };
 
   document.addEventListener("click", function (event) {
     var button = event.target.closest ? event.target.closest("button") : null;
@@ -3780,6 +3918,952 @@
   `;
   document.head.appendChild(v38Style);
 
+  // =========================================================
+  // v39: playful graphic UI + integrated HUD + audio controls
+  // =========================================================
+
+  var v39Style = document.createElement("style");
+  v39Style.textContent = `
+    :root {
+      --hud-display: "Barlow Semi Condensed", "Arial Narrow", sans-serif;
+      --hud-body: "Barlow Semi Condensed", "Helvetica Neue", Arial, sans-serif;
+      --tile-font: "Nunito Sans", "Arial Rounded MT Bold", Arial, sans-serif;
+      --fun-teal: #34c8ba;
+      --fun-coral: #ff694f;
+      --fun-yellow: #ffc54d;
+      --fun-ink: #282522;
+    }
+
+    body {
+      background: var(--game-bg-b) !important;
+    }
+
+    body::before {
+      background:
+        radial-gradient(circle at 16% 13%, color-mix(in srgb, var(--fun-coral) 12%, transparent), transparent 30%),
+        radial-gradient(circle at 82% 77%, color-mix(in srgb, var(--fun-yellow) 12%, transparent), transparent 32%),
+        linear-gradient(145deg, var(--game-bg-a), var(--game-bg-b)) !important;
+    }
+
+    body::after {
+      opacity: .28 !important;
+      background-image:
+        linear-gradient(var(--game-grid-line) 1px, transparent 1px),
+        linear-gradient(90deg, var(--game-grid-line) 1px, transparent 1px) !important;
+      background-size: 44px 44px !important;
+      animation: none !important;
+      mask-image: linear-gradient(to bottom, rgba(0,0,0,.45), rgba(0,0,0,.10)) !important;
+    }
+
+    .app-screen {
+      background: transparent !important;
+    }
+
+    .app-screen-inner {
+      max-width: 860px !important;
+    }
+
+    .screen-menu .app-header {
+      min-height: 38px !important;
+      margin-bottom: 0 !important;
+    }
+
+    .screen-menu .app-title-stack {
+      visibility: hidden;
+    }
+
+    .game-logo {
+      transform: none !important;
+      filter: none !important;
+    }
+
+    .game-logo-rinas {
+      font-family: var(--hud-body) !important;
+      font-weight: 800 !important;
+      letter-spacing: .34em !important;
+      color: var(--app-text) !important;
+    }
+
+    .game-logo-number {
+      font-family: var(--tile-font) !important;
+      font-weight: 900 !important;
+      letter-spacing: -.075em !important;
+      text-shadow: none !important;
+    }
+
+    .game-logo-number em {
+      color: var(--fun-coral) !important;
+      font-style: normal !important;
+    }
+
+    .logo-tagline {
+      font-family: var(--hud-display) !important;
+      font-size: 14px !important;
+      font-weight: 800 !important;
+      letter-spacing: .22em !important;
+      text-transform: uppercase;
+      color: var(--app-muted) !important;
+    }
+
+    .logo-float-tile {
+      border-radius: 7px !important;
+      box-shadow: 0 10px 22px rgba(45,33,26,.15) !important;
+      font-family: var(--tile-font) !important;
+    }
+
+    .home-mode-grid { display: none !important; }
+
+    .home-mode-stack {
+      width: min(620px, 100%);
+      margin: 30px auto 0;
+      display: grid;
+      gap: 15px;
+    }
+
+    .home-brush-button {
+      position: relative;
+      width: 100%;
+      min-height: 92px;
+      display: grid;
+      grid-template-columns: 58px 1fr 34px;
+      align-items: center;
+      gap: 16px;
+      border: 0;
+      padding: 16px 24px 16px 20px;
+      color: #252525;
+      cursor: pointer;
+      text-align: left;
+      font-family: var(--hud-body);
+      isolation: isolate;
+      transition: transform 150ms ease, filter 150ms ease;
+      clip-path: polygon(0 8%, 97% 0, 100% 14%, 98.5% 91%, 2% 100%, .8% 84%);
+      box-shadow: none;
+    }
+
+    .home-brush-button::before,
+    .home-brush-button::after {
+      content: "";
+      position: absolute;
+      pointer-events: none;
+      z-index: -1;
+    }
+
+    .home-brush-button::before {
+      inset: 0;
+      background: inherit;
+    }
+
+    .home-brush-button::after {
+      inset: 4px -8px 2px 7px;
+      opacity: .24;
+      background:
+        repeating-linear-gradient(173deg, rgba(255,255,255,.45) 0 2px, transparent 2px 7px),
+        repeating-linear-gradient(7deg, rgba(0,0,0,.09) 0 1px, transparent 1px 8px);
+      mix-blend-mode: soft-light;
+      clip-path: polygon(0 3%, 100% 8%, 98% 88%, 1% 100%);
+    }
+
+    .solo-brush {
+      background: linear-gradient(105deg, #4ad4c8, #82ded4 72%, #51c8bd);
+    }
+
+    .multiplayer-brush {
+      background: linear-gradient(105deg, #ff735b, #ff8f71 70%, #ff6e52);
+    }
+
+    @media (hover:hover) and (pointer:fine) {
+      .home-brush-button:hover {
+        transform: translateX(7px) rotate(-.15deg);
+        filter: saturate(1.08) brightness(1.02);
+      }
+    }
+
+    .home-brush-button:active {
+      transform: translateX(4px) scale(.992);
+    }
+
+    .brush-icon {
+      width: 50px;
+      height: 50px;
+      display: grid;
+      place-items: center;
+      border: 2px solid rgba(37,37,37,.18);
+      background: rgba(255,255,255,.24);
+      font-size: 25px;
+      transform: rotate(-2deg);
+    }
+
+    .brush-copy {
+      min-width: 0;
+      display: grid;
+      gap: 2px;
+    }
+
+    .brush-copy strong {
+      font-family: var(--hud-display);
+      font-size: 30px;
+      font-weight: 900;
+      letter-spacing: -.02em;
+      line-height: 1;
+    }
+
+    .brush-copy small {
+      font-size: 14px;
+      font-weight: 600;
+      color: rgba(30,30,30,.72);
+    }
+
+    .brush-arrow {
+      font-family: var(--tile-font);
+      font-size: 42px;
+      font-weight: 900;
+      line-height: 1;
+    }
+
+    .home-controls-ribbon {
+      width: min(620px, 100%);
+      margin: 18px auto 0;
+      padding: 12px 16px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 14px;
+      flex-wrap: wrap;
+      border-top: 1px solid var(--game-line);
+      border-bottom: 1px solid var(--game-line);
+      color: var(--app-muted);
+      background: color-mix(in srgb, var(--app-card) 54%, transparent);
+    }
+
+    .control-key-row {
+      display: inline-flex;
+      align-items: center;
+      gap: 9px;
+      font-family: var(--hud-display);
+      font-weight: 800;
+      letter-spacing: .08em;
+    }
+
+    .control-key-row.compact {
+      gap: 7px;
+      color: inherit;
+    }
+
+    .control-label {
+      font-size: 11px;
+      color: var(--app-muted);
+    }
+
+    .key-cluster {
+      display: inline-flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 2px;
+    }
+
+    .key-cluster > span {
+      display: flex;
+      gap: 2px;
+    }
+
+    .control-key-row kbd,
+    .solo-strip-item kbd,
+    .solo-card-actions kbd {
+      min-width: 24px;
+      height: 23px;
+      display: inline-grid;
+      place-items: center;
+      box-sizing: border-box;
+      padding: 0 5px;
+      border: 1px solid color-mix(in srgb, var(--app-text) 24%, transparent);
+      border-bottom-width: 2px;
+      border-radius: 4px;
+      background: color-mix(in srgb, var(--app-card) 88%, white 12%);
+      color: var(--app-text);
+      font-family: var(--tile-font);
+      font-size: 11px;
+      font-weight: 900;
+      box-shadow: none;
+    }
+
+    .home-controls-copy {
+      font-size: 12px;
+      font-weight: 600;
+    }
+
+    .touch-control-label {
+      display: none;
+      font-size: 11px;
+      font-weight: 700;
+      color: var(--app-muted);
+    }
+
+    .home-footnote {
+      margin-top: 16px !important;
+    }
+
+    .solo-menu-intro {
+      margin: 12px 0 18px;
+      padding: 4px 0 12px 16px;
+      border-left: 4px solid var(--app-accent);
+    }
+
+    .solo-menu-kicker {
+      display: block;
+      margin-bottom: 4px;
+      font-family: var(--hud-display);
+      font-size: 12px;
+      font-weight: 900;
+      letter-spacing: .14em;
+      color: var(--app-accent);
+    }
+
+    .solo-menu-intro p {
+      margin: 0;
+      max-width: 640px;
+      color: var(--app-text);
+      font-size: 16px;
+      line-height: 1.45;
+    }
+
+    .solo-undo-note {
+      display: inline-block;
+      margin-top: 8px;
+      color: var(--app-muted);
+      font-size: 13px;
+      font-weight: 600;
+    }
+
+    .solo-stats {
+      gap: 0 !important;
+      border-top: 1px solid var(--game-line);
+      border-bottom: 1px solid var(--game-line);
+    }
+
+    .solo-stats .stat-card {
+      border: 0 !important;
+      border-radius: 0 !important;
+      background: transparent !important;
+      color: var(--app-text) !important;
+      box-shadow: none !important;
+    }
+
+    .solo-stats .stat-card + .stat-card {
+      border-left: 1px solid var(--game-line) !important;
+    }
+
+    .solo-stats .stat-card span {
+      color: var(--app-muted) !important;
+    }
+
+    .solo-stats .stat-card strong {
+      color: var(--app-text) !important;
+      font-family: var(--tile-font) !important;
+      font-size: 34px !important;
+    }
+
+    /* Solo active view: one cohesive play area instead of floating web controls. */
+    body.solo-active #solo-toolbar {
+      width: min(720px, calc(100% - 28px)) !important;
+      margin: 20px auto 8px !important;
+    }
+
+    .solo-floating-header {
+      min-height: 58px;
+      border-bottom: 1px solid var(--game-line);
+    }
+
+    .solo-floating-center strong {
+      font-family: var(--hud-display) !important;
+      font-size: 26px !important;
+      font-weight: 900 !important;
+      letter-spacing: -.02em !important;
+    }
+
+    .solo-mode-label {
+      display: inline-block;
+      margin-top: 2px;
+      padding: 2px 9px;
+      color: #1f3735 !important;
+      background: linear-gradient(90deg, #63d9ce, #9ce8df);
+      font-family: var(--hud-display) !important;
+      font-size: 10px !important;
+      font-weight: 900;
+      letter-spacing: .18em !important;
+      clip-path: polygon(3% 10%, 98% 0, 100% 80%, 2% 100%);
+    }
+
+    body.solo-active .container {
+      width: min(560px, calc(100% - 28px)) !important;
+      margin: 10px auto 48px !important;
+      padding: 18px !important;
+      border: 0 !important;
+      border-top: 4px solid var(--app-accent) !important;
+      border-radius: 0 !important;
+      background: color-mix(in srgb, var(--app-card) 86%, transparent) !important;
+      box-shadow: 0 14px 34px var(--app-shadow) !important;
+      clip-path: polygon(0 0, calc(100% - 14px) 0, 100% 14px, 100% 100%, 0 100%);
+    }
+
+    body.solo-active .container .heading {
+      margin: 0 0 12px !important;
+      padding: 0 0 12px !important;
+      border-bottom: 1px solid var(--game-line);
+    }
+
+    body.solo-active .container .title {
+      font-family: var(--tile-font) !important;
+      font-size: 52px !important;
+      font-weight: 900 !important;
+      letter-spacing: -.06em !important;
+      color: var(--app-text) !important;
+    }
+
+    body.solo-active .scores-container {
+      gap: 7px;
+    }
+
+    body.solo-active .score-container,
+    body.solo-active .best-container {
+      min-width: 82px !important;
+      border-radius: 0 !important;
+      background: var(--app-stat) !important;
+      font-family: var(--tile-font) !important;
+      box-shadow: none !important;
+    }
+
+    .solo-card-actions {
+      margin: 0 0 10px !important;
+      padding: 0 !important;
+      border: 0 !important;
+      justify-content: space-between !important;
+    }
+
+    .solo-card-actions .small-button {
+      min-width: 116px;
+      border: 1px solid var(--game-line) !important;
+      border-radius: 4px !important;
+      background: transparent !important;
+      color: var(--app-text) !important;
+      box-shadow: none !important;
+    }
+
+    #solo-control-strip {
+      margin-top: 10px;
+    }
+
+    .solo-control-strip {
+      min-height: 38px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 18px;
+      padding: 8px 10px;
+      border-top: 1px solid var(--game-line);
+      color: var(--app-muted);
+    }
+
+    .solo-strip-item {
+      display: inline-flex;
+      align-items: center;
+      gap: 7px;
+      font-family: var(--hud-display);
+      font-size: 11px;
+      font-weight: 900;
+      letter-spacing: .08em;
+    }
+
+    body.solo-active .game-container {
+      margin-top: 0 !important;
+      border-radius: 6px !important;
+      box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--app-text) 8%, transparent);
+    }
+
+    .tile .tile-inner {
+      font-family: var(--tile-font) !important;
+      font-weight: 900 !important;
+      letter-spacing: -.045em !important;
+      border-radius: 5px !important;
+    }
+
+    /* Multiplayer: lighter match framing, more spacing, less armored-card look. */
+    .battle-shell {
+      max-width: 1180px !important;
+      padding-top: 18px !important;
+    }
+
+    .battle-topbar {
+      min-height: 58px !important;
+      border-bottom: 1px solid var(--game-line) !important;
+    }
+
+    .battle-topbar::after {
+      width: 128px !important;
+      height: 4px !important;
+      background: linear-gradient(90deg, transparent, var(--fun-teal), var(--fun-coral), transparent) !important;
+      box-shadow: none !important;
+    }
+
+    .battle-mode-title strong,
+    .player-name,
+    .rank-badge,
+    .highest-box strong,
+    .mini-stat strong,
+    .progress-meta,
+    .progress-note {
+      font-family: var(--hud-display) !important;
+    }
+
+    .battle-layout {
+      grid-template-columns: minmax(0, 560px) 72px minmax(0, 330px) !important;
+      column-gap: 42px !important;
+      align-items: start !important;
+    }
+
+    .battle-player-card {
+      overflow: visible !important;
+      padding: 18px 16px 16px !important;
+      border: 0 !important;
+      border-radius: 0 !important;
+      background: transparent !important;
+      box-shadow: none !important;
+      clip-path: none !important;
+      backdrop-filter: none !important;
+    }
+
+    .battle-player-card::before {
+      left: 0 !important;
+      top: 0 !important;
+      width: 100% !important;
+      height: 5px !important;
+      border-radius: 0 !important;
+      box-shadow: none !important;
+    }
+
+    .battle-player-card::after {
+      content: "";
+      position: absolute;
+      inset: 4px 0 auto 0;
+      height: 64px;
+      z-index: -1;
+      background: linear-gradient(180deg, color-mix(in srgb, var(--app-card) 74%, transparent), transparent);
+      pointer-events: none;
+    }
+
+    .own-panel {
+      width: 560px !important;
+      border-left: 3px solid color-mix(in srgb, var(--fun-teal) 80%, var(--app-accent)) !important;
+    }
+
+    .own-panel::before {
+      background: linear-gradient(90deg, var(--fun-teal), color-mix(in srgb, var(--app-accent) 70%, var(--fun-yellow))) !important;
+    }
+
+    .opponent-panel {
+      width: 330px !important;
+      border-left: 3px solid var(--opponent-accent, var(--fun-coral)) !important;
+    }
+
+    .opponent-panel::before {
+      background: linear-gradient(90deg, var(--opponent-accent, var(--fun-coral)), var(--opponent-accent-2, #ffb26d)) !important;
+    }
+
+    .player-card-header {
+      min-height: 76px !important;
+      margin-bottom: 12px !important;
+      padding: 0 0 10px !important;
+      border-bottom: 1px solid var(--game-line) !important;
+    }
+
+    .player-name {
+      font-size: 30px !important;
+      text-transform: none !important;
+      letter-spacing: -.02em !important;
+    }
+
+    .player-subline {
+      font-family: var(--hud-body) !important;
+      font-size: 12px !important;
+      letter-spacing: .04em !important;
+      text-transform: uppercase;
+    }
+
+    .rank-badge {
+      min-width: 50px !important;
+      border: 0 !important;
+      border-radius: 999px !important;
+      padding: 4px 10px !important;
+      background: var(--app-soft) !important;
+      clip-path: none !important;
+    }
+
+    .rank-badge.first {
+      background: var(--fun-yellow) !important;
+      color: #35290c !important;
+      box-shadow: 0 4px 12px rgba(150,110,20,.18) !important;
+    }
+
+    .highest-box,
+    .mini-stat {
+      border: 0 !important;
+      border-radius: 5px !important;
+      background: var(--app-stat) !important;
+      clip-path: none !important;
+      box-shadow: none !important;
+    }
+
+    .highest-box strong,
+    .mini-stat strong {
+      font-family: var(--tile-font) !important;
+      font-weight: 900 !important;
+    }
+
+    .battle-vs {
+      padding-top: 150px !important;
+    }
+
+    .battle-vs span {
+      width: 70px !important;
+      height: auto !important;
+      min-height: 54px;
+      display: grid;
+      place-items: center;
+      border: 0 !important;
+      border-top: 2px solid var(--fun-teal) !important;
+      border-bottom: 2px solid var(--fun-coral) !important;
+      background: transparent !important;
+      color: var(--app-text) !important;
+      font-family: var(--tile-font) !important;
+      font-size: 28px !important;
+      font-style: italic;
+      clip-path: none !important;
+      box-shadow: none !important;
+      transform: rotate(-4deg);
+    }
+
+    .battle-vs span::before,
+    .battle-vs span::after {
+      display: none !important;
+    }
+
+    .progress-wrap {
+      margin-bottom: 16px !important;
+    }
+
+    .progress-track {
+      height: 12px !important;
+      border: 0 !important;
+      border-radius: 999px !important;
+      overflow: hidden;
+      background: repeating-linear-gradient(90deg, var(--app-soft) 0 16px, color-mix(in srgb, var(--app-soft) 66%, transparent) 16px 18px) !important;
+    }
+
+    .progress-fill {
+      border-radius: 999px !important;
+      background: linear-gradient(90deg, var(--fun-teal), var(--fun-yellow)) !important;
+      box-shadow: none !important;
+      animation: none !important;
+    }
+
+    .opponent-panel .progress-fill {
+      background: linear-gradient(90deg, var(--opponent-accent, var(--fun-coral)), var(--opponent-accent-2, #ffb26d)) !important;
+    }
+
+    .progress-note {
+      color: var(--app-accent) !important;
+      font-weight: 900 !important;
+    }
+
+    .opponent-grid {
+      border: 2px solid var(--opponent-grid-border, var(--game-line)) !important;
+      border-radius: 7px !important;
+      background: var(--opponent-board, #bbada0) !important;
+      box-shadow: 0 10px 24px color-mix(in srgb, var(--opponent-accent, var(--fun-coral)) 10%, transparent) !important;
+    }
+
+    .opponent-cell {
+      border-radius: 4px !important;
+      font-family: var(--tile-font) !important;
+      font-weight: 900 !important;
+    }
+
+    .opponent-panel[data-opponent-theme="classic"] {
+      --opponent-accent: #e96f3d;
+      --opponent-accent-2: #f5b06d;
+      --opponent-board: #a99786;
+      --opponent-grid-border: #c9b7a6;
+    }
+
+    .opponent-panel[data-opponent-theme="pastel"] {
+      --opponent-accent: #ff8fae;
+      --opponent-accent-2: #88d8d0;
+      --opponent-board: #d9d5e1;
+      --opponent-grid-border: #c8bdd8;
+    }
+
+    .opponent-panel[data-opponent-theme="ocean"] {
+      --opponent-accent: #2589a5;
+      --opponent-accent-2: #63c4d7;
+      --opponent-board: #8eb7c3;
+      --opponent-grid-border: #6ba1b0;
+    }
+
+    .opponent-panel[data-opponent-theme="candy"] {
+      --opponent-accent: #ff5d8f;
+      --opponent-accent-2: #845ec2;
+      --opponent-board: #dfa8bd;
+      --opponent-grid-border: #ce8eaa;
+    }
+
+    .opponent-panel[data-opponent-theme="midnight"] {
+      --opponent-accent: #8b91ff;
+      --opponent-accent-2: #ef75c7;
+      --opponent-board: #30384d;
+      --opponent-grid-border: #525d79;
+    }
+
+    #opponent-status {
+      margin-top: 8px !important;
+      font-family: var(--hud-body) !important;
+      font-size: 11px !important;
+      text-transform: none !important;
+      letter-spacing: .02em !important;
+    }
+
+    /* Settings: integrated controls, no cards-for-everything look. */
+    .settings-dialog-v39 {
+      max-width: 760px !important;
+      border-radius: 8px !important;
+    }
+
+    .settings-kicker {
+      display: block;
+      margin-bottom: 1px;
+      color: var(--app-accent);
+      font-family: var(--hud-display);
+      font-size: 10px;
+      font-weight: 900;
+      letter-spacing: .18em;
+    }
+
+    .settings-grid-v39 {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0,1fr));
+      gap: 0 24px;
+      border-top: 1px solid var(--game-line);
+    }
+
+    .settings-grid-v39 .settings-section {
+      margin: 0 !important;
+      padding: 18px 0 !important;
+      border: 0 !important;
+      border-bottom: 1px solid var(--game-line) !important;
+      border-radius: 0 !important;
+      background: transparent !important;
+    }
+
+    .settings-grid-v39 .settings-section h3 {
+      margin: 0 0 10px !important;
+      font-size: 18px !important;
+    }
+
+    .settings-grid-v39 .settings-section h4 {
+      margin: 0 0 2px;
+      font-family: var(--hud-body);
+      font-size: 14px;
+      font-weight: 800;
+    }
+
+    .settings-profile-section,
+    .settings-theme-section {
+      grid-column: 1 / -1;
+    }
+
+    .settings-section-heading-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      gap: 12px;
+    }
+
+    .locked-badge {
+      flex: 0 0 auto;
+      padding: 5px 8px;
+      border: 1px solid var(--game-line);
+      border-radius: 999px;
+      color: var(--app-muted);
+      font-size: 10px;
+      font-weight: 800;
+      text-transform: uppercase;
+      letter-spacing: .08em;
+    }
+
+    .theme-choice:disabled {
+      opacity: .55 !important;
+      cursor: not-allowed !important;
+    }
+
+    .audio-control-group + .audio-control-group {
+      margin-top: 17px;
+      padding-top: 15px;
+      border-top: 1px dashed var(--game-line);
+    }
+
+    .volume-row {
+      display: grid;
+      grid-template-columns: 92px 1fr 46px;
+      align-items: center;
+      gap: 10px;
+      margin-top: 9px;
+      color: var(--app-muted);
+      font-size: 12px;
+      font-weight: 700;
+    }
+
+    .volume-row input[type="range"] {
+      width: 100%;
+      accent-color: var(--app-accent);
+      cursor: pointer;
+    }
+
+    .volume-row output {
+      text-align: right;
+      color: var(--app-text);
+      font-family: var(--tile-font);
+      font-weight: 800;
+    }
+
+    .settings-inline-toggle {
+      margin-top: 16px;
+      padding-top: 14px;
+      border-top: 1px dashed var(--game-line);
+    }
+
+    .field-label {
+      display: block;
+      margin-bottom: 6px;
+      color: var(--app-muted);
+      font-size: 11px;
+      font-weight: 800;
+      text-transform: uppercase;
+      letter-spacing: .08em;
+    }
+
+    .settings-footer {
+      margin-top: 18px;
+      display: flex;
+      justify-content: flex-end;
+    }
+
+    /* Slightly softer general controls: still graphic, no fake-paper/sticky-note language. */
+    .nav-button,
+    .settings-button,
+    .secondary-button,
+    .primary-button,
+    .danger-button,
+    .small-button,
+    .control-choice,
+    .target-button,
+    .toggle-button {
+      border-radius: 4px !important;
+      box-shadow: none !important;
+    }
+
+    .primary-button {
+      background: linear-gradient(100deg, var(--app-accent), color-mix(in srgb, var(--app-accent) 75%, var(--fun-yellow))) !important;
+    }
+
+    .result-box {
+      border-radius: 8px !important;
+    }
+
+    #battle-toast,
+    #solo-milestone-toast {
+      border-radius: 999px !important;
+      text-transform: none !important;
+      font-family: var(--hud-body) !important;
+      font-size: 14px !important;
+      font-weight: 800 !important;
+      letter-spacing: .01em !important;
+    }
+
+    @media (max-width: 980px) {
+      .battle-layout {
+        grid-template-columns: minmax(0, 560px) !important;
+        row-gap: 14px !important;
+      }
+
+      .battle-vs {
+        padding-top: 0 !important;
+      }
+
+      .battle-vs span {
+        width: 88px !important;
+        margin: 0 auto;
+      }
+
+      .opponent-panel,
+      .own-panel {
+        width: 100% !important;
+      }
+
+      .opponent-panel {
+        max-width: 430px;
+        justify-self: center;
+      }
+    }
+
+    @media (max-width: 700px) {
+      .settings-grid-v39 {
+        grid-template-columns: 1fr;
+      }
+
+      .settings-profile-section,
+      .settings-theme-section {
+        grid-column: auto;
+      }
+
+      .home-brush-button {
+        grid-template-columns: 48px 1fr 24px;
+        min-height: 84px;
+        padding: 14px 16px;
+      }
+
+      .brush-icon {
+        width: 42px;
+        height: 42px;
+        font-size: 21px;
+      }
+
+      .brush-copy strong {
+        font-size: 25px;
+      }
+
+      .brush-copy small {
+        font-size: 12px;
+      }
+    }
+
+    @media (max-width: 520px) {
+      .home-controls-copy {
+        display: none;
+      }
+
+      .touch-control-label {
+        display: inline;
+      }
+
+      body.solo-active .container {
+        padding: 10px !important;
+      }
+
+      .solo-control-strip {
+        gap: 10px;
+      }
+    }
+  `;
+  document.head.appendChild(v39Style);
+
 
   // =========================================================
   // COMMON UI
@@ -4011,12 +5095,32 @@
   // MAIN + SOLO
   // =========================================================
 
+  function movementKeysMarkup(compact) {
+    var scheme = window.rinasSettings.controlScheme === "wasd" ? "wasd" : "arrows";
+    var cls = compact ? "control-key-row compact" : "control-key-row";
+
+    if (scheme === "wasd") {
+      return '<div class="' + cls + '"><span class="control-label">MOVE</span><span class="key-cluster wasd"><kbd>W</kbd><span><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd></span></span></div>';
+    }
+
+    return '<div class="' + cls + '"><span class="control-label">MOVE</span><span class="key-cluster arrows"><span><kbd>↑</kbd></span><span><kbd>←</kbd><kbd>↓</kbd><kbd>→</kbd></span></span></div>';
+  }
+
+  function soloControlsMarkup() {
+    var undo = window.rinasSettings.soloUndo
+      ? '<div class="solo-strip-item"><span>UNDO</span><kbd>Z</kbd></div>'
+      : '';
+
+    return '<div class="solo-control-strip">' + movementKeysMarkup(true) + undo + '<span class="touch-control-label">Swipe to move</span></div>';
+  }
+
   function showMainMenu() {
     window.currentGameMode = "menu";
     window.multiplayerMode = false;
     window.multiplayerMatchActive = false;
     window.multiplayerGameOver = false;
     window.multiplayerModeName = null;
+    stopCompetitiveMusic(260);
 
     showScreen(
       "Rina's 2048",
@@ -4028,28 +5132,28 @@
             <span class="logo-float-tile two">16</span>
             <span class="game-logo-rinas">RINA'S</span>
             <span class="game-logo-number">20<em>48</em></span>
-            <p class="logo-tagline">Merge fast. Think ahead.</p>
+            <p class="logo-tagline">Merge. Race. Win.</p>
           </div>
         </div>
 
-        <div class="mode-grid home-mode-grid">
-          <button class="mode-card home-mode-card solo-card" id="choose-solo">
-            <span class="mode-icon">🎮</span>
-            <span class="mode-copy">
-              <h2>Solo</h2>
-              <p>Build an endless board, chase your records, and play your way.</p>
-            </span>
-            <span class="mode-enter">Play</span>
+        <div class="home-mode-stack">
+          <button class="home-brush-button solo-brush" id="choose-solo">
+            <span class="brush-icon">🎮</span>
+            <span class="brush-copy"><strong>SOLO</strong><small>Build an endless board and beat your best.</small></span>
+            <span class="brush-arrow">›</span>
           </button>
 
-          <button class="mode-card home-mode-card multiplayer-card" id="choose-multiplayer">
-            <span class="mode-icon">👥</span>
-            <span class="mode-copy">
-              <h2>Multiplayer</h2>
-              <p>Race a friend, freeplay side-by-side, or balance the match with custom targets.</p>
-            </span>
-            <span class="mode-enter">Enter</span>
+          <button class="home-brush-button multiplayer-brush" id="choose-multiplayer">
+            <span class="brush-icon">👥</span>
+            <span class="brush-copy"><strong>MULTIPLAYER</strong><small>Race, freeplay, or balance a match with custom targets.</small></span>
+            <span class="brush-arrow">›</span>
           </button>
+        </div>
+
+        <div class="home-controls-ribbon">
+          ${movementKeysMarkup(false)}
+          <span class="home-controls-copy">Choose Arrow Keys or WASD in Settings.</span>
+          <span class="touch-control-label">Swipe on touch devices</span>
         </div>
 
         <div class="home-footnote">
@@ -4081,9 +5185,10 @@
         "Solo 2048",
         showMainMenu,
         `
-          <div class="info-card">
-            Your Solo run saves automatically. 2048 is a milestone, not the finish — continue to 4096, 8192, 16384 and beyond.
-            ${window.rinasSettings.soloUndo ? "<br><br><strong>Undo is On:</strong> one Undo is available after each successful move." : ""}
+          <div class="solo-menu-intro">
+            <span class="solo-menu-kicker">ENDLESS SOLO</span>
+            <p>Your run saves automatically. Reach 2048, keep going, and chase a bigger board every session.</p>
+            ${window.rinasSettings.soloUndo ? '<span class="solo-undo-note">Undo is enabled: one rewind after each successful move.</span>' : ''}
           </div>
 
           <div class="solo-stats">
@@ -4151,6 +5256,14 @@
     var board = gameContainer.querySelector(".game-container");
     gameContainer.insertBefore(actionRow, board);
 
+    var existingStrip = document.getElementById("solo-control-strip");
+    if (existingStrip) existingStrip.remove();
+
+    var controlStrip = document.createElement("div");
+    controlStrip.id = "solo-control-strip";
+    controlStrip.innerHTML = soloControlsMarkup();
+    gameContainer.insertBefore(controlStrip, board.nextSibling);
+
     document.getElementById("solo-new").addEventListener("click", function () {
       if (window.confirm("Start a new Solo game?")) {
         withGame(function (game) { game.restart(); });
@@ -4165,6 +5278,7 @@
   }
 
   function startSolo(startNew) {
+    stopCompetitiveMusic(260);
     restoreGameContainer();
     window.currentGameMode = "solo";
     window.multiplayerMode = false;
@@ -4203,6 +5317,8 @@
 
   window.refreshSoloControls = function () {
     var undoButton = document.getElementById("solo-undo");
+    var strip = document.getElementById("solo-control-strip");
+    if (strip) strip.innerHTML = soloControlsMarkup();
 
     if (!undoButton) return;
 
@@ -4652,6 +5768,10 @@
     lastOwnHighest = 0;
     lastOwnScore = 0;
     lastLeaderNumber = null;
+    lastOwnOneAway = false;
+    lastOpponentOneAway = false;
+
+    startCompetitiveMusic();
 
     withGame(function (game) {
       window.multiplayerAllowRestart = true;
@@ -4748,7 +5868,7 @@
 
         <div class="battle-vs" aria-hidden="true"><span>VS</span></div>
 
-        <section class="battle-player-card opponent-panel" aria-label="Opponent board">
+        <section class="battle-player-card opponent-panel" id="opponent-panel" data-opponent-theme="${escapeHtml(opponentTheme)}" aria-label="Opponent board">
           <div class="player-card-header">
             <div class="player-name-block">
               <h2 class="player-name" id="opponent-nickname">${escapeHtml(opponentName)}</h2>
@@ -4799,6 +5919,7 @@
     opponentNicknameDisplay = document.getElementById("opponent-nickname");
     ownRankBadge = document.getElementById("own-rank");
     opponentRankBadge = document.getElementById("opponent-rank");
+    opponentPanelElement = document.getElementById("opponent-panel");
     opponentGrid = document.getElementById("opponent-grid");
     opponentHighest = document.getElementById("opponent-highest");
     opponentStatus = document.getElementById("opponent-status");
@@ -4846,6 +5967,7 @@
     opponentNicknameDisplay = null;
     ownRankBadge = null;
     opponentRankBadge = null;
+    opponentPanelElement = null;
     ownProgressFill = null;
     opponentProgressFill = null;
     ownProgressText = null;
@@ -4861,6 +5983,7 @@
   }
 
   function leaveMultiplayerMatch() {
+    stopCompetitiveMusic(320);
     socket.emit("leaveRoom");
     currentRoomCode = null;
     window.multiplayerRoomCode = null;
@@ -4925,21 +6048,37 @@
     if (ownScoreDisplay) ownScoreDisplay.textContent = lastOwnScore;
 
     var mode = window.multiplayerModeName || "tile-race";
-    if (mode === "freeplay") return;
+    if (mode === "freeplay") {
+      lastOwnOneAway = false;
+      lastOpponentOneAway = false;
+      updateCompetitiveMusicIntensity();
+      return;
+    }
 
     var ownTarget = Number(window.multiplayerOwnTarget || window.multiplayerTargetTile || 2048);
     var opponentTarget = Number(window.multiplayerOpponentTarget || window.multiplayerTargetTile || 2048);
     var ownRatio = setProgress("own", lastOwnHighest, ownTarget);
+    var ownOneAwayNow = lastOwnHighest >= ownTarget / 2 && lastOwnHighest < ownTarget;
 
     if (!latestOpponentState) {
       setProgress("opponent", 0, opponentTarget);
       applyRankBadge(ownRankBadge, "TIED", false);
       applyRankBadge(opponentRankBadge, "TIED", false);
+
+      if (ownOneAwayNow && !lastOwnOneAway) {
+        showBattleToast(getOwnNickname() + " is one merge away.");
+        playSound("danger");
+      }
+
+      lastOwnOneAway = ownOneAwayNow;
+      lastOpponentOneAway = false;
+      updateCompetitiveMusicIntensity();
       return;
     }
 
     var opponentHighestValue = Number(latestOpponentState.highestTile || 0);
     var opponentRatio = setProgress("opponent", opponentHighestValue, opponentTarget);
+    var opponentOneAwayNow = opponentHighestValue >= opponentTarget / 2 && opponentHighestValue < opponentTarget;
     var leaderNumber = 0;
     var ownNumber = Number(window.multiplayerPlayerNumber);
     var opponentNumber = getOpponentNumber();
@@ -4961,14 +6100,26 @@
     if (lastLeaderNumber !== null && leaderNumber !== lastLeaderNumber) {
       if (leaderNumber === 0) {
         showBattleToast("The race is tied.");
+        playSound("tie");
       } else {
         var leaderName = leaderNumber === ownNumber ? getOwnNickname() : getOpponentNickname();
         showBattleToast(leaderName + " takes the lead.");
-        playSound("lead");
+        playSound(leaderNumber === ownNumber ? "lead" : "lead-lost");
       }
     }
 
+    if (ownOneAwayNow && !lastOwnOneAway) {
+      showBattleToast(getOwnNickname() + " is one merge away.");
+      playSound("danger");
+    } else if (opponentOneAwayNow && !lastOpponentOneAway) {
+      showBattleToast(getOpponentNickname() + " is one merge away.");
+      playSound("danger");
+    }
+
+    lastOwnOneAway = ownOneAwayNow;
+    lastOpponentOneAway = opponentOneAwayNow;
     lastLeaderNumber = leaderNumber;
+    updateCompetitiveMusicIntensity();
   };
 
   function renderOpponentState(state) {
@@ -4984,10 +6135,9 @@
 
     if (opponentNicknameDisplay) opponentNicknameDisplay.textContent = getOpponentNickname();
 
-    opponentGrid.setAttribute(
-      "data-theme",
-      THEMES.indexOf(state.theme) !== -1 ? state.theme : "classic"
-    );
+    var opponentThemeName = THEMES.indexOf(state.theme) !== -1 ? state.theme : "classic";
+    opponentGrid.setAttribute("data-theme", opponentThemeName);
+    if (opponentPanelElement) opponentPanelElement.setAttribute("data-opponent-theme", opponentThemeName);
 
     var cells = opponentGrid.children;
     var cellIndex = 0;
@@ -5025,7 +6175,9 @@
 
     if (opponentGrid) {
       var opponentProfile = getProfile(getOpponentNumber());
-      opponentGrid.setAttribute("data-theme", opponentProfile && THEMES.indexOf(opponentProfile.theme) !== -1 ? opponentProfile.theme : "classic");
+      var opponentThemeName = opponentProfile && THEMES.indexOf(opponentProfile.theme) !== -1 ? opponentProfile.theme : "classic";
+      opponentGrid.setAttribute("data-theme", opponentThemeName);
+      if (opponentPanelElement) opponentPanelElement.setAttribute("data-opponent-theme", opponentThemeName);
       var cells = opponentGrid.children;
       for (var i = 0; i < cells.length; i++) {
         cells[i].className = "opponent-cell";
@@ -5151,6 +6303,7 @@
     `;
 
     document.body.appendChild(overlay);
+    duckCompetitiveMusic();
     playSound(didWin ? "win" : "lose");
 
     document.getElementById("result-rematch").addEventListener("click", function () {
@@ -5165,6 +6318,7 @@
   }
 
   function showOpponentLeft() {
+    stopCompetitiveMusic(260);
     removeResultOverlay();
     removeFreeplayBoardOver();
     window.multiplayerGameOver = true;
@@ -5221,62 +6375,99 @@
     var old = document.getElementById("settings-overlay");
     if (old) old.remove();
 
+    var themeLocked = window.currentGameMode === "solo" || !!window.multiplayerMatchActive;
+    var musicPercent = Math.round(Number(typeof window.rinasSettings.musicVolume === "number" ? window.rinasSettings.musicVolume : 0.32) * 100);
+    var sfxPercent = Math.round(Number(typeof window.rinasSettings.sfxVolume === "number" ? window.rinasSettings.sfxVolume : 0.75) * 100);
+
     var overlay = document.createElement("div");
     overlay.id = "settings-overlay";
     overlay.className = "settings-overlay";
     overlay.innerHTML = `
-      <div class="settings-dialog">
+      <div class="settings-dialog settings-dialog-v39">
         <div class="settings-dialog-header">
-          <h2>Settings</h2>
+          <div>
+            <span class="settings-kicker">RINA'S 2048</span>
+            <h2>Settings</h2>
+          </div>
           <button class="close-settings" id="close-settings" aria-label="Close">×</button>
         </div>
 
-        <div class="settings-section">
-          <h3>Multiplayer Nickname</h3>
-          <p class="settings-help">The name your opponent sees. Maximum 16 characters.</p>
-          <input id="settings-nickname" class="nickname-field" type="text" maxlength="16" autocomplete="nickname" placeholder="Nickname" value="${escapeHtml(window.rinasSettings.nickname || "")}">
-        </div>
+        <div class="settings-grid-v39">
+          <section class="settings-section settings-profile-section">
+            <h3>Profile</h3>
+            <label class="field-label" for="settings-nickname">Nickname</label>
+            <input id="settings-nickname" class="nickname-field" type="text" maxlength="16" autocomplete="nickname" placeholder="Nickname" value="${escapeHtml(window.rinasSettings.nickname || "")}">
+            <p class="settings-help">Shown to the other player in multiplayer rooms.</p>
+          </section>
 
-        <div class="settings-section">
-          <h3>Theme</h3>
-          <p class="settings-help">Changes the whole app. In multiplayer, your opponent sees your board in your chosen theme.</p>
-          <div class="theme-grid">
-            ${THEMES.map(function (theme) {
-              return '<button class="theme-choice ' + (theme === window.rinasSettings.theme ? 'selected' : '') + '" data-theme="' + theme + '">' + prettyThemeName(theme) + '<span class="theme-swatches">' + themePreview(theme) + '</span></button>';
-            }).join("")}
-          </div>
-        </div>
-
-        <div class="settings-section">
-          <h3>Movement Controls</h3>
-          <p class="settings-help">Choose one keyboard movement scheme. Swipe still works automatically on touch devices.</p>
-          <div class="control-choice-row">
-            <button class="control-choice ${window.rinasSettings.controlScheme === "arrows" ? "selected" : ""}" data-controls="arrows">Arrow Keys</button>
-            <button class="control-choice ${window.rinasSettings.controlScheme === "wasd" ? "selected" : ""}" data-controls="wasd">WASD</button>
-          </div>
-        </div>
-
-        <div class="settings-section">
-          <div class="toggle-row">
-            <div>
-              <h3>Sound Effects</h3>
-              <p class="settings-help">Subtle sounds for movement, merges, Undo, menus, lead changes, milestones, and results.</p>
+          <section class="settings-section">
+            <h3>Controls</h3>
+            <p class="settings-help">Choose one keyboard movement scheme. Touch devices can always swipe.</p>
+            <div class="control-choice-row">
+              <button class="control-choice ${window.rinasSettings.controlScheme === "arrows" ? "selected" : ""}" data-controls="arrows">Arrow Keys</button>
+              <button class="control-choice ${window.rinasSettings.controlScheme === "wasd" ? "selected" : ""}" data-controls="wasd">WASD</button>
             </div>
-            <button id="sound-effects-toggle" class="toggle-button ${window.rinasSettings.soundEffects ? "on" : "off"}">${window.rinasSettings.soundEffects ? "ON" : "OFF"}</button>
-          </div>
-        </div>
 
-        <div class="settings-section">
-          <div class="toggle-row">
-            <div>
-              <h3>Solo Undo</h3>
-              <p class="settings-help">When On, each successful Solo move earns one Undo. After you Undo, make another forward move before Undo is available again. Use the button or Z.</p>
+            <div class="toggle-row settings-inline-toggle">
+              <div>
+                <h4>Solo Undo</h4>
+                <p class="settings-help">One rewind after each successful Solo move. Press Z or use the Undo button.</p>
+              </div>
+              <button id="solo-undo-toggle" class="toggle-button ${window.rinasSettings.soloUndo ? "on" : "off"}">${window.rinasSettings.soloUndo ? "ON" : "OFF"}</button>
             </div>
-            <button id="solo-undo-toggle" class="toggle-button ${window.rinasSettings.soloUndo ? "on" : "off"}">${window.rinasSettings.soloUndo ? "ON" : "OFF"}</button>
-          </div>
+          </section>
+
+          <section class="settings-section settings-audio-section">
+            <h3>Audio</h3>
+
+            <div class="audio-control-group">
+              <div class="toggle-row">
+                <div>
+                  <h4>Background Music</h4>
+                  <p class="settings-help">Competitive music fades in during multiplayer matches.</p>
+                </div>
+                <button id="background-music-toggle" class="toggle-button ${window.rinasSettings.backgroundMusic ? "on" : "off"}">${window.rinasSettings.backgroundMusic ? "ON" : "OFF"}</button>
+              </div>
+              <label class="volume-row" for="music-volume">
+                <span>Music volume</span>
+                <input id="music-volume" type="range" min="0" max="100" step="1" value="${musicPercent}">
+                <output id="music-volume-output">${musicPercent}%</output>
+              </label>
+            </div>
+
+            <div class="audio-control-group">
+              <div class="toggle-row">
+                <div>
+                  <h4>Sound Effects</h4>
+                  <p class="settings-help">Moves, merges, Undo, lead changes, milestones and match results.</p>
+                </div>
+                <button id="sound-effects-toggle" class="toggle-button ${window.rinasSettings.soundEffects ? "on" : "off"}">${window.rinasSettings.soundEffects ? "ON" : "OFF"}</button>
+              </div>
+              <label class="volume-row" for="sfx-volume">
+                <span>SFX volume</span>
+                <input id="sfx-volume" type="range" min="0" max="100" step="1" value="${sfxPercent}">
+                <output id="sfx-volume-output">${sfxPercent}%</output>
+              </label>
+            </div>
+          </section>
+
+          <section class="settings-section settings-theme-section ${themeLocked ? "locked" : ""}">
+            <div class="settings-section-heading-row">
+              <div>
+                <h3>Theme</h3>
+                <p class="settings-help">Your theme also styles your board when an opponent sees it.</p>
+              </div>
+              ${themeLocked ? '<span class="locked-badge">Locked in game</span>' : ''}
+            </div>
+            <div class="theme-grid">
+              ${THEMES.map(function (theme) {
+                return '<button class="theme-choice ' + (theme === window.rinasSettings.theme ? 'selected' : '') + '" data-theme="' + theme + '" ' + (themeLocked ? 'disabled' : '') + '>' + prettyThemeName(theme) + '<span class="theme-swatches">' + themePreview(theme) + '</span></button>';
+              }).join("")}
+            </div>
+          </section>
         </div>
 
-        <div style="margin-top:24px;text-align:right;"><button class="primary-button" id="settings-done">Done</button></div>
+        <div class="settings-footer"><button class="primary-button" id="settings-done">Done</button></div>
       </div>
     `;
 
@@ -5305,6 +6496,7 @@
     function close() {
       saveNickname();
       overlay.remove();
+      window.refreshSoloControls();
     }
 
     document.getElementById("close-settings").addEventListener("click", close);
@@ -5319,7 +6511,29 @@
         Array.prototype.forEach.call(overlay.querySelectorAll(".control-choice"), function (other) {
           other.classList.toggle("selected", other === button);
         });
+        window.refreshSoloControls();
       });
+    });
+
+    document.getElementById("background-music-toggle").addEventListener("click", function () {
+      window.rinasSettings.backgroundMusic = !window.rinasSettings.backgroundMusic;
+      saveSettings();
+      this.className = "toggle-button " + (window.rinasSettings.backgroundMusic ? "on" : "off");
+      this.textContent = window.rinasSettings.backgroundMusic ? "ON" : "OFF";
+
+      if (window.rinasSettings.backgroundMusic && window.multiplayerMatchActive) {
+        startCompetitiveMusic();
+      } else {
+        stopCompetitiveMusic(220);
+      }
+    });
+
+    document.getElementById("music-volume").addEventListener("input", function () {
+      var value = Math.max(0, Math.min(100, Number(this.value || 0)));
+      window.rinasSettings.musicVolume = value / 100;
+      document.getElementById("music-volume-output").textContent = value + "%";
+      saveSettings();
+      updateCompetitiveMusicIntensity();
     });
 
     document.getElementById("sound-effects-toggle").addEventListener("click", function () {
@@ -5330,8 +6544,16 @@
       if (window.rinasSettings.soundEffects) playSound("ui");
     });
 
+    document.getElementById("sfx-volume").addEventListener("input", function () {
+      var value = Math.max(0, Math.min(100, Number(this.value || 0)));
+      window.rinasSettings.sfxVolume = value / 100;
+      document.getElementById("sfx-volume-output").textContent = value + "%";
+      saveSettings();
+    });
+
     Array.prototype.forEach.call(overlay.querySelectorAll(".theme-choice"), function (button) {
       button.addEventListener("click", function () {
+        if (button.disabled) return;
         var theme = button.getAttribute("data-theme");
         window.rinasSettings.theme = theme;
         saveSettings();
@@ -5340,12 +6562,6 @@
         Array.prototype.forEach.call(overlay.querySelectorAll(".theme-choice"), function (other) {
           other.classList.toggle("selected", other.getAttribute("data-theme") === theme);
         });
-
-        if (window.multiplayerGame && window.multiplayerMatchActive) {
-          socket.emit("updateProfile", { nickname: window.rinasSettings.nickname, theme: theme });
-          updateOneProfile({ playerNumber: window.multiplayerPlayerNumber, nickname: window.rinasSettings.nickname, theme: theme });
-          window.multiplayerGame.actuate();
-        }
       });
     });
 
@@ -5402,6 +6618,7 @@
     } else {
       if (opponentNicknameDisplay) opponentNicknameDisplay.textContent = getOpponentNickname();
       if (opponentGrid && THEMES.indexOf(profile.theme) !== -1) opponentGrid.setAttribute("data-theme", profile.theme);
+      if (opponentPanelElement && THEMES.indexOf(profile.theme) !== -1) opponentPanelElement.setAttribute("data-opponent-theme", profile.theme);
     }
   });
 
@@ -5425,6 +6642,9 @@
     window.multiplayerOpponentTarget = Number(data.opponentTarget || data.targetTile || window.multiplayerOpponentTarget || 0);
 
     resetOpponentView();
+    lastOwnOneAway = false;
+    lastOpponentOneAway = false;
+    startCompetitiveMusic();
 
     withGame(function (game) {
       window.multiplayerAllowRestart = true;
