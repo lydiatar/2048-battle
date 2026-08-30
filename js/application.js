@@ -2,8 +2,12 @@ window.currentGameMode = "menu";
 window.multiplayerMatchActive = false;
 window.multiplayerGameOver = false;
 window.multiplayerAllowRestart = false;
-window.multiplayerSecondChanceUsed = false;
+window.multiplayerPlayerNumber = null;
+window.multiplayerRoomCode = null;
+window.multiplayerModeName = null;
 window.multiplayerTargetTile = 2048;
+window.multiplayerOwnTarget = 2048;
+window.multiplayerOpponentTarget = 2048;
 window.multiplayerProfiles = [];
 
 // Boot the hidden game engine without reading or overwriting Solo saves.
