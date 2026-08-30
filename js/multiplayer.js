@@ -1,6 +1,8 @@
 (function () {
   "use strict";
 
+  window.multiplayerMode = true;
+
   var socket = io("https://two048-battle-oc8k.onrender.com");
 
   window.multiplayerSocket = socket;
