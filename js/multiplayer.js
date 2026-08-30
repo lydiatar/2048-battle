@@ -289,7 +289,51 @@
       "font-weight: bold;" +
       "min-height: 24px;" +
     "}" +
+    ".battle-shell, .battle-shell * {" +
+      "font-family: \"Clear Sans\", \"Helvetica Neue\", Arial, sans-serif;" +
+    "}" +
 
+    ".battle-layout .container .title {" +
+      "display: none;" +
+    "}" +
+
+    ".battle-layout .container .above-game {" +
+      "display: none;" +
+    "}" +
+
+    ".battle-layout .container > p," +
+    ".battle-layout .container > hr {" +
+      "display: none;" +
+    "}" +
+
+    ".battle-layout .container .heading {" +
+      "display: flex;" +
+      "align-items: center;" +
+      "justify-content: space-between;" +
+      "margin-bottom: 15px;" +
+    "}" +
+
+    ".battle-layout .container .heading:before {" +
+      "content: \"You\";" +
+      "font-size: 30px;" +
+      "font-weight: bold;" +
+      "color: #776e65;" +
+    "}" +
+
+    ".battle-layout .container .scores-container {" +
+      "float: none;" +
+      "margin-top: 0;" +
+    "}" +
+
+    ".battle-layout .container {" +
+      "width: 500px;" +
+      "max-width: 100%;" +
+    "}" +
+
+    ".opponent-panel {" +
+      "width: 500px;" +
+      "max-width: 100%;" +
+    "}";
     "@media (max-width: 1050px) {" +
       ".battle-layout {" +
         "flex-direction: column;" +
@@ -498,7 +542,15 @@
 
   socket.on("gameStart", function (data) {
     window.multiplayerPlayerNumber = data.playerNumber;
+    
+// Multiplayer matches always start with a fresh board.
+localStorage.removeItem("gameState");
 
+var restartButton = document.querySelector(".restart-button");
+
+if (restartButton) {
+  restartButton.click();
+}
     status.textContent =
       "Opponent found! You are Player " +
       data.playerNumber +
