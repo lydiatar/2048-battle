@@ -41,7 +41,7 @@ io.on("connection", (socket) => {
   console.log("Player connected:", socket.id);
 
   socket.on("createRoom", () => {
-    // Remove this player from any previous room.
+    // Remove player from any old room.
     for (const [roomCode, room] of rooms.entries()) {
       if (room.players.includes(socket.id)) {
         room.players = room.players.filter(
@@ -87,7 +87,6 @@ io.on("connection", (socket) => {
       return;
     }
 
-    // Don't add the same player twice.
     if (room.players.includes(socket.id)) {
       socket.emit("gameStart", {
         playerNumber: room.players.indexOf(socket.id) + 1
@@ -120,12 +119,46 @@ io.on("connection", (socket) => {
       "players."
     );
 
-    // Tell each player which side they are on.
     room.players.forEach((playerId, index) => {
       io.to(playerId).emit("gameStart", {
         playerNumber: index + 1
       });
     });
+  });
+
+  /*
+   * Player reports that they reached 2048.
+   */
+  socket.on("reached2048", () => {
+    for (const [roomCode, room] of rooms.entries()) {
+      if (!room.players.includes(socket.id)) {
+        continue;
+      }
+
+      // Someone already won.
+      if (room.winner !== null) {
+        return;
+      }
+
+      var playerNumber =
+        room.players.indexOf(socket.id) + 1;
+
+      room.winner = playerNumber;
+      room.status = "finished";
+
+      console.log(
+        "Player",
+        playerNumber,
+        "won room",
+        roomCode
+      );
+
+      io.to(roomCode).emit("gameWinner", {
+        winner: playerNumber
+      });
+
+      return;
+    }
   });
 
   socket.on("disconnect", () => {
