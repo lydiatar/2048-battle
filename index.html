@@ -1,34 +1,12 @@
-<!DOCTYPE html>
-
 <html>
-
 <head>
-
   <meta charset="utf-8">
 
-  <title>
-    Rina's 2048
-  </title>
+  <title>Rina's 2048</title>
 
-
-  <link
-    href="style/main.css"
-    rel="stylesheet"
-    type="text/css"
-  >
-
-
-  <link
-    rel="shortcut icon"
-    href="favicon.ico"
-  >
-
-
-  <link
-    rel="apple-touch-icon"
-    href="meta/apple-touch-icon.png"
-  >
-
+  <link href="style/main.css" rel="stylesheet" type="text/css">
+  <link rel="shortcut icon" href="favicon.ico">
+  <link rel="apple-touch-icon" href="meta/apple-touch-icon.png">
 
   <link
     rel="apple-touch-startup-image"
@@ -36,282 +14,122 @@
     media="(device-width: 320px) and (device-height: 568px) and (-webkit-device-pixel-ratio: 2)"
   >
 
-
   <link
     rel="apple-touch-startup-image"
     href="meta/apple-touch-startup-image-640x920.png"
     media="(device-width: 320px) and (device-height: 480px) and (-webkit-device-pixel-ratio: 2)"
   >
 
-
-  <meta
-    name="apple-mobile-web-app-capable"
-    content="yes"
-  >
-
-
-  <meta
-    name="mobile-web-app-capable"
-    content="yes"
-  >
-
-
-  <meta
-    name="apple-mobile-web-app-status-bar-style"
-    content="black"
-  >
-
-
-  <meta
-    name="HandheldFriendly"
-    content="True"
-  >
-
-
-  <meta
-    name="MobileOptimized"
-    content="320"
-  >
-
-
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black">
+  <meta name="HandheldFriendly" content="True">
+  <meta name="MobileOptimized" content="320">
   <meta
     name="viewport"
     content="width=device-width, initial-scale=1.0, maximum-scale=1, user-scalable=no"
   >
-
 </head>
 
-
 <body>
+  <div id="app-root"></div>
 
+  <div id="game-host">
+    <div id="solo-toolbar"></div>
 
-  <div class="container">
+    <div class="container" style="display:none;">
+      <div class="heading">
+        <h1 class="title">2048</h1>
 
-
-    <div class="heading">
-
-      <h1 class="title">
-        2048
-      </h1>
-
-
-      <div class="scores-container">
-
-        <div class="score-container">
-          0
+        <div class="scores-container">
+          <div class="score-container">0</div>
+          <div class="best-container">0</div>
         </div>
-
-
-        <div class="best-container">
-          0
-        </div>
-
       </div>
 
-    </div>
+      <div class="above-game">
+        <p class="game-intro">
+          Join the numbers and get to the <strong>2048 tile!</strong>
+        </p>
 
+        <a class="restart-button">New Game</a>
+      </div>
 
-    <div class="above-game">
+      <div class="game-container">
+        <div class="game-message">
+          <p></p>
 
-      <p class="game-intro">
+          <div class="lower">
+            <a class="keep-playing-button">Keep going</a>
+            <a class="retry-button">Try again</a>
+          </div>
+        </div>
 
-        Join the numbers and get to the
+        <div class="grid-container">
+          <div class="grid-row">
+            <div class="grid-cell"></div>
+            <div class="grid-cell"></div>
+            <div class="grid-cell"></div>
+            <div class="grid-cell"></div>
+          </div>
 
-        <strong>
-          2048 tile!
-        </strong>
+          <div class="grid-row">
+            <div class="grid-cell"></div>
+            <div class="grid-cell"></div>
+            <div class="grid-cell"></div>
+            <div class="grid-cell"></div>
+          </div>
 
+          <div class="grid-row">
+            <div class="grid-cell"></div>
+            <div class="grid-cell"></div>
+            <div class="grid-cell"></div>
+            <div class="grid-cell"></div>
+          </div>
+
+          <div class="grid-row">
+            <div class="grid-cell"></div>
+            <div class="grid-cell"></div>
+            <div class="grid-cell"></div>
+            <div class="grid-cell"></div>
+          </div>
+        </div>
+
+        <div class="tile-container"></div>
+      </div>
+
+      <p class="game-explanation">
+        <strong class="important">How to play:</strong>
+        Use your <strong>arrow keys</strong> to move the tiles.
+        When two tiles with the same number touch, they
+        <strong>merge into one!</strong>
       </p>
 
+      <hr>
 
-      <a class="restart-button">
-        New Game
-      </a>
-
+      <p>
+        Multiplayer adaptation based on the open-source 2048 game created by
+        <a
+          href="http://gabrielecirulli.com"
+          target="_blank"
+          rel="noopener noreferrer"
+        >Gabriele Cirulli</a>.
+      </p>
     </div>
-
-
-    <div class="game-container">
-
-
-      <div class="game-message">
-
-        <p></p>
-
-
-        <div class="lower">
-
-          <a class="keep-playing-button">
-            Keep going
-          </a>
-
-
-          <a class="retry-button">
-            Try again
-          </a>
-
-        </div>
-
-      </div>
-
-
-      <div class="grid-container">
-
-
-        <div class="grid-row">
-
-          <div class="grid-cell"></div>
-          <div class="grid-cell"></div>
-          <div class="grid-cell"></div>
-          <div class="grid-cell"></div>
-
-        </div>
-
-
-        <div class="grid-row">
-
-          <div class="grid-cell"></div>
-          <div class="grid-cell"></div>
-          <div class="grid-cell"></div>
-          <div class="grid-cell"></div>
-
-        </div>
-
-
-        <div class="grid-row">
-
-          <div class="grid-cell"></div>
-          <div class="grid-cell"></div>
-          <div class="grid-cell"></div>
-          <div class="grid-cell"></div>
-
-        </div>
-
-
-        <div class="grid-row">
-
-          <div class="grid-cell"></div>
-          <div class="grid-cell"></div>
-          <div class="grid-cell"></div>
-          <div class="grid-cell"></div>
-
-        </div>
-
-      </div>
-
-
-      <div class="tile-container"></div>
-
-
-    </div>
-
-
-    <p class="game-explanation">
-
-      <strong class="important">
-        How to play:
-      </strong>
-
-      Use your
-
-      <strong>
-        arrow keys
-      </strong>
-
-      to move the tiles.
-
-      When two tiles with the same number touch,
-      they
-
-      <strong>
-        merge into one!
-      </strong>
-
-    </p>
-
-
-    <hr>
-
-
-    <p>
-
-      Multiplayer adaptation based on the
-      open-source 2048 game created by
-
-      <a
-        href="http://gabrielecirulli.com"
-        target="_blank"
-        rel="noopener noreferrer"
-      >
-        Gabriele Cirulli
-      </a>.
-
-    </p>
-
-
   </div>
 
+  <script src="js/bind_polyfill.js"></script>
+  <script src="js/classlist_polyfill.js"></script>
+  <script src="js/animframe_polyfill.js"></script>
+  <script src="js/keyboard_input_manager.js"></script>
+  <script src="js/html_actuator.js"></script>
+  <script src="js/grid.js"></script>
+  <script src="js/tile.js"></script>
+  <script src="js/local_storage_manager.js?v=32"></script>
+  <script src="js/game_manager.js?v=32"></script>
+  <script src="js/application.js?v=32"></script>
 
-  <script
-    src="https://two048-battle-oc8k.onrender.com/socket.io/socket.io.js"
-  ></script>
-
-
-  <script
-    src="js/multiplayer.js?v=22"
-  ></script>
-
-
-  <script
-    src="js/bind_polyfill.js"
-  ></script>
-
-
-  <script
-    src="js/classlist_polyfill.js"
-  ></script>
-
-
-  <script
-    src="js/animframe_polyfill.js"
-  ></script>
-
-
-  <script
-    src="js/keyboard_input_manager.js"
-  ></script>
-
-
-  <script
-    src="js/html_actuator.js"
-  ></script>
-
-
-  <script
-    src="js/grid.js"
-  ></script>
-
-
-  <script
-    src="js/tile.js"
-  ></script>
-
-
-  <script
-    src="js/local_storage_manager.js?v=22"
-  ></script>
-
-
-  <script
-    src="js/game_manager.js?v=22"
-  ></script>
-
-
-  <script
-    src="js/application.js?v=22"
-  ></script>
-
-
+  <script src="https://two048-battle-oc8k.onrender.com/socket.io/socket.io.js"></script>
+  <script src="js/multiplayer.js?v=32"></script>
 </body>
-
 </html>
