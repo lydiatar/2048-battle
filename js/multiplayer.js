@@ -2,10 +2,21 @@
   "use strict";
 
   var socket = io("https://two048-battle-oc8k.onrender.com");
-window.multiplayerSocket = socket;
+
+  window.multiplayerSocket = socket;
+
   var gameContainer = document.querySelector(".container");
+  var battleShell = null;
+  var opponentGrid = null;
+  var opponentScore = null;
+  var opponentStatus = null;
+  var latestOpponentState = null;
 
   gameContainer.style.display = "none";
+
+  // -------------------------
+  // LOBBY
+  // -------------------------
 
   var lobby = document.createElement("div");
   lobby.id = "multiplayer-lobby";
@@ -38,6 +49,10 @@ window.multiplayerSocket = socket;
 
   document.body.insertBefore(lobby, document.body.firstChild);
 
+  // -------------------------
+  // STYLES
+  // -------------------------
+
   var style = document.createElement("style");
 
   style.textContent =
@@ -60,7 +75,7 @@ window.multiplayerSocket = socket;
       "padding: 40px 30px;" +
       "border-radius: 12px;" +
       "box-sizing: border-box;" +
-      "box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);" +
+      "box-shadow: 0 4px 20px rgba(0,0,0,0.08);" +
     "}" +
 
     ".lobby-box h1 {" +
@@ -89,10 +104,6 @@ window.multiplayerSocket = socket;
       "color: white;" +
     "}" +
 
-    ".lobby-button:hover {" +
-      "opacity: 0.9;" +
-    "}" +
-
     ".lobby-divider {" +
       "margin: 20px 0;" +
       "color: #999;" +
@@ -113,14 +124,182 @@ window.multiplayerSocket = socket;
       "outline: none;" +
     "}" +
 
-    ".room-input:focus {" +
-      "border-color: #8f7a66;" +
-    "}" +
-
     "#lobby-status {" +
       "min-height: 24px;" +
       "margin-top: 20px;" +
       "font-weight: bold;" +
+    "}" +
+
+    ".battle-shell {" +
+      "max-width: 1100px;" +
+      "margin: 30px auto;" +
+      "padding: 0 20px;" +
+      "box-sizing: border-box;" +
+    "}" +
+
+    ".battle-heading {" +
+      "text-align: center;" +
+      "margin-bottom: 25px;" +
+      "font-family: Arial, sans-serif;" +
+    "}" +
+
+    ".battle-heading h1 {" +
+      "margin: 0;" +
+      "font-size: 42px;" +
+    "}" +
+
+    ".battle-heading p {" +
+      "margin-top: 8px;" +
+      "font-size: 18px;" +
+      "font-weight: bold;" +
+    "}" +
+
+    ".battle-layout {" +
+      "display: flex;" +
+      "justify-content: center;" +
+      "align-items: flex-start;" +
+      "gap: 30px;" +
+    "}" +
+
+    ".battle-layout .container {" +
+      "margin: 0;" +
+    "}" +
+
+    ".opponent-panel {" +
+      "width: 500px;" +
+      "box-sizing: border-box;" +
+      "font-family: Arial, sans-serif;" +
+    "}" +
+
+    ".opponent-header {" +
+      "display: flex;" +
+      "justify-content: space-between;" +
+      "align-items: center;" +
+      "margin-bottom: 15px;" +
+    "}" +
+
+    ".opponent-header h2 {" +
+      "margin: 0;" +
+      "font-size: 30px;" +
+    "}" +
+
+    ".opponent-score-box {" +
+      "background: #bbada0;" +
+      "color: white;" +
+      "padding: 10px 18px;" +
+      "border-radius: 4px;" +
+      "font-weight: bold;" +
+      "text-align: center;" +
+    "}" +
+
+    ".opponent-score-label {" +
+      "display: block;" +
+      "font-size: 12px;" +
+      "text-transform: uppercase;" +
+    "}" +
+
+    "#opponent-score {" +
+      "display: block;" +
+      "font-size: 22px;" +
+    "}" +
+
+    ".opponent-grid {" +
+      "display: grid;" +
+      "grid-template-columns: repeat(4, 1fr);" +
+      "gap: 15px;" +
+      "padding: 15px;" +
+      "background: #bbada0;" +
+      "border-radius: 6px;" +
+      "box-sizing: border-box;" +
+    "}" +
+
+    ".opponent-cell {" +
+      "aspect-ratio: 1 / 1;" +
+      "background: rgba(238,228,218,0.35);" +
+      "border-radius: 3px;" +
+      "display: flex;" +
+      "align-items: center;" +
+      "justify-content: center;" +
+      "font-size: 32px;" +
+      "font-weight: bold;" +
+      "color: #776e65;" +
+    "}" +
+
+    ".opponent-cell.has-tile {" +
+      "background: #eee4da;" +
+    "}" +
+
+    ".opponent-cell.tile-4 {" +
+      "background: #ede0c8;" +
+    "}" +
+
+    ".opponent-cell.tile-8 {" +
+      "background: #f2b179;" +
+      "color: #f9f6f2;" +
+    "}" +
+
+    ".opponent-cell.tile-16 {" +
+      "background: #f59563;" +
+      "color: #f9f6f2;" +
+    "}" +
+
+    ".opponent-cell.tile-32 {" +
+      "background: #f67c5f;" +
+      "color: #f9f6f2;" +
+    "}" +
+
+    ".opponent-cell.tile-64 {" +
+      "background: #f65e3b;" +
+      "color: #f9f6f2;" +
+    "}" +
+
+    ".opponent-cell.tile-128 {" +
+      "background: #edcf72;" +
+      "color: #f9f6f2;" +
+      "font-size: 28px;" +
+    "}" +
+
+    ".opponent-cell.tile-256 {" +
+      "background: #edcc61;" +
+      "color: #f9f6f2;" +
+      "font-size: 28px;" +
+    "}" +
+
+    ".opponent-cell.tile-512 {" +
+      "background: #edc850;" +
+      "color: #f9f6f2;" +
+      "font-size: 28px;" +
+    "}" +
+
+    ".opponent-cell.tile-1024 {" +
+      "background: #edc53f;" +
+      "color: #f9f6f2;" +
+      "font-size: 22px;" +
+    "}" +
+
+    ".opponent-cell.tile-2048 {" +
+      "background: #edc22e;" +
+      "color: #f9f6f2;" +
+      "font-size: 22px;" +
+    "}" +
+
+    "#opponent-status {" +
+      "text-align: center;" +
+      "margin-top: 12px;" +
+      "font-weight: bold;" +
+      "min-height: 24px;" +
+    "}" +
+
+    "@media (max-width: 1050px) {" +
+      ".battle-layout {" +
+        "flex-direction: column;" +
+        "align-items: center;" +
+      "}" +
+
+      ".opponent-panel {" +
+        "width: 500px;" +
+        "max-width: 100%;" +
+      "}" +
     "}" +
 
     "@media (max-width: 520px) {" +
@@ -131,6 +310,19 @@ window.multiplayerSocket = socket;
       ".lobby-box h1 {" +
         "font-size: 44px;" +
       "}" +
+
+      ".battle-shell {" +
+        "padding: 0 10px;" +
+      "}" +
+
+      ".opponent-grid {" +
+        "gap: 10px;" +
+        "padding: 10px;" +
+      "}" +
+
+      ".opponent-cell {" +
+        "font-size: 24px;" +
+      "}" +
     "}";
 
   document.head.appendChild(style);
@@ -139,6 +331,119 @@ window.multiplayerSocket = socket;
   var joinButton = document.getElementById("join-game");
   var roomInput = document.getElementById("room-code");
   var status = document.getElementById("lobby-status");
+
+  // -------------------------
+  // BATTLE SCREEN
+  // -------------------------
+
+  function createBattleView() {
+    if (battleShell) {
+      return;
+    }
+
+    battleShell = document.createElement("div");
+    battleShell.className = "battle-shell";
+
+    var heading = document.createElement("div");
+    heading.className = "battle-heading";
+
+    heading.innerHTML =
+      "<h1>2048 Battle</h1>" +
+      "<p>You are Player " +
+      window.multiplayerPlayerNumber +
+      " — first to reach 2048 wins!</p>";
+
+    var layout = document.createElement("div");
+    layout.className = "battle-layout";
+
+    var opponentPanel = document.createElement("div");
+    opponentPanel.className = "opponent-panel";
+
+    opponentPanel.innerHTML =
+      '<div class="opponent-header">' +
+        '<h2>Opponent</h2>' +
+        '<div class="opponent-score-box">' +
+          '<span class="opponent-score-label">Score</span>' +
+          '<span id="opponent-score">0</span>' +
+        '</div>' +
+      '</div>' +
+
+      '<div id="opponent-grid" class="opponent-grid"></div>' +
+
+      '<div id="opponent-status">' +
+        'Waiting for opponent to make a move...' +
+      '</div>';
+
+    battleShell.appendChild(heading);
+    battleShell.appendChild(layout);
+
+    document.body.insertBefore(
+      battleShell,
+      gameContainer
+    );
+
+    layout.appendChild(gameContainer);
+    layout.appendChild(opponentPanel);
+
+    opponentGrid = document.getElementById("opponent-grid");
+    opponentScore = document.getElementById("opponent-score");
+    opponentStatus = document.getElementById("opponent-status");
+
+    // Create 16 empty cells.
+    for (var i = 0; i < 16; i++) {
+      var cell = document.createElement("div");
+      cell.className = "opponent-cell";
+      opponentGrid.appendChild(cell);
+    }
+
+    if (latestOpponentState) {
+      renderOpponentState(latestOpponentState);
+    }
+  }
+
+  function renderOpponentState(state) {
+    if (!opponentGrid || !state || !state.grid) {
+      return;
+    }
+
+    var cells = opponentGrid.children;
+    var cellIndex = 0;
+
+    for (var y = 0; y < 4; y++) {
+      for (var x = 0; x < 4; x++) {
+        var cellElement = cells[cellIndex];
+        var tile = state.grid.cells[x][y];
+
+        cellElement.className = "opponent-cell";
+        cellElement.textContent = "";
+
+        if (tile) {
+          cellElement.textContent = tile.value;
+          cellElement.className =
+            "opponent-cell has-tile tile-" + tile.value;
+        }
+
+        cellIndex++;
+      }
+    }
+
+    opponentScore.textContent = state.score || 0;
+
+    if (state.won) {
+      opponentStatus.textContent =
+        "Opponent reached 2048!";
+    } else if (state.over) {
+      opponentStatus.textContent =
+        "Opponent has no moves left.";
+    } else {
+      opponentStatus.textContent =
+        "Opponent is playing...";
+    }
+  }
+
+  // -------------------------
+  // LOBBY BUTTONS
+  // -------------------------
 
   createButton.addEventListener("click", function () {
     status.textContent = "Creating game...";
@@ -151,9 +456,12 @@ window.multiplayerSocket = socket;
     var roomCode = roomInput.value.trim().toUpperCase();
 
     if (roomCode.length !== 6) {
-      status.textContent = "Please enter a 6-character room code.";
+      status.textContent =
+        "Please enter a 6-character room code.";
       return;
     }
+
+    window.multiplayerRoomCode = roomCode;
 
     status.textContent = "Joining game...";
     joinButton.disabled = true;
@@ -161,23 +469,27 @@ window.multiplayerSocket = socket;
     socket.emit("joinRoom", roomCode);
   });
 
- socket.on("roomCreated", function (data) {
-  var roomCode = data.roomCode;
+  // -------------------------
+  // SOCKET EVENTS
+  // -------------------------
 
-  window.multiplayerPlayerNumber = data.playerNumber;
-  window.multiplayerRoomCode = roomCode;
+  socket.on("roomCreated", function (data) {
+    var roomCode = data.roomCode;
 
-  status.innerHTML =
-    "Your room code is:<br>" +
-    "<strong style=\"font-size: 32px; letter-spacing: 5px;\">" +
-    roomCode +
-    "</strong><br><br>" +
-    "You are Player 1.<br>" +
-    "Send this code to your opponent.<br>" +
-    "Waiting for them to join...";
+    window.multiplayerPlayerNumber = data.playerNumber;
+    window.multiplayerRoomCode = roomCode;
 
-  createButton.disabled = true;
-});
+    status.innerHTML =
+      "Your room code is:<br>" +
+      "<strong style=\"font-size:32px;letter-spacing:5px;\">" +
+      roomCode +
+      "</strong><br><br>" +
+      "You are Player 1.<br>" +
+      "Send this code to your opponent.<br>" +
+      "Waiting for them to join...";
+
+    createButton.disabled = true;
+  });
 
   socket.on("joinError", function (message) {
     status.textContent = message;
@@ -185,35 +497,57 @@ window.multiplayerSocket = socket;
   });
 
   socket.on("gameStart", function (data) {
-  window.multiplayerPlayerNumber = data.playerNumber;
+    window.multiplayerPlayerNumber = data.playerNumber;
 
-  status.textContent =
-    "Opponent found! You are Player " +
-    data.playerNumber +
-    ". Starting game...";
+    status.textContent =
+      "Opponent found! You are Player " +
+      data.playerNumber +
+      ". Starting game...";
 
-  setTimeout(function () {
-    lobby.style.display = "none";
-    gameContainer.style.display = "";
-  }, 1000);
-});
+    setTimeout(function () {
+      createBattleView();
+
+      lobby.style.display = "none";
+      gameContainer.style.display = "";
+    }, 1000);
+  });
+
+  socket.on("opponentState", function (data) {
+    latestOpponentState = data.state;
+
+    renderOpponentState(data.state);
+  });
+
+  socket.on("opponentDisconnected", function () {
+    if (opponentStatus) {
+      opponentStatus.textContent =
+        "Opponent disconnected.";
+    }
+  });
+
+  socket.on("gameWinner", function (data) {
+    var message;
+
+    if (
+      data.winner === window.multiplayerPlayerNumber
+    ) {
+      message = "YOU WIN! 🎉";
+    } else {
+      message = "YOU LOSE!";
+    }
+
+    alert(message);
+  });
 
   socket.on("connect", function () {
-    console.log("Connected to 2048 Battle server.");
+    console.log(
+      "Connected to 2048 Battle server."
+    );
   });
 
   socket.on("disconnect", function () {
-    console.log("Disconnected from 2048 Battle server.");
+    console.log(
+      "Disconnected from 2048 Battle server."
+    );
   });
-  socket.on("gameWinner", function (data) {
-  var message;
-
-  if (data.winner === window.multiplayerPlayerNumber) {
-    message = "YOU WIN! 🎉";
-  } else {
-    message = "YOU LOSE!";
-  }
-
-  alert(message);
-});
 })();
