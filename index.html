@@ -1,3 +1,4 @@
+
 <html>
 <head>
   <meta charset="utf-8">
@@ -10,8 +11,8 @@
     href="https://fonts.googleapis.com/css2?family=Barlow+Semi+Condensed:wght@400;500;600;700;800;900&family=Nunito+Sans:opsz,wght@6..12,600;6..12,700;6..12,800;6..12,900&display=swap"
     rel="stylesheet"
   >
-
   <link href="style/main.css" rel="stylesheet" type="text/css">
+  <link href="style/rinas-ui-v60.css?v=60" rel="stylesheet" type="text/css">
   <link rel="shortcut icon" href="favicon.ico">
   <link rel="apple-touch-icon" href="meta/apple-touch-icon.png">
 
@@ -20,13 +21,11 @@
     href="meta/apple-touch-startup-image-640x1096.png"
     media="(device-width: 320px) and (device-height: 568px) and (-webkit-device-pixel-ratio: 2)"
   >
-
   <link
     rel="apple-touch-startup-image"
     href="meta/apple-touch-startup-image-640x920.png"
     media="(device-width: 320px) and (device-height: 480px) and (-webkit-device-pixel-ratio: 2)"
   >
-
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black">
@@ -41,7 +40,6 @@
     body:not(.rinas-app-ready) #site-footer {
       display: none !important;
     }
-
     body:not(.rinas-app-ready) #game-host {
       visibility: hidden !important;
     }
@@ -57,7 +55,6 @@
     <div class="container" style="display:none;">
       <div class="heading">
         <h1 class="title">2048</h1>
-
         <div class="scores-container rinas-stat-group">
           <div class="rinas-stat-chip rinas-stat-chip-score">
             <span class="rinas-stat-label">SCORE</span>
@@ -69,7 +66,6 @@
           </div>
         </div>
       </div>
-
       <div class="above-game">
         <p class="game-intro">
           Join the numbers and get to the <strong>2048 tile!</strong>
@@ -87,7 +83,6 @@
             <a class="retry-button">Try again</a>
           </div>
         </div>
-
         <div class="grid-container">
           <div class="grid-row">
             <div class="grid-cell"></div>
@@ -102,7 +97,6 @@
             <div class="grid-cell"></div>
             <div class="grid-cell"></div>
           </div>
-
           <div class="grid-row">
             <div class="grid-cell"></div>
             <div class="grid-cell"></div>
@@ -120,7 +114,6 @@
 
         <div class="tile-container"></div>
       </div>
-
       <p class="game-explanation">
         <strong class="important">How to play:</strong>
         Use your <strong>arrow keys</strong> to move the tiles.
@@ -129,7 +122,6 @@
       </p>
 
       <hr>
-
       <p>
         Multiplayer adaptation based on the open-source 2048 game created by
         <a
@@ -145,7 +137,6 @@
     Original 2048 by
     <a href="https://github.com/gabrielecirulli/2048" target="_blank" rel="noopener noreferrer">Gabriele Cirulli</a><span id="support-links" hidden></span>
   </footer>
-
   <script src="js/bind_polyfill.js"></script>
   <script src="js/classlist_polyfill.js"></script>
   <script src="js/animframe_polyfill.js"></script>
@@ -156,8 +147,8 @@
   <script src="js/local_storage_manager.js?v=37"></script>
   <script src="js/game_manager.js?v=37"></script>
   <script src="js/application.js?v=37"></script>
-
   <script src="https://two048-battle-oc8k.onrender.com/socket.io/socket.io.js"></script>
   <script src="js/multiplayer.js?v=59"></script>
+  <script src="js/rinas-ui-v60.js?v=60"></script>
 </body>
 </html>
