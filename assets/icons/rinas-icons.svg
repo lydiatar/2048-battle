@@ -1,0 +1,67 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="0" height="0" viewBox="0 0 24 24">
+  <defs>
+    <style>
+      .ri-line{fill:none;stroke:currentColor;stroke-width:1.75;stroke-linecap:round;stroke-linejoin:round}
+      .ri-accent{fill:#f27846;stroke:#f27846;stroke-width:1.4;stroke-linejoin:round}
+      .ri-lilac{fill:#a58bff;stroke:#a58bff;stroke-width:1.2;stroke-linejoin:round}
+      .ri-gold{fill:#efc44a;stroke:#efc44a;stroke-width:1.2;stroke-linejoin:round}
+      .ri-soft{fill:#f7efe6;stroke:currentColor;stroke-width:1.55;stroke-linejoin:round}
+    </style>
+  </defs>
+
+  <symbol id="solo" viewBox="0 0 24 24">
+    <rect class="ri-line" x="3.3" y="3.3" width="7.2" height="7.2" rx="1.8"/>
+    <rect class="ri-line" x="13.5" y="3.3" width="7.2" height="7.2" rx="1.8"/>
+    <rect class="ri-line" x="3.3" y="13.5" width="7.2" height="7.2" rx="1.8"/>
+    <rect class="ri-soft" x="13.5" y="13.5" width="7.2" height="7.2" rx="1.8"/>
+    <path class="ri-accent" d="M16.1 16.1h2v2h-2z"/>
+  </symbol>
+
+  <symbol id="multiplayer" viewBox="0 0 24 24">
+    <circle class="ri-line" cx="8" cy="7.6" r="3.1"/>
+    <path class="ri-line" d="M2.8 19.3c.5-3.9 2.4-6 5.2-6s4.7 2.1 5.2 6"/>
+    <circle class="ri-line" cx="16.6" cy="7.2" r="2.6"/>
+    <path class="ri-lilac" d="M13.4 19.2c.35-3.15 1.7-5 3.8-5 2.05 0 3.38 1.65 3.75 4.35a.7.7 0 0 1-.7.82h-6.1a.72.72 0 0 1-.75-.17z"/>
+  </symbol>
+
+  <symbol id="settings" viewBox="0 0 24 24">
+    <path class="ri-line" d="M4 6h7.3M15.5 6H20M4 12h3.7M12 12h8M4 18h8.2M16.4 18H20"/>
+    <circle class="ri-lilac" cx="13.4" cy="6" r="2"/>
+    <circle class="ri-accent" cx="9.8" cy="12" r="2"/>
+    <circle class="ri-gold" cx="14.3" cy="18" r="2"/>
+  </symbol>
+
+  <symbol id="win" viewBox="0 0 24 24">
+    <path class="ri-line" d="M7 4.5h10v4.2c0 3.2-1.9 5.5-5 5.5S7 11.9 7 8.7z"/>
+    <path class="ri-line" d="M7 6H4.2v1.7c0 2 1.1 3.1 3.1 3.35M17 6h2.8v1.7c0 2-1.1 3.1-3.1 3.35M12 14.2v3.2M8.5 20h7"/>
+    <path class="ri-accent" d="m12 6.1.8 1.55 1.7.25-1.23 1.18.3 1.68L12 9.95l-1.55.81.3-1.68L9.5 7.9l1.7-.25z"/>
+  </symbol>
+
+  <symbol id="loss" viewBox="0 0 24 24">
+    <path class="ri-line" d="M4 4.2h7.2v15.6H4zM12.8 4.2H20v15.6h-7.2z"/>
+    <path class="ri-accent" d="m11.2 6.8 2.1 3.2-2 2.2 1.7 2.3-1.8 2.7"/>
+  </symbol>
+
+  <symbol id="celebrate" viewBox="0 0 24 24">
+    <rect class="ri-accent" x="3.7" y="4.2" width="3.6" height="3.6" rx=".6" transform="rotate(-18 5.5 6)"/>
+    <rect class="ri-lilac" x="14.9" y="3.7" width="3.5" height="3.5" rx=".6" transform="rotate(18 16.65 5.45)"/>
+    <rect class="ri-gold" x="10" y="9.9" width="4.1" height="4.1" rx=".7" transform="rotate(45 12.05 11.95)"/>
+    <rect class="ri-line" x="5.2" y="16" width="3.3" height="3.3" rx=".6" transform="rotate(16 6.85 17.65)"/>
+    <rect class="ri-accent" x="16.2" y="15.2" width="3.5" height="3.5" rx=".6" transform="rotate(-20 17.95 16.95)"/>
+  </symbol>
+
+  <symbol id="milestone" viewBox="0 0 24 24">
+    <rect class="ri-line" x="5.2" y="5.2" width="13.6" height="13.6" rx="2.6" transform="rotate(45 12 12)"/>
+    <path class="ri-gold" d="m12 7.3.9 2.45 2.45.9-2.45.9-.9 2.45-.9-2.45-2.45-.9 2.45-.9z"/>
+  </symbol>
+
+  <symbol id="exit" viewBox="0 0 24 24">
+    <path class="ri-line" d="M13 4.2H5.2v15.6H13"/>
+    <path class="ri-accent" d="M10.5 12h9M16 8.5l3.5 3.5-3.5 3.5"/>
+  </symbol>
+
+  <symbol id="disconnect" viewBox="0 0 24 24">
+    <path class="ri-line" d="m8.7 8.2-2.1 2.1a3 3 0 0 0 4.2 4.2l2.1-2.1M15.3 15.8l2.1-2.1a3 3 0 0 0-4.2-4.2l-2.1 2.1"/>
+    <path class="ri-accent" d="m4.4 4.4 15.2 15.2"/>
+  </symbol>
+</svg>
