@@ -6,6 +6,8 @@ function GameManager(size, InputManager, Actuator, StorageManager) {
   this.startTiles = 2;
   this.undoAnimating = false;
   this.freeplayUndoEntry = null;
+  this.multiplayerMotionSerial = 0;
+  this.pendingMultiplayerMotion = null;
 
   this.inputManager.on("move", this.move.bind(this));
   this.inputManager.on("restart", this.restart.bind(this));
@@ -230,6 +232,49 @@ GameManager.prototype.restoreUndoEntry = function (entry, milestoneAlreadyReache
     Number(previousState.soloHighestMilestone || 0)
   );
 
+  if (
+    window.multiplayerMode &&
+    window.multiplayerMatchActive &&
+    window.multiplayerModeName === "freeplay"
+  ) {
+    this.multiplayerMotionSerial = Number(this.multiplayerMotionSerial || 0) + 1;
+    this.pendingMultiplayerMotion = {
+      id: this.multiplayerMotionSerial,
+      type: "undo",
+      duration: 105,
+      transitions: transitions.filter(function (transition) {
+        return transition &&
+          transition.from &&
+          transition.to &&
+          (
+            transition.from.x !== transition.to.x ||
+            transition.from.y !== transition.to.y
+          );
+      }).map(function (transition) {
+        return {
+          from: {
+            x: transition.to.x,
+            y: transition.to.y
+          },
+          to: {
+            x: transition.from.x,
+            y: transition.from.y
+          },
+          value: transition.value
+        };
+      }),
+      removedTile: entry && entry.spawnedTile
+        ? {
+            x: entry.spawnedTile.x,
+            y: entry.spawnedTile.y,
+            value: entry.spawnedTile.value
+          }
+        : null,
+      spawnedTile: null,
+      merges: []
+    };
+  }
+
   this.actuator.continueGame();
   this.actuate();
 
@@ -395,6 +440,8 @@ GameManager.prototype.actuate = function () {
     window.multiplayerSocket &&
     window.multiplayerPlayerNumber
   ) {
+    var outboundMotion = this.pendingMultiplayerMotion;
+
     window.multiplayerSocket.emit("playerState", {
       grid: this.grid.serialize(),
       score: this.score,
@@ -409,8 +456,11 @@ GameManager.prototype.actuate = function () {
         : "classic",
       nickname: window.rinasSettings
         ? window.rinasSettings.nickname
-        : "Player"
+        : "Player",
+      motion: outboundMotion
     });
+
+    this.pendingMultiplayerMotion = null;
   }
 
   if (
@@ -462,6 +512,7 @@ GameManager.prototype.move = function (direction) {
   var soloMilestoneToast = null;
   var mergedAny = false;
   var largestMergedValue = 0;
+  var mergedPositions = [];
   var freeplayBoardEnded = false;
 
   if (window.multiplayerGameOver || this.undoAnimating) {
@@ -511,6 +562,11 @@ GameManager.prototype.move = function (direction) {
 
         mergedAny = true;
         largestMergedValue = Math.max(largestMergedValue, merged.value);
+        mergedPositions.push({
+          x: positions.next.x,
+          y: positions.next.y,
+          value: merged.value
+        });
 
         merged.mergedFrom = [tile, next];
 
@@ -600,6 +656,44 @@ GameManager.prototype.move = function (direction) {
   }
 
   var spawnedTile = this.addRandomTile();
+
+  if (window.multiplayerMode && window.multiplayerMatchActive) {
+    this.multiplayerMotionSerial = Number(this.multiplayerMotionSerial || 0) + 1;
+    this.pendingMultiplayerMotion = {
+      id: this.multiplayerMotionSerial,
+      direction: direction,
+      duration: 105,
+      transitions: undoTransitions.filter(function (transition) {
+        return transition &&
+          transition.from &&
+          transition.to &&
+          (
+            transition.from.x !== transition.to.x ||
+            transition.from.y !== transition.to.y
+          );
+      }).map(function (transition) {
+        return {
+          from: {
+            x: transition.from.x,
+            y: transition.from.y
+          },
+          to: {
+            x: transition.to.x,
+            y: transition.to.y
+          },
+          value: transition.value
+        };
+      }),
+      spawnedTile: spawnedTile
+        ? {
+            x: spawnedTile.x,
+            y: spawnedTile.y,
+            value: spawnedTile.value
+          }
+        : null,
+      merges: mergedPositions.slice()
+    };
+  }
 
   this.pushUndoState(
     stateBeforeMove,
