@@ -1,0 +1,969 @@
+/* Rina's 2048 — v60 Live Board Stage
+   This file intentionally owns the new lobby/pre-game presentation in one place.
+   It is loaded after the legacy app styles and only targets v60 classes + the app shell. */
+
+:root {
+  --r60-space-1: 4px;
+  --r60-space-2: 8px;
+  --r60-space-3: 12px;
+  --r60-space-4: 16px;
+  --r60-space-5: 24px;
+  --r60-space-6: 32px;
+  --r60-space-7: 48px;
+  --r60-radius-sm: 8px;
+  --r60-radius-md: 12px;
+  --r60-radius-lg: 18px;
+  --r60-ease: cubic-bezier(.2,.75,.2,1);
+}
+
+/* ---------- typography / app rhythm ---------- */
+body #app-root,
+body #game-host,
+body .battle-shell,
+body .settings-overlay,
+body .result-overlay,
+body .game-modal-overlay {
+  font-family: "Nunito Sans", system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif !important;
+}
+
+body #app-root .app-title-stack,
+body #app-root .app-title-stack h1,
+body #app-root .home-live-logo,
+body #app-root .home-mode-choice strong,
+body #app-root .mp-live-mode strong,
+body #app-root .mp-preview-title,
+body #app-root .mp-preview-target strong,
+body #app-root button,
+body .settings-dialog h2,
+body .settings-dialog h3,
+body .game-modal h2,
+body #site-footer {
+  font-family: "Barlow Semi Condensed", "Arial Narrow", sans-serif !important;
+}
+
+body #app-root .app-screen {
+  min-height: calc(100vh - 30px) !important;
+  padding: 18px 24px 50px !important;
+  overflow-x: hidden;
+}
+
+body #app-root .app-screen-inner {
+  width: min(1180px, calc(100vw - 48px)) !important;
+  max-width: 1180px !important;
+  margin: 0 auto !important;
+  padding: 0 0 24px !important;
+}
+
+/* ---------- header + merge gutter ---------- */
+body #app-root .app-header {
+  position: relative !important;
+  min-height: 62px !important;
+  margin: 0 0 18px !important;
+  padding: 2px 0 16px !important;
+  display: grid !important;
+  grid-template-columns: 180px 1fr 180px !important;
+  align-items: center !important;
+  border: 0 !important;
+}
+
+body #app-root .app-header::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 1px;
+  height: 1px;
+  background: color-mix(in srgb, var(--app-border) 74%, transparent);
+}
+
+body #app-root .app-header::after {
+  content: "";
+  position: absolute;
+  left: 50%;
+  bottom: -3px;
+  width: 66px;
+  height: 6px;
+  transform: translateX(-50%);
+  border-radius: 2px;
+  background:
+    linear-gradient(90deg,
+      transparent 0 12%,
+      var(--app-accent) 12% 43%,
+      transparent 43% 54%,
+      color-mix(in srgb, var(--app-accent) 62%, var(--tile-8, #f2b179)) 54% 88%,
+      transparent 88% 100%);
+  opacity: .9;
+}
+
+body #app-root .app-title-brand {
+  display: block !important;
+  margin-bottom: 1px !important;
+  color: var(--app-accent) !important;
+  font: 800 9px/1 "Barlow Semi Condensed", sans-serif !important;
+  letter-spacing: .18em !important;
+  text-transform: uppercase !important;
+}
+
+body #app-root .app-title-stack h1 {
+  margin: 0 !important;
+  color: var(--app-text) !important;
+  font-size: 28px !important;
+  font-weight: 800 !important;
+  line-height: .98 !important;
+  letter-spacing: -.025em !important;
+  text-transform: uppercase !important;
+}
+
+body #app-root .nav-button,
+body #app-root .settings-button,
+body #app-root .nickname-link {
+  min-height: 38px !important;
+  border: 1px solid color-mix(in srgb, var(--app-border) 84%, var(--app-text) 16%) !important;
+  border-radius: 10px !important;
+  background: color-mix(in srgb, var(--app-card) 92%, var(--app-soft)) !important;
+  color: var(--app-text) !important;
+  box-shadow: 0 6px 16px color-mix(in srgb, var(--app-shadow) 40%, transparent) !important;
+  font-size: 12px !important;
+  font-weight: 800 !important;
+  letter-spacing: .025em !important;
+  text-transform: uppercase !important;
+}
+
+body #app-root .nav-button:hover:not(:disabled),
+body #app-root .settings-button:hover:not(:disabled),
+body #app-root .nickname-link:hover:not(:disabled) {
+  transform: translateY(-2px) !important;
+  border-color: color-mix(in srgb, var(--app-accent) 52%, var(--app-border)) !important;
+  box-shadow: 0 9px 22px color-mix(in srgb, var(--app-shadow) 52%, transparent) !important;
+}
+
+/* ---------- main menu: live board stage ---------- */
+body #app-root .screen-menu .app-header .app-title-stack {
+  visibility: hidden !important;
+}
+
+body #app-root .screen-menu #screen-content > .title-stage,
+body #app-root .screen-menu #screen-content > .home-mode-stack,
+body #app-root .screen-menu #screen-content > .home-controls-ribbon,
+body #app-root .screen-menu #screen-content > .home-footnote {
+  display: none !important;
+}
+
+.home-live-stage {
+  min-height: min(610px, calc(100vh - 160px));
+  display: grid;
+  grid-template-columns: minmax(440px, 1.06fr) minmax(390px, .94fr);
+  align-items: center;
+  gap: clamp(42px, 6vw, 86px);
+  padding: 8px 16px 22px;
+}
+
+.home-live-preview {
+  position: relative;
+  min-width: 0;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 142px;
+  align-items: end;
+  gap: 18px;
+}
+
+.home-preview-board-wrap {
+  position: relative;
+  min-width: 0;
+}
+
+.home-preview-board-wrap::before {
+  content: "LIVE BOARD";
+  position: absolute;
+  left: 2px;
+  top: -28px;
+  color: var(--app-accent);
+  font: 800 10px/1 "Barlow Semi Condensed", sans-serif;
+  letter-spacing: .16em;
+}
+
+.home-preview-board-wrap::after {
+  content: "";
+  position: absolute;
+  left: -16px;
+  top: -8px;
+  bottom: -8px;
+  width: 4px;
+  border-radius: 4px;
+  background: var(--app-accent);
+  opacity: .86;
+}
+
+.home-live-board-frame {
+  position: relative;
+  width: min(420px, 100%);
+  padding: 14px;
+  border: 1px solid color-mix(in srgb, var(--app-border) 74%, var(--app-text) 26%);
+  border-radius: 22px;
+  background: color-mix(in srgb, var(--app-card) 78%, var(--app-bg));
+  box-shadow:
+    0 22px 50px color-mix(in srgb, var(--app-shadow) 58%, transparent),
+    inset 0 1px 0 color-mix(in srgb, white 45%, transparent);
+  transition: transform 220ms var(--r60-ease), border-color 180ms ease;
+}
+
+.home-live-stage[data-active="multi"] .home-live-board-frame {
+  transform: translateX(-4px);
+}
+
+.r60-board {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 9px;
+  width: 100%;
+  aspect-ratio: 1;
+  padding: 10px;
+  box-sizing: border-box;
+  border-radius: 15px;
+  background: var(--app-board);
+}
+
+.r60-cell {
+  min-width: 0;
+  border-radius: 8px;
+  display: grid;
+  place-items: center;
+  background: var(--app-cell);
+  color: var(--app-text);
+  font: 800 clamp(16px, 2vw, 28px)/1 "Nunito Sans", sans-serif;
+  transition: transform 170ms var(--r60-ease), background-color 170ms ease, color 170ms ease;
+}
+
+.r60-cell.has-value { animation: r60-cell-enter 190ms var(--r60-ease) both; }
+.r60-cell.v2 { background: var(--tile-2); color: var(--tile-dark-text); }
+.r60-cell.v4 { background: var(--tile-4); color: var(--tile-dark-text); }
+.r60-cell.v8 { background: var(--tile-8); color: var(--tile-light-text); }
+.r60-cell.v16 { background: var(--tile-16); color: var(--tile-light-text); }
+.r60-cell.v32 { background: var(--tile-32); color: var(--tile-light-text); }
+.r60-cell.v64 { background: var(--tile-64); color: var(--tile-light-text); }
+.r60-cell.v128 { background: var(--tile-128); color: var(--tile-light-text); }
+.r60-cell.v256 { background: var(--tile-256); color: var(--tile-light-text); }
+.r60-cell.v512 { background: var(--tile-512); color: var(--tile-light-text); }
+.r60-cell.v1024 { background: var(--tile-1024); color: var(--tile-light-text); }
+.r60-cell.v2048 { background: var(--tile-2048); color: var(--tile-light-text); }
+.r60-cell.v4096 { background: var(--tile-4096); color: var(--tile-light-text); }
+
+.home-preview-meta {
+  align-self: end;
+  padding-bottom: 14px;
+}
+
+.home-preview-meta .preview-mode-kicker {
+  display: block;
+  margin-bottom: 6px;
+  color: var(--app-accent);
+  font: 800 10px/1 "Barlow Semi Condensed", sans-serif;
+  letter-spacing: .14em;
+  text-transform: uppercase;
+}
+
+.home-preview-meta strong {
+  display: block;
+  color: var(--app-text);
+  font: 800 25px/1.04 "Barlow Semi Condensed", sans-serif;
+  letter-spacing: -.025em;
+}
+
+.home-preview-meta small {
+  display: block;
+  margin-top: 7px;
+  color: var(--app-muted);
+  font-size: 11px;
+  line-height: 1.4;
+}
+
+.home-multi-preview {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.home-multi-preview .r60-board {
+  gap: 5px;
+  padding: 7px;
+  border-radius: 11px;
+}
+
+.home-multi-preview .r60-cell {
+  border-radius: 5px;
+  font-size: clamp(9px, .9vw, 14px);
+}
+
+.home-live-menu {
+  min-width: 0;
+}
+
+.home-live-logo {
+  margin: 0 0 28px;
+  color: var(--app-text);
+  font-size: clamp(66px, 7vw, 100px);
+  font-weight: 900;
+  line-height: .77;
+  letter-spacing: -.075em;
+}
+
+.home-live-logo .logo-rinas {
+  display: block;
+  margin: 0 0 10px 4px;
+  color: var(--app-text);
+  font-size: 17px;
+  line-height: 1;
+  letter-spacing: .24em;
+}
+
+.home-live-logo em {
+  color: var(--app-accent);
+  font-style: normal;
+}
+
+.home-mode-choice {
+  width: 100%;
+  min-height: 80px;
+  display: grid;
+  grid-template-columns: 48px minmax(0, 1fr) 32px;
+  align-items: center;
+  gap: 14px;
+  padding: 15px 4px;
+  border: 0;
+  border-top: 1px solid color-mix(in srgb, var(--app-border) 78%, transparent);
+  border-radius: 0;
+  background: transparent;
+  color: var(--app-text);
+  text-align: left;
+  cursor: pointer;
+  box-shadow: none;
+  transition: transform 180ms var(--r60-ease), background 180ms ease;
+}
+
+.home-mode-choice:last-of-type {
+  border-bottom: 1px solid color-mix(in srgb, var(--app-border) 78%, transparent);
+}
+
+.home-mode-choice::before {
+  content: "";
+  position: absolute;
+}
+
+.home-mode-choice:hover,
+.home-mode-choice:focus-visible,
+.home-mode-choice.is-active {
+  transform: translateX(8px);
+  background: linear-gradient(90deg, color-mix(in srgb, var(--app-accent) 10%, transparent), transparent 72%);
+  outline: none;
+}
+
+.home-mode-choice strong {
+  display: block;
+  color: var(--app-text);
+  font-size: 29px;
+  font-weight: 800;
+  line-height: .96;
+  letter-spacing: -.025em;
+}
+
+.home-mode-choice small {
+  display: block;
+  margin-top: 4px;
+  color: var(--app-muted);
+  font-size: 12px;
+  line-height: 1.35;
+}
+
+.home-mode-choice .mode-chevron {
+  justify-self: end;
+  color: var(--app-accent);
+  font: 700 30px/1 "Barlow Semi Condensed", sans-serif;
+  transition: transform 180ms var(--r60-ease);
+}
+
+.home-mode-choice:hover .mode-chevron,
+.home-mode-choice.is-active .mode-chevron {
+  transform: translateX(4px);
+}
+
+.r60-icon {
+  width: 42px;
+  height: 42px;
+  color: var(--app-text);
+}
+
+.r60-icon svg {
+  display: block;
+  width: 100%;
+  height: 100%;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.7;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.r60-icon .accent-fill {
+  fill: color-mix(in srgb, var(--app-accent) 30%, transparent);
+  stroke: var(--app-accent);
+}
+
+.home-live-foot {
+  margin-top: 22px;
+  min-height: 36px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  color: var(--app-muted);
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: .04em;
+}
+
+.home-live-foot .foot-stat {
+  color: var(--app-text);
+  font-weight: 900;
+}
+
+.home-live-foot .foot-tile {
+  width: 7px;
+  height: 7px;
+  border-radius: 2px;
+  background: var(--app-accent);
+}
+
+/* ---------- multiplayer mode browser ---------- */
+body #app-root .screen-multiplayer-menu #screen-content > .mode-showcase-list,
+body #app-root .screen-multiplayer-menu #screen-content > .future-modes-strip {
+  display: none !important;
+}
+
+body #app-root .screen-multiplayer-menu .multiplayer-entry-head {
+  display: none !important;
+}
+
+.mp-live-stage {
+  min-height: min(610px, calc(100vh - 156px));
+  display: grid;
+  grid-template-columns: minmax(360px, .8fr) minmax(510px, 1.2fr);
+  gap: clamp(34px, 5vw, 72px);
+  align-items: stretch;
+  padding: 6px 8px 22px;
+}
+
+.mp-live-left {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+}
+
+.mp-profile-line {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 38px;
+  margin-bottom: 10px;
+  color: var(--app-muted);
+  font: 700 10px/1 "Barlow Semi Condensed", sans-serif;
+  letter-spacing: .08em;
+  text-transform: uppercase;
+}
+
+.mp-profile-line .status-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: color-mix(in srgb, #4ccf7b 78%, var(--app-accent));
+  box-shadow: 0 0 0 3px color-mix(in srgb, #4ccf7b 15%, transparent);
+}
+
+.mp-profile-line strong {
+  color: var(--app-text);
+  font-size: 13px;
+  letter-spacing: 0;
+  text-transform: none;
+}
+
+.mp-change-link {
+  margin-left: 3px;
+  padding: 5px 8px;
+  border: 0;
+  border-bottom: 1px solid color-mix(in srgb, var(--app-accent) 58%, transparent);
+  border-radius: 0;
+  background: transparent;
+  color: var(--app-accent);
+  font: 800 10px/1 "Barlow Semi Condensed", sans-serif;
+  letter-spacing: .05em;
+  text-transform: uppercase;
+  cursor: pointer;
+}
+
+.mp-live-heading {
+  margin: 12px 0 22px;
+}
+
+.mp-live-heading span {
+  color: var(--app-accent);
+  font: 800 10px/1 "Barlow Semi Condensed", sans-serif;
+  letter-spacing: .15em;
+  text-transform: uppercase;
+}
+
+.mp-live-heading h2 {
+  margin: 5px 0 0;
+  color: var(--app-text);
+  font: 800 37px/.95 "Barlow Semi Condensed", sans-serif;
+  letter-spacing: -.035em;
+}
+
+.mp-mode-rail {
+  border-top: 1px solid color-mix(in srgb, var(--app-border) 78%, transparent);
+}
+
+.mp-live-mode {
+  width: 100%;
+  display: grid;
+  grid-template-columns: 28px minmax(0, 1fr) 26px;
+  gap: 12px;
+  align-items: center;
+  padding: 17px 4px 17px 0;
+  border: 0;
+  border-bottom: 1px solid color-mix(in srgb, var(--app-border) 78%, transparent);
+  border-radius: 0;
+  background: transparent;
+  color: var(--app-text);
+  text-align: left;
+  cursor: pointer;
+  transition: transform 180ms var(--r60-ease), background 180ms ease;
+}
+
+.mp-live-mode:hover,
+.mp-live-mode:focus-visible,
+.mp-live-mode.is-active {
+  transform: translateX(7px);
+  background: linear-gradient(90deg, color-mix(in srgb, var(--app-accent) 11%, transparent), transparent 78%);
+  outline: none;
+}
+
+.mp-live-mode .mode-index {
+  align-self: start;
+  padding-top: 4px;
+  color: var(--app-accent);
+  font: 900 12px/1 "Nunito Sans", sans-serif;
+}
+
+.mp-live-mode strong {
+  display: block;
+  color: var(--app-text);
+  font-size: 25px;
+  line-height: .95;
+  font-weight: 800;
+  letter-spacing: -.02em;
+}
+
+.mp-live-mode small {
+  display: block;
+  margin-top: 4px;
+  color: var(--app-muted);
+  font-size: 11px;
+  line-height: 1.3;
+}
+
+.mp-live-mode .mode-chevron {
+  justify-self: end;
+  color: var(--app-accent);
+  font-size: 25px;
+  line-height: 1;
+}
+
+.mp-future-modes {
+  margin-top: auto;
+  padding-top: 18px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px 18px;
+  color: var(--app-muted);
+  font-size: 10px;
+}
+
+.mp-future-modes b {
+  color: color-mix(in srgb, var(--app-text) 76%, var(--app-muted));
+  font-weight: 800;
+}
+
+.mp-live-preview {
+  position: relative;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  padding: 34px 38px 30px;
+  border: 1px solid color-mix(in srgb, var(--app-border) 76%, var(--app-text) 24%);
+  border-radius: 22px;
+  background: color-mix(in srgb, var(--app-card) 80%, var(--app-bg));
+  box-shadow: 0 24px 58px color-mix(in srgb, var(--app-shadow) 48%, transparent);
+  overflow: hidden;
+}
+
+.mp-live-preview::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 32px;
+  bottom: 32px;
+  width: 4px;
+  border-radius: 0 4px 4px 0;
+  background: var(--app-accent);
+}
+
+.mp-live-preview::after {
+  content: "";
+  position: absolute;
+  right: -40px;
+  bottom: -40px;
+  width: 180px;
+  height: 180px;
+  border-radius: 42px;
+  border: 1px solid color-mix(in srgb, var(--app-accent) 14%, transparent);
+  transform: rotate(12deg);
+  pointer-events: none;
+}
+
+.mp-preview-kicker {
+  color: var(--app-accent);
+  font: 800 10px/1 "Barlow Semi Condensed", sans-serif;
+  letter-spacing: .15em;
+  text-transform: uppercase;
+}
+
+.mp-preview-title {
+  margin: 6px 0 7px;
+  color: var(--app-text);
+  font-size: 42px;
+  line-height: .94;
+  font-weight: 800;
+  letter-spacing: -.035em;
+}
+
+.mp-preview-copy {
+  max-width: 560px;
+  margin: 0 0 24px;
+  color: var(--app-muted);
+  font-size: 13px;
+  line-height: 1.42;
+}
+
+.mp-preview-scene {
+  min-height: 260px;
+  display: grid;
+  place-items: center;
+}
+
+.mp-preview-pair {
+  width: min(100%, 570px);
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 22px;
+  align-items: end;
+}
+
+.mp-preview-player label {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  margin-bottom: 7px;
+  color: var(--app-muted);
+  font: 800 10px/1 "Barlow Semi Condensed", sans-serif;
+  letter-spacing: .08em;
+}
+
+.mp-preview-player label strong {
+  color: var(--app-accent);
+  font-size: 17px;
+  letter-spacing: 0;
+}
+
+.mp-preview-player .r60-board {
+  gap: 6px;
+  padding: 8px;
+  border-radius: 13px;
+}
+
+.mp-preview-player .r60-cell {
+  border-radius: 6px;
+  font-size: clamp(10px, 1.2vw, 17px);
+}
+
+.mp-freeplay-scene {
+  width: min(100%, 500px);
+  display: grid;
+  grid-template-columns: 235px 1fr;
+  gap: 28px;
+  align-items: center;
+}
+
+.mp-freeplay-scene .r60-board { gap: 6px; padding: 8px; }
+.mp-freeplay-scene .r60-cell { border-radius: 6px; font-size: 14px; }
+
+.mp-rewind-track {
+  display: grid;
+  grid-template-columns: 1fr auto 1fr;
+  align-items: center;
+  gap: 10px;
+  color: var(--app-muted);
+  font: 800 10px/1 "Barlow Semi Condensed", sans-serif;
+  letter-spacing: .08em;
+  text-align: center;
+}
+
+.mp-rewind-track i {
+  display: block;
+  position: relative;
+  width: 74px;
+  height: 10px;
+}
+.mp-rewind-track i::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 4px;
+  height: 2px;
+  background: var(--app-accent);
+}
+.mp-rewind-track i::after {
+  content: "↔";
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -54%);
+  padding: 0 7px;
+  background: color-mix(in srgb, var(--app-card) 82%, var(--app-bg));
+  color: var(--app-accent);
+  font-size: 18px;
+}
+
+.mp-custom-scene {
+  width: min(100%, 550px);
+  display: grid;
+  grid-template-columns: 1fr 58px 1fr;
+  gap: 18px;
+  align-items: center;
+}
+
+.mp-preview-target {
+  min-height: 150px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid color-mix(in srgb, var(--app-border) 74%, var(--app-accent) 26%);
+  border-radius: 18px;
+  background: color-mix(in srgb, var(--app-soft) 60%, var(--app-card));
+}
+
+.mp-preview-target small {
+  color: var(--app-muted);
+  font: 800 10px/1 "Barlow Semi Condensed", sans-serif;
+  letter-spacing: .1em;
+}
+
+.mp-preview-target strong {
+  margin: 7px 0 4px;
+  color: var(--app-accent);
+  font-size: 39px;
+  line-height: 1;
+}
+
+.mp-preview-target span {
+  color: var(--app-muted);
+  font-size: 10px;
+  font-weight: 800;
+}
+
+.mp-custom-vs {
+  text-align: center;
+  color: var(--app-muted);
+  font: 900 13px/1 "Barlow Semi Condensed", sans-serif;
+}
+
+.mp-preview-facts {
+  margin-top: 22px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 9px 18px;
+  color: var(--app-muted);
+  font-size: 10px;
+  font-weight: 800;
+}
+
+.mp-preview-facts span::before {
+  content: "";
+  display: inline-block;
+  width: 5px;
+  height: 5px;
+  margin-right: 7px;
+  border-radius: 1px;
+  background: var(--app-accent);
+  vertical-align: 1px;
+}
+
+/* ---------- pre-game setup screens: less SaaS, same underlying functionality ---------- */
+body #app-root .screen-tile-race-lobby .rules-card,
+body #app-root .screen-freeplay-lobby .rules-card,
+body #app-root .screen-custom-race-lobby .rules-card {
+  border: 0 !important;
+  border-left: 4px solid var(--app-accent) !important;
+  border-radius: 0 !important;
+  background: linear-gradient(90deg, color-mix(in srgb, var(--app-accent) 7%, transparent), transparent 68%) !important;
+  box-shadow: none !important;
+}
+
+body #app-root .screen-tile-race-lobby .race-box,
+body #app-root .screen-freeplay-lobby .race-box,
+body #app-root .screen-custom-race-lobby .race-box {
+  border: 1px solid color-mix(in srgb, var(--app-border) 82%, var(--app-text) 18%) !important;
+  border-radius: 16px !important;
+  background: color-mix(in srgb, var(--app-card) 84%, var(--app-bg)) !important;
+  box-shadow: 0 14px 34px color-mix(in srgb, var(--app-shadow) 35%, transparent) !important;
+}
+
+body #app-root .screen-tile-race-lobby .target-button,
+body #app-root .screen-custom-race-lobby .target-button {
+  border-radius: 10px !important;
+}
+
+
+/* ---------- room code: make waiting rooms feel like game state, not a form receipt ---------- */
+.r60-room-code {
+  display: flex;
+  justify-content: center;
+  gap: 7px;
+  margin: 16px 0 10px;
+}
+.r60-room-code span {
+  width: 40px;
+  height: 46px;
+  display: grid;
+  place-items: center;
+  border: 1px solid color-mix(in srgb, var(--app-border) 68%, var(--app-text) 32%);
+  border-radius: 10px;
+  background: color-mix(in srgb, var(--app-soft) 72%, var(--app-card));
+  color: var(--app-text);
+  font: 900 18px/1 "Nunito Sans", sans-serif;
+  letter-spacing: 0;
+  box-shadow: inset 0 1px 0 color-mix(in srgb, white 34%, transparent);
+}
+.r60-copy-code {
+  margin: 0 auto 8px !important;
+  min-height: 34px !important;
+  padding: 7px 12px !important;
+  border: 1px solid color-mix(in srgb, var(--app-border) 78%, var(--app-text) 22%) !important;
+  border-radius: 9px !important;
+  background: color-mix(in srgb, var(--app-card) 90%, var(--app-soft)) !important;
+  color: var(--app-text) !important;
+  font: 800 11px/1 "Barlow Semi Condensed", sans-serif !important;
+  text-transform: uppercase;
+  cursor: pointer;
+}
+.r60-copy-code:hover { border-color: var(--app-accent) !important; transform: translateY(-1px); }
+
+/* ---------- settings: keep readable and consistent without another redesign ---------- */
+body .settings-dialog {
+  border-radius: 18px !important;
+  border: 1px solid color-mix(in srgb, var(--app-border) 76%, var(--app-text) 24%) !important;
+  border-top-width: 1px !important;
+  background: color-mix(in srgb, var(--app-card) 96%, var(--app-bg)) !important;
+}
+
+body .settings-dialog::before {
+  content: "";
+  position: absolute;
+  left: 22px;
+  right: 22px;
+  top: 0;
+  height: 3px;
+  border-radius: 0 0 4px 4px;
+  background: linear-gradient(90deg, var(--app-accent), color-mix(in srgb, var(--app-accent) 55%, var(--tile-8, #f2b179)));
+}
+
+body .settings-section h3::after {
+  margin-top: 9px !important;
+  width: 34px !important;
+  height: 3px !important;
+  border-radius: 1px !important;
+  background: var(--app-accent) !important;
+}
+
+/* ---------- motion ---------- */
+@keyframes r60-cell-enter {
+  from { opacity: .35; transform: scale(.86); }
+  to { opacity: 1; transform: scale(1); }
+}
+
+@keyframes r60-preview-shift {
+  0% { opacity: .55; transform: translateX(12px); }
+  100% { opacity: 1; transform: translateX(0); }
+}
+
+.r60-preview-refresh {
+  animation: r60-preview-shift 210ms var(--r60-ease) both;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .home-mode-choice,
+  .home-live-board-frame,
+  .mp-live-mode,
+  .r60-cell,
+  .r60-preview-refresh {
+    transition: none !important;
+    animation: none !important;
+  }
+}
+
+/* ---------- viewport fitting ---------- */
+@media (max-height: 780px) and (min-width: 901px) {
+  body #app-root .app-screen { padding-top: 10px !important; padding-bottom: 38px !important; }
+  body #app-root .app-header { min-height: 54px !important; margin-bottom: 10px !important; padding-bottom: 12px !important; }
+  .home-live-stage { min-height: 548px; gap: 44px; padding-top: 0; }
+  .home-live-board-frame { width: min(365px, 100%); padding: 12px; }
+  .home-live-logo { font-size: 72px; margin-bottom: 20px; }
+  .home-mode-choice { min-height: 70px; padding-top: 12px; padding-bottom: 12px; }
+  .home-mode-choice strong { font-size: 25px; }
+  .mp-live-stage { min-height: 530px; padding-top: 0; }
+  .mp-live-preview { padding-top: 24px; padding-bottom: 22px; }
+  .mp-preview-scene { min-height: 216px; }
+  .mp-live-mode { padding-top: 14px; padding-bottom: 14px; }
+  .mp-live-heading { margin-top: 4px; margin-bottom: 14px; }
+}
+
+@media (max-width: 980px) {
+  body #app-root .app-screen-inner { width: min(760px, calc(100vw - 32px)) !important; }
+  .home-live-stage,
+  .mp-live-stage { grid-template-columns: 1fr; gap: 30px; min-height: 0; }
+  .home-live-preview { order: 2; grid-template-columns: 1fr 130px; max-width: 620px; }
+  .home-live-menu { order: 1; }
+  .home-live-logo { font-size: 68px; }
+  .mp-live-preview { min-height: 440px; }
+}
+
+@media (max-width: 620px) {
+  body #app-root .app-screen { padding: 12px 12px 46px !important; }
+  body #app-root .app-screen-inner { width: 100% !important; }
+  body #app-root .app-header { grid-template-columns: 94px 1fr 94px !important; }
+  body #app-root .app-title-stack h1 { font-size: 22px !important; }
+  body #app-root .nav-button,
+  body #app-root .settings-button { padding: 8px 9px !important; font-size: 10px !important; }
+  .home-live-stage { padding-left: 2px; padding-right: 2px; }
+  .home-live-preview { grid-template-columns: 1fr; }
+  .home-preview-meta { display: none; }
+  .home-live-logo { font-size: 64px; }
+  .home-mode-choice { grid-template-columns: 42px minmax(0, 1fr) 24px; }
+  .home-mode-choice strong { font-size: 24px; }
+  .mp-live-stage { padding-left: 0; padding-right: 0; }
+  .mp-live-preview { padding: 26px 18px 22px; border-radius: 17px; }
+  .mp-preview-pair { gap: 10px; }
+  .mp-freeplay-scene { grid-template-columns: 1fr; width: min(300px, 100%); }
+  .mp-custom-scene { gap: 8px; }
+  .mp-preview-target strong { font-size: 29px; }
+}
