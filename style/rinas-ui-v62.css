@@ -1,4 +1,4 @@
-/* Rina's 2048 — v60 Live Board Stage
+/* Rina's 2048 â€” v60 Live Board Stage
    This file intentionally owns the new lobby/pre-game presentation in one place.
    It is loaded after the legacy app styles and only targets v60 classes + the app shell. */
 
@@ -732,7 +732,7 @@ body #app-root .screen-multiplayer-menu .multiplayer-entry-head {
   background: var(--app-accent);
 }
 .mp-rewind-track i::after {
-  content: "↔";
+  content: "â†”";
   position: absolute;
   left: 50%;
   top: 50%;
@@ -969,7 +969,7 @@ body .settings-section h3::after {
 }
 
 /* ============================================================
-   v61 — Live Board Stage overlap fix
+   v61 â€” Live Board Stage overlap fix
    The v60 caption occupied a fixed second grid column beside the
    board. At desktop viewport heights where the board is ~365px,
    the board + caption + gap could be wider than the left stage
@@ -1075,14 +1075,14 @@ body #app-root .screen-menu .home-preview-meta small {
 }
 
 /* ============================================================
-   v62 — Live Stage polish + regression fixes
+   v62 â€” Live Stage polish + regression fixes
    - Continue/Start Run labels stay visible through hover/press.
    - Approved SVG icon system restored to Live Stage + MP modes.
    - Live Board caption becomes an integrated icon + copy row.
    - Nickname synchronization is handled by rinas-ui-v62.js.
    ============================================================ */
 
-/* SOLO ENTRY ACTIONS — never let legacy hover rules erase the label. */
+/* SOLO ENTRY ACTIONS â€” never let legacy hover rules erase the label. */
 body #app-root .screen-solo-entry #continue-solo.solo-main-action,
 body #app-root .screen-solo-entry #start-solo.solo-main-action,
 body #app-root #continue-solo.solo-main-action,
@@ -1149,7 +1149,7 @@ body #app-root #new-solo.solo-text-action:focus-visible {
   border-color: color-mix(in srgb, var(--app-accent) 58%, var(--app-border)) !important;
 }
 
-/* APPROVED SVG ICON SYSTEM — no emoji, no generic glyphs. */
+/* APPROVED SVG ICON SYSTEM â€” no emoji, no generic glyphs. */
 .r62-asset-icon {
   display: block;
   width: 100%;
@@ -1173,7 +1173,7 @@ body #app-root #new-solo.solo-text-action:focus-visible {
   height: 34px !important;
 }
 
-/* LIVE BOARD CAPTION — belongs to the preview instead of floating as copy. */
+/* LIVE BOARD CAPTION â€” belongs to the preview instead of floating as copy. */
 body #app-root .screen-menu .home-preview-meta {
   display: grid !important;
   grid-template-columns: 42px minmax(0, 1fr) !important;
@@ -1215,7 +1215,7 @@ body #app-root .screen-menu .home-preview-meta-copy small {
   line-height: 1.3 !important;
 }
 
-/* MULTIPLAYER MODE RAIL — restore the approved mode graphics. */
+/* MULTIPLAYER MODE RAIL â€” restore the approved mode graphics. */
 body #app-root .mp-live-mode {
   grid-template-columns: 44px 32px minmax(0, 1fr) 22px !important;
   column-gap: 10px !important;
