@@ -126,6 +126,8 @@
       soloUndo: false,
       soundEffects: true,
       sfxVolume: 0.75,
+      musicEnabled: true,
+      musicVolume: 0.42,
       nickname: "",
       controlScheme: "arrows"
     };
@@ -147,6 +149,13 @@
         defaults.sfxVolume = Math.max(0, Math.min(1, saved.sfxVolume));
       }
 
+      if (typeof saved.musicEnabled === "boolean") {
+        defaults.musicEnabled = saved.musicEnabled;
+      }
+
+      if (typeof saved.musicVolume === "number") {
+        defaults.musicVolume = Math.max(0, Math.min(1, saved.musicVolume));
+      }
 
       if (typeof saved.nickname === "string") {
         defaults.nickname = sanitizeNickname(saved.nickname);
@@ -163,6 +172,9 @@
   }
 
   window.rinasSettings = loadSettings();
+  if (window.rinasAudio && window.rinasAudio.syncSettings) {
+    window.rinasAudio.syncSettings(window.rinasSettings);
+  }
 
   function saveSettings() {
     safeStorageSet(
@@ -238,6 +250,11 @@
   }
 
   function playSound(name) {
+    if (window.rinasAudio && window.rinasAudio.playEvent) {
+      window.rinasAudio.playEvent(name);
+      return;
+    }
+
     var ctx = getAudioContext();
 
     if (!ctx) {
@@ -284,12 +301,36 @@
 
   window.rinasPlaySound = playSound;
 
-  // Background music was intentionally removed in v40.
-  // These no-op helpers keep older gameplay call sites harmless.
-  function startCompetitiveMusic() {}
-  function stopCompetitiveMusic() {}
-  function updateCompetitiveMusicIntensity() {}
-  function duckCompetitiveMusic() {}
+  // v63 approved adaptive audio system. The Web Audio manager owns playback,
+  // bus gain, crossfades, ducking and SFX voice limiting.
+  function transitionMusic(state, fadeMs) {
+    if (window.rinasAudio && window.rinasAudio.transitionMusic) {
+      window.rinasAudio.transitionMusic(state, fadeMs);
+    }
+  }
+
+  function startCompetitiveMusic() {
+    transitionMusic(window.multiplayerModeName === "freeplay" ? "FREEPLAY" : "MULTIPLAYER", 1100);
+    playSound("match-start");
+  }
+
+  function stopCompetitiveMusic(fadeMs) {
+    transitionMusic("LOBBY", fadeMs || 700);
+  }
+
+  function updateCompetitiveMusicIntensity() {
+    if (window.rinasAudio && window.rinasAudio.setCompetitiveIntensity) {
+      window.rinasAudio.setCompetitiveIntensity(
+        (lastOwnOneAway || lastOpponentOneAway) ? 1 : 0
+      );
+    }
+  }
+
+  function duckCompetitiveMusic() {
+    if (window.rinasAudio && window.rinasAudio.duckMusic) {
+      window.rinasAudio.duckMusic(0.10, 680);
+    }
+  }
 
   document.addEventListener("click", function (event) {
     var button = event.target.closest ? event.target.closest("button") : null;
@@ -5950,6 +5991,7 @@
   }
 
   function showSoloMenu() {
+    transitionMusic("LOBBY", 850);
     window.currentGameMode = "solo-menu";
     window.multiplayerMode = false;
     window.multiplayerMatchActive = false;
@@ -6088,7 +6130,7 @@
   }
 
   function startSolo(startNew) {
-    stopCompetitiveMusic(260);
+    transitionMusic("SOLO", 1050);
     restoreGameContainer();
     window.currentGameMode = "solo";
     window.multiplayerMode = false;
@@ -6196,7 +6238,7 @@
     `;
 
     document.body.appendChild(overlay);
-    playSound("milestone");
+    playSound("target");
 
     document.getElementById("solo-2048-continue").addEventListener("click", function () {
       withGame(function (game) {
@@ -6205,6 +6247,7 @@
         game.actuator.continueGame();
         game.actuate();
         overlay.remove();
+        transitionMusic("SOLO", 500);
       });
     });
 
@@ -6212,6 +6255,7 @@
       withGame(function (game) {
         overlay.remove();
         game.restart();
+        transitionMusic("SOLO", 500);
       });
     });
   };
@@ -6228,6 +6272,7 @@
   // =========================================================
 
   function showMultiplayerMenu() {
+    transitionMusic("LOBBY", 850);
     window.currentGameMode = "multiplayer-menu";
     window.multiplayerMode = false;
     window.multiplayerMatchActive = false;
@@ -6539,6 +6584,7 @@
   }
 
   function showWaitingRoom(data) {
+    transitionMusic("LOBBY", 700);
     currentRoomCode = data.roomCode;
     window.multiplayerRoomCode = data.roomCode;
     var mode = data.mode || "tile-race";
@@ -7139,6 +7185,7 @@
     playSound(didWin ? "win" : "lose");
 
     document.getElementById("result-rematch").addEventListener("click", function () {
+      playSound("rematch");
       this.disabled = true;
       this.textContent = "Waiting...";
       socket.emit("requestRematch");
@@ -7150,7 +7197,8 @@
   }
 
   function showOpponentLeft() {
-    stopCompetitiveMusic(260);
+    duckCompetitiveMusic();
+    playSound("disconnect");
     removeResultOverlay();
     removeFreeplayBoardOver();
     window.multiplayerGameOver = true;
@@ -7209,6 +7257,7 @@
 
     var themeLocked = !!window.multiplayerMatchActive;
     var sfxPercent = Math.round(Number(typeof window.rinasSettings.sfxVolume === "number" ? window.rinasSettings.sfxVolume : 0.75) * 100);
+    var musicPercent = Math.round(Number(typeof window.rinasSettings.musicVolume === "number" ? window.rinasSettings.musicVolume : 0.42) * 100);
 
     var overlay = document.createElement("div");
     overlay.id = "settings-overlay";
@@ -7260,19 +7309,36 @@
 
           <section class="settings-section settings-audio-section">
             <h3>Sound</h3>
-            <div class="audio-control-group single-audio-group">
-              <div class="toggle-row">
-                <div>
-                  <h4>Sound Effects</h4>
-                  <p class="settings-help">Moves, merges, Undo, lead changes, milestones and match results.</p>
+            <div class="settings-audio-stack-v63">
+              <div class="audio-control-group">
+                <div class="toggle-row">
+                  <div>
+                    <h4>Sound Effects</h4>
+                    <p class="settings-help">Moves, merges, Undo, milestones and match results.</p>
+                  </div>
+                  <button id="sound-effects-toggle" class="toggle-button ${window.rinasSettings.soundEffects ? "on" : "off"}">${window.rinasSettings.soundEffects ? "ON" : "OFF"}</button>
                 </div>
-                <button id="sound-effects-toggle" class="toggle-button ${window.rinasSettings.soundEffects ? "on" : "off"}">${window.rinasSettings.soundEffects ? "ON" : "OFF"}</button>
+                <label class="volume-row" for="sfx-volume">
+                  <span>SFX volume</span>
+                  <input id="sfx-volume" type="range" min="0" max="100" step="1" value="${sfxPercent}" ${window.rinasSettings.soundEffects ? "" : "disabled"}>
+                  <output id="sfx-volume-output">${sfxPercent}%</output>
+                </label>
               </div>
-              <label class="volume-row" for="sfx-volume">
-                <span>SFX volume</span>
-                <input id="sfx-volume" type="range" min="0" max="100" step="1" value="${sfxPercent}">
-                <output id="sfx-volume-output">${sfxPercent}%</output>
-              </label>
+
+              <div class="audio-control-group music-control-group-v63">
+                <div class="toggle-row">
+                  <div>
+                    <h4>Background Music</h4>
+                    <p class="settings-help">Lobby, Solo focus music and the Multiplayer layer.</p>
+                  </div>
+                  <button id="background-music-toggle" class="toggle-button ${window.rinasSettings.musicEnabled ? "on" : "off"}">${window.rinasSettings.musicEnabled ? "ON" : "OFF"}</button>
+                </div>
+                <label class="volume-row" for="music-volume">
+                  <span>Music volume</span>
+                  <input id="music-volume" type="range" min="0" max="100" step="1" value="${musicPercent}" ${window.rinasSettings.musicEnabled ? "" : "disabled"}>
+                  <output id="music-volume-output">${musicPercent}%</output>
+                </label>
+              </div>
             </div>
           </section>
 
@@ -7343,6 +7409,10 @@
       saveSettings();
       this.className = "toggle-button " + (window.rinasSettings.soundEffects ? "on" : "off");
       this.textContent = window.rinasSettings.soundEffects ? "ON" : "OFF";
+      document.getElementById("sfx-volume").disabled = !window.rinasSettings.soundEffects;
+      if (window.rinasAudio && window.rinasAudio.setSfxEnabled) {
+        window.rinasAudio.setSfxEnabled(window.rinasSettings.soundEffects);
+      }
       if (window.rinasSettings.soundEffects) playSound("ui");
     });
 
@@ -7351,6 +7421,30 @@
       window.rinasSettings.sfxVolume = value / 100;
       document.getElementById("sfx-volume-output").textContent = value + "%";
       saveSettings();
+      if (window.rinasAudio && window.rinasAudio.setSfxVolume) {
+        window.rinasAudio.setSfxVolume(window.rinasSettings.sfxVolume);
+      }
+    });
+
+    document.getElementById("background-music-toggle").addEventListener("click", function () {
+      window.rinasSettings.musicEnabled = !window.rinasSettings.musicEnabled;
+      saveSettings();
+      this.className = "toggle-button " + (window.rinasSettings.musicEnabled ? "on" : "off");
+      this.textContent = window.rinasSettings.musicEnabled ? "ON" : "OFF";
+      document.getElementById("music-volume").disabled = !window.rinasSettings.musicEnabled;
+      if (window.rinasAudio && window.rinasAudio.setMusicEnabled) {
+        window.rinasAudio.setMusicEnabled(window.rinasSettings.musicEnabled);
+      }
+    });
+
+    document.getElementById("music-volume").addEventListener("input", function () {
+      var value = Math.max(0, Math.min(100, Number(this.value || 0)));
+      window.rinasSettings.musicVolume = value / 100;
+      document.getElementById("music-volume-output").textContent = value + "%";
+      saveSettings();
+      if (window.rinasAudio && window.rinasAudio.setMusicVolume) {
+        window.rinasAudio.setMusicVolume(window.rinasSettings.musicVolume);
+      }
     });
 
     Array.prototype.forEach.call(overlay.querySelectorAll(".theme-choice"), function (button) {
