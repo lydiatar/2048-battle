@@ -12766,6 +12766,123 @@
   `;
   document.head.appendChild(v58Style);
 
+
+
+  // =========================================================
+  // v59: structural Solo stat chips
+  // =========================================================
+  // The original 2048 score elements are now only the numeric value.
+  // A dedicated outer wrapper owns the visual card. This prevents legacy
+  // .score-container/.best-container rules from flattening the corners.
+  var v59Style = document.createElement("style");
+  v59Style.id = "rinas-v59-structural-stat-chips";
+  v59Style.textContent = `
+    body.solo-active .rinas-stat-group {
+      display:flex !important;
+      align-items:center !important;
+      justify-content:flex-end !important;
+      gap:12px !important;
+      margin:0 !important;
+      padding:0 !important;
+      background:none !important;
+      border:0 !important;
+      box-shadow:none !important;
+      overflow:visible !important;
+    }
+
+    body.solo-active .rinas-stat-chip {
+      box-sizing:border-box !important;
+      width:112px !important;
+      height:66px !important;
+      padding:9px 12px 8px !important;
+      display:flex !important;
+      flex-direction:column !important;
+      align-items:center !important;
+      justify-content:center !important;
+      gap:5px !important;
+      border:1px solid color-mix(in srgb,var(--app-accent) 30%,var(--game-line)) !important;
+      border-radius:10px !important;
+      -webkit-border-radius:10px !important;
+      background:color-mix(in srgb,var(--game-panel-strong) 94%,var(--app-bg) 6%) !important;
+      color:var(--app-text) !important;
+      box-shadow:0 5px 14px color-mix(in srgb,var(--app-shadow) 14%,transparent) !important;
+      overflow:hidden !important;
+      clip-path:none !important;
+      -webkit-clip-path:none !important;
+      position:relative !important;
+    }
+
+    body.solo-active .rinas-stat-label {
+      display:block !important;
+      margin:0 !important;
+      padding:0 !important;
+      color:var(--app-muted) !important;
+      font:900 10px/1 var(--hud-display) !important;
+      letter-spacing:.11em !important;
+      text-align:center !important;
+      text-transform:uppercase !important;
+      white-space:nowrap !important;
+    }
+
+    /* Hard reset the legacy 2048 score boxes: number only. */
+    body.solo-active .rinas-stat-chip .score-container,
+    body.solo-active .rinas-stat-chip .best-container {
+      all:unset !important;
+      display:block !important;
+      width:auto !important;
+      height:auto !important;
+      min-width:0 !important;
+      min-height:0 !important;
+      margin:0 !important;
+      padding:0 !important;
+      background:transparent !important;
+      border:0 !important;
+      border-radius:0 !important;
+      box-shadow:none !important;
+      color:var(--app-text) !important;
+      font:900 21px/.95 var(--hud-display) !important;
+      letter-spacing:-.025em !important;
+      text-align:center !important;
+      overflow:visible !important;
+      position:static !important;
+      float:none !important;
+      transform:none !important;
+    }
+
+    body.solo-active .rinas-stat-chip .score-container::before,
+    body.solo-active .rinas-stat-chip .score-container::after,
+    body.solo-active .rinas-stat-chip .best-container::before,
+    body.solo-active .rinas-stat-chip .best-container::after {
+      content:none !important;
+      display:none !important;
+    }
+
+    body.solo-active .score-addition { display:none !important; }
+
+    /* Give the new cards the same breathing room as the command buttons. */
+    body.solo-active .container .heading {
+      margin-top:12px !important;
+      margin-bottom:13px !important;
+      min-height:70px !important;
+      align-items:center !important;
+    }
+
+    @media (max-width:900px) {
+      body.solo-active .rinas-stat-group { gap:8px !important; }
+      body.solo-active .rinas-stat-chip {
+        width:102px !important;
+        height:62px !important;
+        border-radius:10px !important;
+        padding:8px 10px 7px !important;
+      }
+      body.solo-active .rinas-stat-chip .score-container,
+      body.solo-active .rinas-stat-chip .best-container {
+        font-size:19px !important;
+      }
+    }
+  `;
+  document.head.appendChild(v59Style);
+
   restoreGameContainer();
   showMainMenu();
 
