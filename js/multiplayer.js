@@ -8994,32 +8994,46 @@
   function fitActiveGameToViewport() {
     var isSolo = document.body.classList.contains("solo-active");
     var shell = document.querySelector(".battle-shell");
+    var footer = document.getElementById("site-footer");
 
     document.body.classList.toggle("battle-fit-active", !!shell);
 
+    if (gameHost) gameHost.style.zoom = "1";
+    if (shell) shell.style.zoom = "1";
+
     if (window.innerWidth <= 900) {
-      if (gameHost) gameHost.style.zoom = "1";
-      if (shell) shell.style.zoom = "1";
       return;
     }
 
+    // Active Solo is measured against the REAL space left between the
+    // floating header and the fixed footer. This replaces the old
+    // window.innerHeight - 8 estimate, which ignored the header/footer
+    // and was the reason players had to zoom the browser out manually.
     if (isSolo && gameHost) {
-      gameHost.style.zoom = "1";
-      var soloNatural = Math.max(1, gameHost.scrollHeight);
-      var soloAvailable = Math.max(360, window.innerHeight - 8);
-      var soloZoom = Math.max(0.58, Math.min(1, soloAvailable / soloNatural));
-      gameHost.style.zoom = String(soloZoom);
-    } else if (gameHost) {
-      gameHost.style.zoom = "1";
+      var footerTop = footer
+        ? footer.getBoundingClientRect().top
+        : window.innerHeight - 10;
+      var hostTop = Math.max(0, gameHost.getBoundingClientRect().top);
+      var availableHeight = Math.max(360, footerTop - hostTop - 10);
+      var naturalHeight = Math.max(1, gameHost.scrollHeight);
+      var scale = Math.min(1, availableHeight / naturalHeight);
+
+      // Keep the board comfortably legible while guaranteeing the whole
+      // Solo HUD + controls + board fit at normal browser zoom.
+      scale = Math.max(0.68, scale);
+      gameHost.style.zoom = scale.toFixed(3);
     }
 
     if (shell) {
-      shell.style.zoom = "1";
+      var shellFooterTop = footer
+        ? footer.getBoundingClientRect().top
+        : window.innerHeight - 10;
       var shellTop = Math.max(0, shell.getBoundingClientRect().top);
+      var shellAvailable = Math.max(360, shellFooterTop - shellTop - 10);
       var shellNatural = Math.max(1, shell.scrollHeight);
-      var shellAvailable = Math.max(360, window.innerHeight - shellTop - 8);
-      var shellZoom = Math.max(0.58, Math.min(1, shellAvailable / shellNatural));
-      shell.style.zoom = String(shellZoom);
+      var shellScale = Math.min(1, shellAvailable / shellNatural);
+      shellScale = Math.max(0.68, shellScale);
+      shell.style.zoom = shellScale.toFixed(3);
     }
   }
 
@@ -11747,17 +11761,21 @@
        Same geometry everywhere; only the palette changes.
        ----------------------------------------------------- */
     body.theme-classic {
-      --approved-chip-bg:#fff8ee;
-      --approved-chip-border:#e5d4bf;
+      --approved-chip-top:rgba(255,255,255,.78);
+      --approved-chip-bottom:rgba(250,242,231,.78);
+      --approved-chip-border:rgba(164,139,111,.30);
+      --approved-chip-highlight:rgba(255,255,255,.92);
       --approved-chip-label:#8a786a;
       --approved-chip-text:#2c2723;
-      --approved-chip-shadow:rgba(83,59,40,.13);
+      --approved-chip-shadow:rgba(83,59,40,.12);
       --approved-icon-soft:#fff7ed;
       --approved-icon-tertiary:#efc44a;
     }
     body.theme-pastel {
-      --approved-chip-bg:#fbf9ff;
-      --approved-chip-border:#ddd5f2;
+      --approved-chip-top:rgba(255,255,255,.80);
+      --approved-chip-bottom:rgba(242,236,255,.80);
+      --approved-chip-border:rgba(153,132,205,.30);
+      --approved-chip-highlight:rgba(255,255,255,.94);
       --approved-chip-label:#7e7394;
       --approved-chip-text:#302c42;
       --approved-chip-shadow:rgba(89,73,128,.12);
@@ -11765,27 +11783,33 @@
       --approved-icon-tertiary:#f0c95a;
     }
     body.theme-ocean {
-      --approved-chip-bg:#153847;
-      --approved-chip-border:#326a79;
-      --approved-chip-label:#9ec6cf;
-      --approved-chip-text:#f4fcff;
-      --approved-chip-shadow:rgba(0,14,21,.28);
+      --approved-chip-top:rgba(238,252,255,.86);
+      --approved-chip-bottom:rgba(205,235,242,.82);
+      --approved-chip-border:rgba(73,153,174,.38);
+      --approved-chip-highlight:rgba(255,255,255,.94);
+      --approved-chip-label:#477684;
+      --approved-chip-text:#204a56;
+      --approved-chip-shadow:rgba(16,75,91,.18);
       --approved-icon-soft:#dff5f7;
       --approved-icon-tertiary:#f0c85a;
     }
     body.theme-candy {
-      --approved-chip-bg:#48223f;
-      --approved-chip-border:#86476f;
-      --approved-chip-label:#e8b6d0;
-      --approved-chip-text:#fff6fb;
-      --approved-chip-shadow:rgba(24,7,21,.30);
+      --approved-chip-top:rgba(255,249,253,.86);
+      --approved-chip-bottom:rgba(250,220,234,.82);
+      --approved-chip-border:rgba(214,93,145,.34);
+      --approved-chip-highlight:rgba(255,255,255,.95);
+      --approved-chip-label:#9b607b;
+      --approved-chip-text:#60384b;
+      --approved-chip-shadow:rgba(132,70,97,.16);
       --approved-icon-soft:#fff2f8;
       --approved-icon-tertiary:#f4c956;
     }
     body.theme-midnight {
-      --approved-chip-bg:#1d223b;
-      --approved-chip-border:#4b5482;
-      --approved-chip-label:#b6bddf;
+      --approved-chip-top:rgba(53,61,96,.82);
+      --approved-chip-bottom:rgba(31,37,64,.84);
+      --approved-chip-border:rgba(124,135,215,.42);
+      --approved-chip-highlight:rgba(226,231,255,.24);
+      --approved-chip-label:#c0c7e8;
       --approved-chip-text:#f7f8ff;
       --approved-chip-shadow:rgba(5,7,18,.34);
       --approved-icon-soft:#eef0ff;
@@ -11862,22 +11886,24 @@
     body.solo-active .best-container {
       box-sizing:border-box !important;
       position:relative !important;
-      width:112px !important;
-      min-width:112px !important;
-      height:66px !important;
-      min-height:66px !important;
+      width:118px !important;
+      min-width:118px !important;
+      height:72px !important;
+      min-height:72px !important;
       margin:0 !important;
       padding:28px 10px 8px !important;
       display:flex !important;
       align-items:flex-end !important;
       justify-content:center !important;
       border:1px solid var(--approved-chip-border) !important;
-      border-radius:13px !important;
-      background:var(--approved-chip-bg) !important;
-      box-shadow:0 7px 18px var(--approved-chip-shadow) !important;
+      border-radius:15px !important;
+      background:linear-gradient(145deg,var(--approved-chip-top),var(--approved-chip-bottom)) !important;
+      box-shadow:inset 0 1px 0 var(--approved-chip-highlight), 0 8px 22px var(--approved-chip-shadow) !important;
+      -webkit-backdrop-filter:blur(14px) saturate(1.08) !important;
+      backdrop-filter:blur(14px) saturate(1.08) !important;
       color:var(--approved-chip-text) !important;
-      font-family:var(--hud-display) !important;
-      font-size:25px !important;
+      font-family:"Nunito Sans",system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif !important;
+      font-size:24px !important;
       font-weight:900 !important;
       line-height:1 !important;
       letter-spacing:-.015em !important;
@@ -12152,6 +12178,62 @@
     }
   `;
   document.head.appendChild(v52Style);
+
+  // =========================================================
+  // v54: glass stat chips + real viewport fitting
+  // =========================================================
+  var v54Style = document.createElement("style");
+  v54Style.id = "rinas-v54-glass-fit";
+  v54Style.textContent = `
+    /* The approved Score / Best mockup is the source of truth:
+       soft glass, theme tint, passive information, no dark scoreboard strip. */
+    body.solo-active .score-container,
+    body.solo-active .best-container {
+      isolation:isolate !important;
+      overflow:hidden !important;
+    }
+    body.solo-active .score-container::before,
+    body.solo-active .best-container::before {
+      content:"" !important;
+      position:absolute !important;
+      inset:1px 1px auto 1px !important;
+      height:46% !important;
+      border-radius:14px 14px 45% 45% !important;
+      background:linear-gradient(to bottom,rgba(255,255,255,.18),rgba(255,255,255,0)) !important;
+      pointer-events:none !important;
+      z-index:-1 !important;
+    }
+
+    @media (min-width:901px) {
+      /* Old viewport-specific child zoom rules are intentionally neutralized.
+         JS now scales #game-host from the space that actually exists. */
+      body.solo-active .container {
+        zoom:1 !important;
+        margin:2px auto 0 !important;
+        padding-top:0 !important;
+      }
+      body.solo-active #solo-toolbar {
+        margin:8px auto 3px !important;
+        min-height:56px !important;
+      }
+      body.solo-active .solo-floating-header {
+        min-height:56px !important;
+        padding:5px 0 7px !important;
+      }
+      body.solo-active .container .heading {
+        margin-bottom:8px !important;
+      }
+      body.solo-active #game-host {
+        margin:0 !important;
+        transform-origin:top center !important;
+      }
+      body.solo-active #solo-control-strip {
+        margin-top:6px !important;
+        padding-top:4px !important;
+      }
+    }
+  `;
+  document.head.appendChild(v54Style);
 
   restoreGameContainer();
   showMainMenu();
