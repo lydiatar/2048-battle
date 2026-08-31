@@ -5639,9 +5639,15 @@
       window.rinasSettings.nickname = nickname;
       saveSettings();
 
-      closeOverlaySmoothly(overlay, function () {
-        if (onComplete) onComplete();
-      });
+      if (onComplete) {
+        overlay.classList.add("ui-overlay-leaving");
+        onComplete();
+        setTimeout(function () {
+          if (overlay.parentNode) overlay.remove();
+        }, 230);
+      } else {
+        closeOverlaySmoothly(overlay);
+      }
     }
 
     function cancelNickname() {
@@ -5802,7 +5808,9 @@
       }
 
       openNicknamePrompt(function () {
-        animateCurrentScreenOut(1, showMultiplayerMenu);
+        // Build the destination while the nickname overlay is fading out.
+        // This avoids a blank/refresh-like flash between the two screens.
+        showMultiplayerMenu();
       });
     });
   }
@@ -5965,7 +5973,7 @@
     actionRow.className = "solo-card-actions";
     actionRow.innerHTML = `
       <button class="small-button" id="solo-new">New Game</button>
-      <button class="small-button" id="solo-undo" data-no-ui-sound="true">Undo · Z</button>
+      <button class="small-button" id="solo-undo" data-no-ui-sound="true">Undo (Z)</button>
     `;
 
     var board = gameContainer.querySelector(".game-container");
@@ -6622,7 +6630,7 @@
       var controls = document.createElement("div");
       controls.className = "freeplay-controls";
       controls.innerHTML = `
-        <button class="small-button" id="freeplay-undo" data-no-ui-sound="true">Undo <span class="undo-shortcut">· Z</span></button>
+        <button class="small-button" id="freeplay-undo" data-no-ui-sound="true">Undo (Z)</button>
         <button class="small-button" id="freeplay-restart">Restart Board</button>
       `;
       ownPanel.appendChild(controls);
@@ -10759,6 +10767,321 @@
     }
   `;
   document.head.appendChild(v48Style);
+
+
+
+  // =========================================================
+  // v49: precision layout pass based on live desktop review
+  // =========================================================
+  var v49Style = document.createElement("style");
+  v49Style.id = "rinas-v49-style";
+  v49Style.textContent = `
+    /* A calmer tile numeral: readable like classic 2048, not chunky display type. */
+    .tile .tile-inner {
+      font-family: "Helvetica Neue", Arial, sans-serif !important;
+      font-weight: 700 !important;
+      letter-spacing: -.035em !important;
+    }
+
+    /* SOLO label must stay readable in every theme. */
+    .solo-mode-label {
+      color: var(--app-text) !important;
+      background: transparent !important;
+      opacity: .72 !important;
+      padding: 0 !important;
+      margin-top: 4px !important;
+    }
+
+    /* SETTINGS: Profile belongs to the centered identity block. */
+    .settings-profile-section > h3 {
+      text-align: center !important;
+      margin-bottom: 14px !important;
+    }
+    .settings-profile-section > h3::after {
+      left: 50% !important;
+      transform: translateX(-50%) !important;
+    }
+    .nickname-setting-centered {
+      margin-inline: auto !important;
+      text-align: center !important;
+    }
+    .nickname-setting-centered .field-label,
+    .nickname-setting-centered .settings-help {
+      text-align: center !important;
+    }
+
+    /* SOLO ENTRY: the middle divider is mathematically centered. */
+    .solo-launch-stats {
+      position: relative !important;
+      display: grid !important;
+      grid-template-columns: 1fr 1fr !important;
+      gap: 0 !important;
+    }
+    .solo-launch-stats::before {
+      content: "" !important;
+      position: absolute !important;
+      grid-column: auto !important;
+      grid-row: auto !important;
+      left: 50% !important;
+      top: 10% !important;
+      bottom: 10% !important;
+      width: 1px !important;
+      min-height: 0 !important;
+      transform: translateX(-.5px) !important;
+      background: color-mix(in srgb, var(--game-line) 72%, transparent) !important;
+      pointer-events: none !important;
+    }
+    .solo-launch-stat:first-child,
+    .solo-launch-stat:last-child {
+      grid-column: auto !important;
+    }
+    .solo-launch-stat {
+      padding-inline: 22px !important;
+    }
+    .solo-launch-actions {
+      width: min(300px, 100%) !important;
+      margin: 2px auto 0 !important;
+      justify-items: stretch !important;
+    }
+    .solo-main-action,
+    .solo-text-action {
+      width: 100% !important;
+      min-height: 48px !important;
+      margin: 0 !important;
+      border-radius: 12px !important;
+    }
+
+    /* ACTIVE SOLO: clean rounded Score/Best bubbles, no line collision. */
+    body.solo-active .container .heading {
+      display: flex !important;
+      justify-content: center !important;
+      align-items: center !important;
+      gap: 14px !important;
+      min-height: 66px !important;
+      margin: 0 0 10px !important;
+      padding: 0 !important;
+      border: 0 !important;
+      overflow: visible !important;
+    }
+    body.solo-active .container .heading::before,
+    body.solo-active .container .heading::after {
+      display: none !important;
+      content: none !important;
+    }
+    body.solo-active .container .title {
+      flex: 0 0 auto !important;
+      margin: 0 4px 0 0 !important;
+      font-family: "Helvetica Neue", Arial, sans-serif !important;
+      font-size: 43px !important;
+      font-weight: 800 !important;
+      letter-spacing: -.045em !important;
+      line-height: 1 !important;
+    }
+    body.solo-active .scores-container {
+      display: flex !important;
+      align-items: stretch !important;
+      width: auto !important;
+      gap: 8px !important;
+      padding: 0 !important;
+      margin: 0 !important;
+      border: 0 !important;
+      background: transparent !important;
+      box-shadow: none !important;
+      overflow: visible !important;
+    }
+    body.solo-active .score-container,
+    body.solo-active .best-container {
+      position: relative !important;
+      width: 92px !important;
+      min-width: 92px !important;
+      min-height: 62px !important;
+      padding: 25px 10px 8px !important;
+      display: flex !important;
+      justify-content: center !important;
+      align-items: flex-end !important;
+      border: 1px solid color-mix(in srgb, var(--app-accent) 20%, var(--game-line)) !important;
+      border-radius: 14px !important;
+      background: var(--app-soft, #eee4da) !important;
+      box-shadow: 0 7px 17px color-mix(in srgb, var(--app-shadow) 16%, transparent) !important;
+      color: var(--app-text) !important;
+      font-family: "Helvetica Neue", Arial, sans-serif !important;
+      font-size: 26px !important;
+      font-weight: 800 !important;
+      line-height: 1 !important;
+    }
+    body.solo-active .best-container { border-left-width: 1px !important; }
+    body.solo-active .score-container::after,
+    body.solo-active .best-container::after {
+      top: 8px !important;
+      left: 0 !important;
+      width: 100% !important;
+      text-align: center !important;
+      color: var(--app-muted) !important;
+      font-family: var(--hud-body) !important;
+      font-size: 10px !important;
+      font-weight: 800 !important;
+      letter-spacing: .09em !important;
+    }
+
+    body.solo-active .solo-card-actions {
+      width: 100% !important;
+      display: flex !important;
+      justify-content: space-between !important;
+      align-items: center !important;
+      gap: 12px !important;
+      margin: 0 0 9px !important;
+    }
+    body.solo-active .solo-card-actions .small-button {
+      min-width: 0 !important;
+      width: auto !important;
+      min-height: 36px !important;
+      padding: 0 13px !important;
+      border-radius: 10px !important;
+      font-size: 12px !important;
+      white-space: nowrap !important;
+    }
+    body.solo-active #solo-undo {
+      min-width: 88px !important;
+      justify-content: center !important;
+      padding-inline: 12px !important;
+    }
+
+    /* Mode screen: keep previews connected to the copy rather than stranded right. */
+    #mode-tile-race, #mode-freeplay, #mode-custom-race,
+    .mode-showcase {
+      grid-template-columns: minmax(0, 1fr) 230px !important;
+      gap: 16px !important;
+    }
+    .mode-showcase-preview {
+      width: 230px !important;
+      max-width: 100% !important;
+      justify-self: start !important;
+    }
+    .future-modes-strip {
+      display: flex !important;
+      align-items: center !important;
+      justify-content: center !important;
+      gap: 22px !important;
+      flex-wrap: wrap !important;
+      margin: 12px 0 30px !important;
+      line-height: 1.35 !important;
+    }
+    .future-modes-strip > span {
+      display: inline-flex !important;
+      gap: 6px !important;
+      align-items: baseline !important;
+      white-space: nowrap !important;
+    }
+
+    /* Custom Race/setup screens reserve real space for the footer and fit desktop height. */
+    .screen-custom-race-lobby .app-screen-inner,
+    .screen-tile-race-lobby .app-screen-inner,
+    .screen-freeplay-lobby .app-screen-inner {
+      padding-top: 14px !important;
+      padding-bottom: 34px !important;
+    }
+    .screen-custom-race-lobby .app-header,
+    .screen-tile-race-lobby .app-header,
+    .screen-freeplay-lobby .app-header {
+      margin-bottom: 10px !important;
+    }
+    .screen-custom-race-lobby .rules-card,
+    .screen-tile-race-lobby .rules-card,
+    .screen-freeplay-lobby .rules-card {
+      margin: 8px 0 10px !important;
+      padding: 13px 17px !important;
+      border-radius: 15px !important;
+    }
+    .screen-custom-race-lobby .rules-card ul,
+    .screen-tile-race-lobby .rules-card ul,
+    .screen-freeplay-lobby .rules-card ul {
+      margin: 7px 0 0 18px !important;
+    }
+    .screen-custom-race-lobby .rules-card li,
+    .screen-tile-race-lobby .rules-card li,
+    .screen-freeplay-lobby .rules-card li {
+      margin: 2px 0 !important;
+      line-height: 1.26 !important;
+    }
+    .screen-custom-race-lobby .race-columns,
+    .screen-tile-race-lobby .race-columns,
+    .screen-freeplay-lobby .race-columns {
+      gap: 12px !important;
+    }
+    .screen-custom-race-lobby .race-box,
+    .screen-tile-race-lobby .race-box,
+    .screen-freeplay-lobby .race-box {
+      padding: 14px 17px !important;
+      border-radius: 15px !important;
+    }
+    .screen-custom-race-lobby .custom-target-grid { gap: 10px !important; }
+    .screen-custom-race-lobby .custom-target-panel { padding: 10px !important; }
+    .screen-custom-race-lobby .target-picker { gap: 5px !important; }
+    .screen-custom-race-lobby .target-button { min-height: 32px !important; }
+
+    /* Footer remains subtle, but content no longer sits underneath it. */
+    #site-footer {
+      bottom: 5px !important;
+      opacity: .42 !important;
+      font-size: 10px !important;
+    }
+    .app-screen-inner { padding-bottom: 30px !important; }
+
+
+
+    /* Multiplayer menu must fit a 748px desktop viewport without hiding future modes/footer. */
+    .screen-multiplayer-menu .app-screen-inner { padding-top: 8px !important; }
+    .screen-multiplayer-menu .app-header { margin-bottom: 8px !important; min-height: 76px !important; }
+    .screen-multiplayer-menu .multiplayer-entry-head { margin: 2px 0 8px !important; min-height: 48px !important; }
+    .mode-showcase-list { gap: 10px !important; }
+    #mode-tile-race, #mode-freeplay, #mode-custom-race, .mode-showcase {
+      height: 145px !important;
+      min-height: 145px !important;
+      padding: 12px 18px !important;
+      grid-template-columns: minmax(0, 610px) 210px !important;
+      justify-content: start !important;
+      gap: 12px !important;
+    }
+    .mode-showcase h2 { font-size: 25px !important; }
+    .mode-showcase p { margin-bottom: 6px !important; font-size: 13px !important; line-height: 1.25 !important; }
+    .mode-showcase-facts { margin-bottom: 4px !important; }
+    .mode-showcase-preview { width: 210px !important; min-height: 96px !important; }
+    .mode-showcase .ui-mini-board { width: 70px !important; height: 70px !important; }
+    .mode-visual-player b { margin-bottom: 2px !important; }
+    .mode-visual-player > span { margin-top: 2px !important; font-size: 14px !important; }
+    .mode-freeplay-visual { grid-template-columns: 70px minmax(0,1fr) !important; gap: 9px !important; }
+    .undo-loop { gap: 5px !important; font-size: 8px !important; white-space: nowrap !important; }
+    .undo-loop i { font-size: 19px !important; }
+    .mode-showcase-facts { margin-top: 6px !important; margin-bottom: 3px !important; }
+    .mode-showcase-action { margin-top: 6px !important; }
+    .future-modes-strip { margin: 8px 0 26px !important; gap: 18px !important; }
+
+    /* Settings must fit in a 748px desktop page viewport without clipping themes. */
+    .settings-overlay { padding: 14px !important; }
+    .settings-dialog.settings-dialog-v40 {
+      max-height: calc(100vh - 28px) !important;
+    }
+    .settings-dialog-header { padding-top: 14px !important; padding-bottom: 12px !important; min-height: 62px !important; }
+    .settings-grid-v40 { padding-top: 10px !important; padding-bottom: 14px !important; gap: 11px 32px !important; }
+    .settings-profile-section > h3 { margin-bottom: 8px !important; }
+    .nickname-setting-centered { gap: 4px !important; }
+    .nickname-setting-centered .settings-help { margin-top: 2px !important; }
+    .settings-section h3 { margin-bottom: 8px !important; }
+    .settings-help { margin-bottom: 8px !important; }
+    .control-choice-visual-row { margin-top: 7px !important; }
+    .control-choice-visual { min-height: 86px !important; }
+    .settings-inline-toggle { margin-top: 7px !important; padding-top: 7px !important; }
+    .volume-row { margin-top: 10px !important; }
+    .theme-grid { margin-top: 4px !important; }
+
+    @media (max-width: 900px) {
+      .solo-launch-stats::before { top: 12%; bottom: 12%; }
+      #mode-tile-race, #mode-freeplay, #mode-custom-race,
+      .mode-showcase { grid-template-columns: 1fr !important; }
+      .mode-showcase-preview { width: 100% !important; justify-self: stretch !important; }
+    }
+  `;
+  document.head.appendChild(v49Style);
 
   restoreGameContainer();
   showMainMenu();
