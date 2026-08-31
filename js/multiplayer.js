@@ -12342,6 +12342,153 @@
   `;
   document.head.appendChild(v55Style);
 
+
+  // =========================================================
+  // v56: soft theme cards for Score / Best — no glass
+  // =========================================================
+  var v56Style = document.createElement("style");
+  v56Style.id = "rinas-v56-soft-stat-cards";
+  v56Style.textContent = `
+    /*
+      SCORE / BEST — approved mockup treatment.
+      These are quiet information cards, not glass and not dark HUD blocks.
+      The surface sits close to the current game background; the outline is
+      just strong enough to define the rounded shape, like multiplayer cards.
+    */
+    body.solo-active .scores-container {
+      display:flex !important;
+      align-items:stretch !important;
+      justify-content:flex-start !important;
+      gap:12px !important;
+      width:auto !important;
+      min-width:0 !important;
+      margin:0 !important;
+      padding:0 !important;
+      background:transparent !important;
+      border:0 !important;
+      box-shadow:none !important;
+      overflow:visible !important;
+    }
+
+    body.solo-active .score-container,
+    body.solo-active .best-container {
+      box-sizing:border-box !important;
+      position:relative !important;
+      width:118px !important;
+      min-width:118px !important;
+      height:72px !important;
+      min-height:72px !important;
+      margin:0 !important;
+      padding:29px 12px 9px !important;
+      display:flex !important;
+      align-items:flex-end !important;
+      justify-content:center !important;
+      border-radius:15px !important;
+      border:1.5px solid var(--stat-card-border) !important;
+      border-left:1.5px solid var(--stat-card-border) !important;
+      background:var(--stat-card-bg) !important;
+      background-image:none !important;
+      box-shadow:none !important;
+      -webkit-backdrop-filter:none !important;
+      backdrop-filter:none !important;
+      color:var(--stat-card-text) !important;
+      font-family:var(--hud-display) !important;
+      font-size:24px !important;
+      font-weight:900 !important;
+      line-height:1 !important;
+      letter-spacing:-.015em !important;
+      text-align:center !important;
+      overflow:hidden !important;
+      pointer-events:none !important;
+      cursor:default !important;
+    }
+
+    /* Remove the old glass highlight that created the dark / shiny corners. */
+    body.solo-active .score-container::before,
+    body.solo-active .best-container::before {
+      content:none !important;
+      display:none !important;
+      background:none !important;
+    }
+
+    body.solo-active .score-container::after,
+    body.solo-active .best-container::after {
+      position:absolute !important;
+      top:10px !important;
+      left:0 !important;
+      right:0 !important;
+      width:100% !important;
+      margin:0 !important;
+      color:var(--stat-card-label) !important;
+      font-family:var(--hud-display) !important;
+      font-size:9px !important;
+      font-weight:900 !important;
+      line-height:1 !important;
+      letter-spacing:.12em !important;
+      text-align:center !important;
+      text-transform:uppercase !important;
+    }
+    body.solo-active .score-container::after { content:"SCORE" !important; }
+    body.solo-active .best-container::after { content:"BEST" !important; }
+
+    /* Classic: almost the same cream as the page, with a darker warm edge. */
+    body.theme-classic {
+      --stat-card-bg:#f7f1e7;
+      --stat-card-border:#b9aa99;
+      --stat-card-text:#2c2825;
+      --stat-card-label:#74695f;
+    }
+
+    /* Pastel: soft lilac-white surface, no transparency. */
+    body.theme-pastel {
+      --stat-card-bg:#f7f4ff;
+      --stat-card-border:#aaa0c4;
+      --stat-card-text:#312e43;
+      --stat-card-label:#756d8a;
+    }
+
+    /* Ocean: pale blue surface that stays close to the game background. */
+    body.theme-ocean {
+      --stat-card-bg:#102a35;
+      --stat-card-border:#376674;
+      --stat-card-text:#e9fbff;
+      --stat-card-label:#a9d5df;
+    }
+
+    /* Candy: muted plum surface like the multiplayer cards. */
+    body.theme-candy {
+      --stat-card-bg:#32162e;
+      --stat-card-border:#74415f;
+      --stat-card-text:#fff2fb;
+      --stat-card-label:#e3bad0;
+    }
+
+    /* Midnight: same family as the page/card background — never black. */
+    body.theme-midnight {
+      --stat-card-bg:#15182b;
+      --stat-card-border:#4a4f78;
+      --stat-card-text:#f3f4ff;
+      --stat-card-label:#bdc3e4;
+    }
+
+    /* Keep the chips clear of the header divider. */
+    body.solo-active .container .heading {
+      align-items:center !important;
+      column-gap:14px !important;
+    }
+
+    @media (max-width:900px) {
+      body.solo-active .score-container,
+      body.solo-active .best-container {
+        width:108px !important;
+        min-width:108px !important;
+        height:66px !important;
+        min-height:66px !important;
+      }
+    }
+  `;
+  document.head.appendChild(v56Style);
+
   restoreGameContainer();
   showMainMenu();
 
