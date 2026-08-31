@@ -59,6 +59,13 @@
   var opponentProgressText = null;
   var ownProgressNote = null;
   var opponentProgressNote = null;
+  var raceSpineElement = null;
+  var raceSpineTrack = null;
+  var raceSpineFill = null;
+  var raceSpineLocalMarker = null;
+  var raceSpineOpponentMarker = null;
+  var raceSpineLocalTarget = null;
+  var raceSpineOpponentTarget = null;
   var ownNicknameDisplay = null;
   var opponentNicknameDisplay = null;
   var ownRankBadge = null;
@@ -6082,7 +6089,34 @@
     if (row) row.remove();
   }
 
+  function removeSoloGameplayLayout() {
+    var layout = document.getElementById("solo-gameplay-layout");
+    if (!layout) return;
+    if (gameContainer.parentNode !== gameHost) gameHost.appendChild(gameContainer);
+    layout.remove();
+  }
+
+  function nextSoloMilestone(highest) {
+    var value = Math.max(2, Number(highest || 2));
+    if (value < 128) return 128;
+    var next = 128;
+    while (next <= value) next *= 2;
+    return next;
+  }
+
+  window.updateSoloGameplayHud = function (score, highest, best) {
+    var scoreNode = document.getElementById("solo-live-score");
+    var bestNode = document.getElementById("solo-live-best");
+    var highestNode = document.getElementById("solo-live-highest");
+    var nextNode = document.getElementById("solo-next-milestone");
+    if (scoreNode) scoreNode.textContent = Number(score || 0).toLocaleString();
+    if (bestNode) bestNode.textContent = Number(best || 0).toLocaleString();
+    if (highestNode) highestNode.textContent = Number(highest || 0).toLocaleString();
+    if (nextNode) nextNode.textContent = Number(nextSoloMilestone(highest || 2)).toLocaleString();
+  };
+
   function renderSoloChrome() {
+    removeSoloGameplayLayout();
     soloToolbar.innerHTML = `
       <div class="solo-floating-header">
         <div><button class="nav-button icon-text-button" id="solo-back">${uiIcon("back", "button-icon")}<span>Back</span></button></div>
@@ -6095,32 +6129,35 @@
         </div>
       </div>
     `;
-
     soloToolbar.style.display = "block";
+
+    var layout = document.createElement("div");
+    layout.id = "solo-gameplay-layout";
+    layout.className = "solo-gameplay-layout direction-a";
+    layout.innerHTML = `
+      <aside class="solo-gameplay-context">
+        <span>ENDLESS SOLO</span>
+        <h2>Stay in the flow.</h2>
+        <p>Keep building. 2048 is a milestone, not the finish.</p>
+      </aside>
+      <main class="solo-gameplay-center">
+        <div class="solo-gameplay-stat-rail" aria-label="Current Solo stats">
+          <div><span>SCORE</span><strong id="solo-live-score">0</strong></div>
+          <div><span>BEST</span><strong id="solo-live-best">0</strong></div>
+          <div><span>HIGHEST</span><strong id="solo-live-highest">0</strong></div>
+        </div>
+      </main>
+      <aside class="solo-gameplay-actions">
+        <button class="primary-button" id="solo-new">New Game</button>
+        <div class="solo-next-milestone"><span>NEXT MILESTONE</span><strong id="solo-next-milestone">4096</strong><p>Keep this board alive and climb.</p></div>
+      </aside>
+    `;
+    gameHost.appendChild(layout);
+    var center = layout.querySelector(".solo-gameplay-center");
+    center.appendChild(gameContainer);
 
     document.getElementById("solo-back").addEventListener("click", showSoloMenu);
     document.getElementById("solo-settings").addEventListener("click", openSettings);
-
-    removeSoloActionRow();
-
-    var actionRow = document.createElement("div");
-    actionRow.id = "solo-card-actions";
-    actionRow.className = "solo-card-actions";
-    actionRow.innerHTML = `
-      <button class="small-button solo-command-button" id="solo-new">${uiIcon("new", "button-icon")}<span>New Game</span></button>
-    `;
-
-    var board = gameContainer.querySelector(".game-container");
-    gameContainer.insertBefore(actionRow, board);
-
-    var existingStrip = document.getElementById("solo-control-strip");
-    if (existingStrip) existingStrip.remove();
-
-    var controlStrip = document.createElement("div");
-    controlStrip.id = "solo-control-strip";
-    controlStrip.innerHTML = soloControlsMarkup();
-    gameContainer.insertBefore(controlStrip, board.nextSibling);
-
     document.getElementById("solo-new").addEventListener("click", function () {
       openGameConfirm({
         title: "Start a new game?",
@@ -6131,6 +6168,18 @@
       });
     });
 
+    removeSoloActionRow();
+    var existingStrip = document.getElementById("solo-control-strip");
+    if (existingStrip) existingStrip.remove();
+    var board = gameContainer.querySelector(".game-container");
+    var controlStrip = document.createElement("div");
+    controlStrip.id = "solo-control-strip";
+    controlStrip.innerHTML = soloControlsMarkup();
+    gameContainer.insertBefore(controlStrip, board.nextSibling);
+
+    withGame(function (game) {
+      window.updateSoloGameplayHud(game.score, game.getHighestTileValue(), game.storageManager.getBestScore());
+    });
     window.refreshSoloControls();
   }
 
@@ -6340,29 +6389,51 @@
 
   function roomJoinMarkup() {
     return `
-      <div class="race-box">
-        <h2>Join Game</h2>
-        <p>Enter the room code your friend sent you.</p>
-        <input id="room-code" class="room-input" maxlength="6" placeholder="ROOM CODE" autocomplete="off">
-        <button class="primary-button" id="join-room">Join Game</button>
-      </div>
+      <section class="match-setup-join" aria-label="Join a room">
+        <span class="match-setup-kicker">JOIN A ROOM</span>
+        <h2>Enter a room code.</h2>
+        <p>Paste the six-character code your friend sent you.</p>
+        <input id="room-code" class="match-room-input" maxlength="6" placeholder="SS4MAL" autocomplete="off" autocapitalize="characters" spellcheck="false">
+        <button class="primary-button" id="join-room">Join Match</button>
+      </section>
     `;
   }
 
+  function normalizeRoomCode(value) {
+    return String(value || "").toUpperCase().replace(/[^A-Z0-9]/g, "").slice(0, 6);
+  }
+
   function bindJoinRoom() {
-    document.getElementById("join-room").addEventListener("click", function () {
-      var input = document.getElementById("room-code");
+    var input = document.getElementById("room-code");
+    var joinButton = document.getElementById("join-room");
+    if (!input || !joinButton) return;
+
+    input.addEventListener("input", function () {
+      var normalized = normalizeRoomCode(input.value);
+      if (input.value !== normalized) input.value = normalized;
+    });
+
+    input.addEventListener("keydown", function (event) {
+      if (event.key === "Enter") {
+        event.preventDefault();
+        joinButton.click();
+      }
+    });
+
+    joinButton.addEventListener("click", function () {
       var status = document.getElementById("lobby-status");
-      var code = input.value.trim().toUpperCase();
+      var code = normalizeRoomCode(input.value);
+      input.value = code;
 
       if (code.length !== 6) {
-        status.textContent = "Please enter a 6-character room code.";
+        if (status) status.textContent = "Please enter a 6-character room code.";
+        input.focus();
         return;
       }
 
       currentRoomCode = code;
       window.multiplayerRoomCode = code;
-      status.textContent = "Joining room...";
+      if (status) status.textContent = "Joining room...";
       this.disabled = true;
 
       socket.emit("joinRoom", {
@@ -6391,37 +6462,63 @@
     });
   }
 
+  function modeSetupSummary(mode) {
+    if (mode === "freeplay") {
+      return {
+        kicker: "02 · CASUAL",
+        title: "Freeplay Duel",
+        copy: "No finish line. Build side-by-side, use one-step Undo with Z, and restart your own board whenever you want.",
+        facts: ["No finish line", "One-step Undo", "Restart anytime"]
+      };
+    }
+    if (mode === "custom-race") {
+      return {
+        kicker: "03 · HANDICAP",
+        title: "Custom Race",
+        copy: "Give each player a different finish tile. The targets stay visible and the race compares progress transparently.",
+        facts: ["Different targets", "No Undo", "A stuck board loses"]
+      };
+    }
+    return {
+      kicker: "01 · COMPETITIVE",
+      title: "Tile Race",
+      copy: "First to the shared target wins. No Undo. If your board gets stuck before the target, you lose.",
+      facts: ["First to target", "No Undo", "A stuck board loses"]
+    };
+  }
+
+  function setupFactsMarkup(facts) {
+    return '<div class="match-setup-facts">' + facts.map(function (fact) {
+      return '<span>' + escapeHtml(fact) + '</span>';
+    }).join("") + '</div>';
+  }
+
   function showTileRaceLobby() {
     window.currentGameMode = "tile-race-lobby";
     window.multiplayerMode = false;
     window.multiplayerMatchActive = false;
     window.multiplayerGameOver = false;
+    var info = modeSetupSummary("tile-race");
 
     showScreen(
       "Tile Race",
       function () { leaveRoomSilently(); showMultiplayerMenu(); },
       `
-        <div class="rules-card">
-          <strong>Tile Race Rules</strong>
-          <ul>
-            <li>First player to make the target tile wins.</li>
-            <li>Both players use standard 2048 rules with no Undo.</li>
-            <li>If your board has no legal moves before you reach the target, you lose.</li>
-            <li>The live race meter shows who is closer to the finish.</li>
-            <li>Score does not decide the winner.</li>
-          </ul>
-        </div>
-
-        <div class="race-columns">
-          <div class="race-box">
-            <h2>Create Race</h2>
-            <p>Choose a shared target.</p>
-            <div class="target-picker" id="target-picker">${targetButtons(TARGETS, selectedTarget, "shared-target")}</div>
-            <button class="primary-button" id="create-room">Create Game</button>
-          </div>
+        <div class="match-setup-screen">
+          <section class="match-setup-create">
+            <span class="match-setup-kicker">${info.kicker}</span>
+            <h2>${info.title}</h2>
+            <p>${info.copy}</p>
+            ${setupFactsMarkup(info.facts)}
+            <div class="match-target-section">
+              <span class="match-setup-kicker">SHARED TARGET</span>
+              <div class="target-picker match-target-picker" id="target-picker">${targetButtons(TARGETS, selectedTarget, "shared-target")}</div>
+            </div>
+            <button class="primary-button match-create-button" id="create-room">Create Race</button>
+          </section>
           ${roomJoinMarkup()}
         </div>
-        <p class="status-text" id="lobby-status"></p>
+        <p class="status-text match-setup-status" id="lobby-status"></p>
       `
     );
 
@@ -6449,31 +6546,27 @@
     window.multiplayerMode = false;
     window.multiplayerMatchActive = false;
     window.multiplayerGameOver = false;
+    var info = modeSetupSummary("freeplay");
 
     showScreen(
       "Freeplay Duel",
       function () { leaveRoomSilently(); showMultiplayerMenu(); },
       `
-        <div class="rules-card">
-          <strong>Freeplay Rules</strong>
-          <ul>
-            <li>There is no winner and no elimination.</li>
-            <li>Play side-by-side for as long as you like and watch each other's board.</li>
-            <li>Each successful move earns one single-step Undo. Press Z to use it.</li>
-            <li>If your board gets stuck, Undo the last move or restart your own board; your opponent keeps playing.</li>
-            <li>Score and Highest are shown for friendly comparison only.</li>
-          </ul>
-        </div>
-
-        <div class="race-columns">
-          <div class="race-box">
-            <h2>Create Freeplay</h2>
-            <p>Open a relaxed room with no finish line.</p>
-            <button class="primary-button" id="create-room">Create Game</button>
-          </div>
+        <div class="match-setup-screen">
+          <section class="match-setup-create">
+            <span class="match-setup-kicker">${info.kicker}</span>
+            <h2>${info.title}</h2>
+            <p>${info.copy}</p>
+            ${setupFactsMarkup(info.facts)}
+            <div class="freeplay-setup-controls">
+              ${movementKeysMarkup(true)}
+              <div class="control-key-row compact"><span class="control-label">UNDO</span><kbd>Z</kbd></div>
+            </div>
+            <button class="primary-button match-create-button" id="create-room">Create Freeplay</button>
+          </section>
           ${roomJoinMarkup()}
         </div>
-        <p class="status-text" id="lobby-status"></p>
+        <p class="status-text match-setup-status" id="lobby-status"></p>
       `
     );
 
@@ -6495,42 +6588,33 @@
     window.multiplayerMode = false;
     window.multiplayerMatchActive = false;
     window.multiplayerGameOver = false;
+    var info = modeSetupSummary("custom-race");
 
     showScreen(
       "Custom Race",
       function () { leaveRoomSilently(); showMultiplayerMenu(); },
       `
-        <div class="rules-card">
-          <strong>Custom Race</strong>
-          <ul>
-            <li>Each player can have a different target tile.</li>
-            <li>Use a lower target for the newer player and a higher target for the stronger player.</li>
-            <li>First player to reach their own target wins.</li>
-            <li>There is no Undo. If your board gets stuck, you lose.</li>
-            <li>The live meter compares percentage progress toward each player's own target.</li>
-          </ul>
-        </div>
-
-        <div class="race-columns">
-          <div class="race-box">
-            <h2>Create Custom Race</h2>
-            <div class="custom-target-grid">
+        <div class="match-setup-screen custom">
+          <section class="match-setup-create">
+            <span class="match-setup-kicker">${info.kicker}</span>
+            <h2>${info.title}</h2>
+            <p>${info.copy}</p>
+            ${setupFactsMarkup(info.facts)}
+            <div class="custom-target-grid match-custom-targets">
               <div class="custom-target-panel">
-                <h3>Your target</h3>
-                <p>Player 1 / room creator</p>
+                <span class="match-setup-kicker">YOUR TARGET</span>
                 <div class="target-picker">${targetButtons(CUSTOM_TARGETS, selectedCustomHostTarget, "host-target")}</div>
               </div>
               <div class="custom-target-panel">
-                <h3>Opponent target</h3>
-                <p>Player 2 / person joining</p>
+                <span class="match-setup-kicker">OPPONENT TARGET</span>
                 <div class="target-picker">${targetButtons(CUSTOM_TARGETS, selectedCustomGuestTarget, "guest-target")}</div>
               </div>
             </div>
-            <button class="primary-button" id="create-room">Create Game</button>
-          </div>
+            <button class="primary-button match-create-button" id="create-room">Create Custom Race</button>
+          </section>
           ${roomJoinMarkup()}
         </div>
-        <p class="status-text" id="lobby-status"></p>
+        <p class="status-text match-setup-status" id="lobby-status"></p>
       `
     );
 
@@ -6575,23 +6659,89 @@
     currentRoomCode = data.roomCode;
     window.multiplayerRoomCode = data.roomCode;
     var mode = data.mode || "tile-race";
+    var info = modeSetupSummary(mode);
+    var code = normalizeRoomCode(data.roomCode);
+    var ownName = sanitizeNickname(window.rinasSettings.nickname) || "Player 1";
+    var targetCopy = mode === "tile-race"
+      ? '<span>Target ' + Number(data.targetTile || 2048) + '</span>'
+      : mode === "custom-race"
+        ? '<span>Your target ' + Number(data.ownTarget || 2048) + '</span><span>Opponent target ' + Number(data.opponentTarget || 2048) + '</span>'
+        : '<span>No finish line</span>';
 
     showScreen(
       modeTitle(mode),
       function () { leaveRoomSilently(); backToLobbyForMode(mode); },
       `
-        <div class="race-box" style="max-width:520px;margin:0 auto;text-align:center;">
-          <h2>Room Created</h2>
-          <p>Send this code to your opponent:</p>
-          <div class="room-code-display">${escapeHtml(data.roomCode)}</div>
-          ${mode === "tile-race" ? '<p><strong>Target:</strong> ' + Number(data.targetTile || 2048) + '</p>' : ""}
-          ${mode === "custom-race" ? '<p><strong>Your target:</strong> ' + Number(data.ownTarget || 2048) + ' &nbsp;·&nbsp; <strong>Opponent target:</strong> ' + Number(data.opponentTarget || 2048) + '</p>' : ""}
-          ${mode === "freeplay" ? '<p><strong>Mode:</strong> No finish line, no elimination.</p>' : ""}
-          <p><strong>Playing as:</strong> ${escapeHtml(sanitizeNickname(window.rinasSettings.nickname) || "Player 1")}</p>
-          <p>Waiting for Player 2 to join...</p>
+        <div class="match-staging-screen">
+          <section class="match-staging-code">
+            <span class="match-setup-kicker">MATCH STAGING</span>
+            <h2>Invite your opponent.</h2>
+            <p>Share this room code. The full six-character value copies as one item.</p>
+            <div class="match-room-code-block">
+              <span class="match-setup-kicker">ROOM CODE</span>
+              <div class="match-room-code-row">
+                <span class="match-room-code" id="match-room-code" role="button" tabindex="0" aria-label="Copy room code ${escapeHtml(code)}">${escapeHtml(code.slice(0,3))}<span aria-hidden="true"></span>${escapeHtml(code.slice(3))}</span>
+                <button class="match-copy-code" id="match-copy-code" type="button">Copy</button>
+              </div>
+              <p class="match-copy-status" id="match-copy-status">Share ${escapeHtml(code)} with your opponent.</p>
+            </div>
+            <div class="match-staging-mode">
+              <span class="match-setup-kicker">${info.kicker}</span>
+              <strong>${info.title}</strong>
+              <div class="match-staging-mode-facts">${targetCopy}${setupFactsMarkup(info.facts)}</div>
+            </div>
+          </section>
+
+          <section class="match-staging-players" aria-label="Players in room">
+            <span class="match-setup-kicker">PLAYERS</span>
+            <div class="match-staging-player ready"><div><strong>${escapeHtml(ownName)}</strong><span><i></i>Ready</span></div><b>YOU</b></div>
+            <div class="match-staging-player waiting"><div><strong>Player 2</strong><span><i></i>Waiting to join</span></div><b>OPPONENT</b></div>
+            <p class="match-staging-wait">The match starts automatically when Player 2 joins.</p>
+          </section>
         </div>
       `
     );
+
+    function copyRoomCode() {
+      var status = document.getElementById("match-copy-status");
+      var button = document.getElementById("match-copy-code");
+      var onSuccess = function () {
+        if (button) button.textContent = "✓ Copied";
+        if (status) status.textContent = "Copied " + code;
+        window.setTimeout(function () {
+          if (button) button.textContent = "Copy";
+          if (status) status.textContent = "Share " + code + " with your opponent.";
+        }, 1300);
+      };
+
+      function selectFallback() {
+        var node = document.getElementById("match-room-code");
+        if (node && window.getSelection && document.createRange) {
+          var range = document.createRange();
+          range.selectNodeContents(node);
+          var selection = window.getSelection();
+          selection.removeAllRanges();
+          selection.addRange(range);
+        }
+        if (status) status.textContent = "Room code selected — press Cmd/Ctrl+C to copy.";
+      }
+
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(code).then(onSuccess).catch(selectFallback);
+      } else {
+        selectFallback();
+      }
+    }
+
+    var roomCodeNode = document.getElementById("match-room-code");
+    roomCodeNode.addEventListener("click", copyRoomCode);
+    roomCodeNode.addEventListener("keydown", function (event) {
+      if (event.key === "Enter" || event.key === " ") {
+        event.preventDefault();
+        copyRoomCode();
+      }
+    });
+    document.getElementById("match-copy-code").addEventListener("click", copyRoomCode);
   }
 
   // =========================================================
@@ -6653,6 +6803,79 @@
     return Math.max(0, Math.min(1, currentStep / totalSteps));
   }
 
+  function powerStep(value) {
+    value = Math.max(2, Number(value || 2));
+    return Math.max(1, Math.round(Math.log(value) / Math.LN2));
+  }
+
+  function spinePositionPercent(value, maxTarget) {
+    var startStep = 1;
+    var targetStep = Math.max(startStep + 1, powerStep(maxTarget));
+    var currentStep = Math.max(startStep, Math.min(targetStep, powerStep(value)));
+    var ratio = (currentStep - startStep) / (targetStep - startStep);
+    return 92 - (ratio * 82);
+  }
+
+  function raceSpineTicks(maxTarget) {
+    var maxStep = powerStep(maxTarget);
+    var candidates = [maxStep, maxStep - 1, maxStep - 2, Math.round((maxStep + 1) / 2), Math.max(2, maxStep - 5)];
+    var seen = {};
+    return candidates.filter(function (step) {
+      if (step <= 1 || step > maxStep || seen[step]) return false;
+      seen[step] = true;
+      return true;
+    }).sort(function (a, b) { return b - a; }).slice(0, 5).map(function (step) {
+      return Math.pow(2, step);
+    });
+  }
+
+  function createRaceSpineHtml(mode, ownTarget, opponentTarget) {
+    var maxTarget = Math.max(ownTarget, opponentTarget, 4);
+    var ticks = raceSpineTicks(maxTarget);
+    var isCustom = mode === "custom-race";
+    var tickHtml = ticks.map(function (value) {
+      return '<span class="race-spine-tick" data-value="' + value + '" style="top:' + spinePositionPercent(value, maxTarget) + '%"><i></i><b>' + value + '</b></span>';
+    }).join("");
+
+    var targetFlags = isCustom
+      ? '<span class="race-target-flag local" id="race-local-target" style="top:' + spinePositionPercent(ownTarget, maxTarget) + '%"><b>' + ownTarget + '</b><small>YOUR TARGET</small></span>' +
+        '<span class="race-target-flag opponent" id="race-opponent-target" style="top:' + spinePositionPercent(opponentTarget, maxTarget) + '%"><b>' + opponentTarget + '</b><small>OPPONENT TARGET</small></span>'
+      : '<span class="race-spine-target"><b>' + ownTarget + '</b><small>TARGET</small></span>';
+
+    return '<div class="race-spine" id="race-spine" data-max-target="' + maxTarget + '" data-mode="' + escapeHtml(mode) + '">' +
+      targetFlags +
+      '<div class="race-spine-track" id="race-spine-track"><span class="race-spine-fill" id="race-spine-fill"></span></div>' +
+      tickHtml +
+      '<span class="race-spine-marker local" id="race-spine-local-marker"><span class="marker-copy"><strong>' + escapeHtml(getOwnNickname()) + '</strong><small>2</small></span><i></i></span>' +
+      '<span class="race-spine-marker opponent" id="race-spine-opponent-marker"><i></i><span class="marker-copy"><strong>' + escapeHtml(getOpponentNickname()) + '</strong><small>2</small></span></span>' +
+      '<span class="race-spine-start">START</span>' +
+    '</div>';
+  }
+
+  function updateRaceSpine(ownHighest, opponentHighest) {
+    if (!raceSpineElement || !raceSpineLocalMarker || !raceSpineOpponentMarker) return;
+    var maxTarget = Number(raceSpineElement.getAttribute("data-max-target") || 2048);
+    var ownValue = Math.max(2, Number(ownHighest || 2));
+    var opponentValue = Math.max(2, Number(opponentHighest || 2));
+    var ownTop = spinePositionPercent(ownValue, maxTarget);
+    var opponentTop = spinePositionPercent(opponentValue, maxTarget);
+    raceSpineLocalMarker.style.top = ownTop + "%";
+    raceSpineOpponentMarker.style.top = opponentTop + "%";
+    var ownSmall = raceSpineLocalMarker.querySelector("small");
+    var opponentSmall = raceSpineOpponentMarker.querySelector("small");
+    var ownStrong = raceSpineLocalMarker.querySelector("strong");
+    var opponentStrong = raceSpineOpponentMarker.querySelector("strong");
+    if (ownSmall) ownSmall.textContent = ownValue;
+    if (opponentSmall) opponentSmall.textContent = opponentValue;
+    if (ownStrong) ownStrong.textContent = getOwnNickname();
+    if (opponentStrong) opponentStrong.textContent = getOpponentNickname();
+
+    if (raceSpineFill) {
+      var leadingTop = Math.min(ownTop, opponentTop);
+      raceSpineFill.style.top = leadingTop + "%";
+    }
+  }
+
   function createProgressHtml(prefix, target) {
     return `
       <div class="progress-wrap">
@@ -6679,66 +6902,53 @@
     var opponentTheme = opponentProfile && THEMES.indexOf(opponentProfile.theme) !== -1 ? opponentProfile.theme : "classic";
 
     battleShell = document.createElement("div");
-    battleShell.className = "battle-shell";
+    battleShell.className = "battle-shell direction-a-battle " + (isFreeplay ? "freeplay-battle" : "race-battle");
 
     var ruleLine = isFreeplay
-      ? "Relaxed side-by-side play. No winner, no elimination. Undo one move at a time or restart your board whenever you need."
+      ? "Build side-by-side. No finish line, no elimination. Use Z for one-step Undo."
       : mode === "custom-race"
         ? "Each player races to their own target. A stuck board loses."
         : "First to the target tile wins. A stuck board loses.";
 
+    var middleStage = isFreeplay
+      ? `<div class="freeplay-match-center">
+          <span class="freeplay-match-kicker">FREEPLAY</span>
+          <strong>No finish line.</strong>
+          <div class="freeplay-live-controls">${movementKeysMarkup(true)}<div class="control-key-row compact"><span class="control-label">UNDO</span><kbd>Z</kbd></div></div>
+        </div>`
+      : createRaceSpineHtml(mode, ownTarget, opponentTarget);
+
     battleShell.innerHTML = `
       <div class="battle-topbar">
         <button class="danger-button icon-text-button" id="leave-match">${uiIcon("exit", "button-icon")}<span>Leave Match</span></button>
-        <div class="battle-mode-title">
-          <strong>Rina's 2048</strong>
-          <span>${escapeHtml(modeTitle(mode))}</span>
-        </div>
-        <div class="battle-topbar-right">
-          <span class="battle-room-mini">Room ${escapeHtml(window.multiplayerRoomCode || "------")}</span>
-          <button class="settings-button icon-text-button" id="battle-settings">${uiIcon("settings", "button-icon")}<span>Settings</span></button>
-        </div>
+        <div class="battle-mode-title"><strong>Rina's 2048</strong><span>${escapeHtml(modeTitle(mode))}</span></div>
+        <div class="battle-topbar-right"><span class="battle-room-mini">Room ${escapeHtml(window.multiplayerRoomCode || "------")}</span><button class="settings-button icon-text-button" id="battle-settings">${uiIcon("settings", "button-icon")}<span>Settings</span></button></div>
       </div>
-
-      <div class="battle-heading">
-        <p class="battle-rule-line">${ruleLine}</p>
-      </div>
-
-      ${isFreeplay ? '<div class="freeplay-banner">Play at your own pace. Score and Highest are just for friendly comparison.</div>' : ""}
-
-      <div class="battle-layout">
+      <div class="battle-heading"><p class="battle-rule-line">${ruleLine}</p></div>
+      <div class="battle-layout direction-a-layout">
         <section class="battle-player-card own-panel" id="own-panel" aria-label="Your board">
           <div class="player-card-header">
-            <div class="player-name-block">
-              <h2 class="player-name" id="own-nickname">${escapeHtml(ownName)}</h2>
-              <div class="player-subline">
-                <span>You</span>
-                ${isFreeplay ? "" : '<span class="rank-badge" id="own-rank">TIED</span>'}
-              </div>
-            </div>
+            <div class="player-name-block"><span class="player-role-label">YOU${isFreeplay ? '' : ' · '}<b id="own-rank-inline">${isFreeplay ? '' : 'TIED'}</b></span><h2 class="player-name" id="own-nickname">${escapeHtml(ownName)}</h2></div>
             ${isFreeplay
               ? '<div class="stat-pair"><div class="mini-stat"><span>Score</span><strong id="own-score">0</strong></div><div class="mini-stat"><span>Highest</span><strong id="own-highest">' + Number(lastOwnHighest || 0) + '</strong></div></div>'
               : '<div class="highest-box"><span>Highest</span><strong id="own-highest">' + Number(lastOwnHighest || 0) + '</strong></div>'}
           </div>
-          ${isFreeplay ? "" : createProgressHtml("own", ownTarget)}
+          <div class="own-board-slot" id="own-board-slot"></div>
+          <div class="battle-board-foot">${movementKeysMarkup(true)}${isFreeplay ? '<div class="control-key-row compact"><span class="control-label">UNDO</span><kbd>Z</kbd></div>' : '<span class="battle-no-undo">NO UNDO</span>'}</div>
+          ${isFreeplay ? '<button class="small-button freeplay-restart-only" id="freeplay-restart">Restart Board</button>' : ''}
         </section>
+
+        <div class="battle-center-stage">${middleStage}</div>
 
         <section class="battle-player-card opponent-panel" id="opponent-panel" data-opponent-theme="${escapeHtml(opponentTheme)}" aria-label="Opponent board">
           <div class="player-card-header">
-            <div class="player-name-block">
-              <h2 class="player-name" id="opponent-nickname">${escapeHtml(opponentName)}</h2>
-              <div class="player-subline">
-                <span>Opponent</span>
-                ${isFreeplay ? "" : '<span class="rank-badge" id="opponent-rank">TIED</span>'}
-              </div>
-            </div>
+            <div class="player-name-block"><span class="player-role-label opponent">OPPONENT${isFreeplay ? '' : ' · '}<b id="opponent-rank-inline">${isFreeplay ? '' : 'TIED'}</b></span><h2 class="player-name" id="opponent-nickname">${escapeHtml(opponentName)}</h2></div>
             ${isFreeplay
               ? '<div class="stat-pair"><div class="mini-stat"><span>Score</span><strong id="opponent-score">0</strong></div><div class="mini-stat"><span>Highest</span><strong id="opponent-highest">0</strong></div></div>'
               : '<div class="highest-box"><span>Highest</span><strong id="opponent-highest">0</strong></div>'}
           </div>
-          ${isFreeplay ? "" : createProgressHtml("opponent", opponentTarget)}
           <div id="opponent-grid" class="opponent-grid" data-theme="${escapeHtml(opponentTheme)}"></div>
-          <div id="opponent-status">Waiting for opponent to move...</div>
+          <div id="opponent-status" class="opponent-live-status"><span></span>Connected</div>
         </section>
       </div>
     `;
@@ -6746,20 +6956,10 @@
     document.body.appendChild(battleShell);
 
     var ownPanel = document.getElementById("own-panel");
-    ownPanel.appendChild(gameContainer);
+    var ownBoardSlot = document.getElementById("own-board-slot");
+    ownBoardSlot.appendChild(gameContainer);
 
     if (isFreeplay) {
-      var controls = document.createElement("div");
-      controls.className = "freeplay-controls";
-      controls.innerHTML = `
-        <button class="small-button solo-command-button" id="freeplay-undo" data-no-ui-sound="true">${uiIcon("undo", "button-icon")}<span>Undo</span><span class="button-shortcut">(Z)</span></button>
-        <button class="small-button" id="freeplay-restart">Restart Board</button>
-      `;
-      ownPanel.appendChild(controls);
-
-      document.getElementById("freeplay-undo").addEventListener("click", function () {
-        withGame(function (game) { game.undo(); });
-      });
       document.getElementById("freeplay-restart").addEventListener("click", function () {
         openGameConfirm({
           title: "Restart your board?",
@@ -6776,18 +6976,25 @@
     opponentScoreDisplay = document.getElementById("opponent-score");
     ownNicknameDisplay = document.getElementById("own-nickname");
     opponentNicknameDisplay = document.getElementById("opponent-nickname");
-    ownRankBadge = document.getElementById("own-rank");
-    opponentRankBadge = document.getElementById("opponent-rank");
+    ownRankBadge = document.getElementById("own-rank-inline");
+    opponentRankBadge = document.getElementById("opponent-rank-inline");
     opponentPanelElement = document.getElementById("opponent-panel");
     opponentGrid = document.getElementById("opponent-grid");
     opponentHighest = document.getElementById("opponent-highest");
     opponentStatus = document.getElementById("opponent-status");
-    ownProgressFill = document.getElementById("own-progress-fill");
-    opponentProgressFill = document.getElementById("opponent-progress-fill");
-    ownProgressText = document.getElementById("own-progress-text");
-    opponentProgressText = document.getElementById("opponent-progress-text");
-    ownProgressNote = document.getElementById("own-progress-note");
-    opponentProgressNote = document.getElementById("opponent-progress-note");
+    ownProgressFill = null;
+    opponentProgressFill = null;
+    ownProgressText = null;
+    opponentProgressText = null;
+    ownProgressNote = null;
+    opponentProgressNote = null;
+    raceSpineElement = document.getElementById("race-spine");
+    raceSpineTrack = document.getElementById("race-spine-track");
+    raceSpineFill = document.getElementById("race-spine-fill");
+    raceSpineLocalMarker = document.getElementById("race-spine-local-marker");
+    raceSpineOpponentMarker = document.getElementById("race-spine-opponent-marker");
+    raceSpineLocalTarget = document.getElementById("race-local-target");
+    raceSpineOpponentTarget = document.getElementById("race-opponent-target");
 
     for (var i = 0; i < 16; i++) {
       var cell = document.createElement("div");
@@ -6812,6 +7019,7 @@
   }
 
   function restoreGameContainer() {
+    removeSoloGameplayLayout();
     if (gameContainer.parentNode !== gameHost) {
       gameHost.appendChild(gameContainer);
     }
@@ -6849,6 +7057,13 @@
     opponentProgressText = null;
     ownProgressNote = null;
     opponentProgressNote = null;
+    raceSpineElement = null;
+    raceSpineTrack = null;
+    raceSpineFill = null;
+    raceSpineLocalMarker = null;
+    raceSpineOpponentMarker = null;
+    raceSpineLocalTarget = null;
+    raceSpineOpponentTarget = null;
   }
 
   function leaveRoomSilently() {
@@ -6932,28 +7147,26 @@
 
     var ownTarget = Number(window.multiplayerOwnTarget || window.multiplayerTargetTile || 2048);
     var opponentTarget = Number(window.multiplayerOpponentTarget || window.multiplayerTargetTile || 2048);
-    var ownRatio = setProgress("own", lastOwnHighest, ownTarget);
+    var ownRatio = progressRatio(lastOwnHighest, ownTarget);
     var ownOneAwayNow = lastOwnHighest >= ownTarget / 2 && lastOwnHighest < ownTarget;
+    var opponentHighestValue = latestOpponentState ? Number(latestOpponentState.highestTile || 0) : 0;
+    var opponentRatio = latestOpponentState ? progressRatio(opponentHighestValue, opponentTarget) : 0;
+    var opponentOneAwayNow = latestOpponentState && opponentHighestValue >= opponentTarget / 2 && opponentHighestValue < opponentTarget;
+
+    updateRaceSpine(lastOwnHighest || 2, opponentHighestValue || 2);
 
     if (!latestOpponentState) {
-      setProgress("opponent", 0, opponentTarget);
       applyRankBadge(ownRankBadge, "TIED", false);
       applyRankBadge(opponentRankBadge, "TIED", false);
-
       if (ownOneAwayNow && !lastOwnOneAway) {
         showBattleToast(getOwnNickname() + " is one merge away.");
-        playSound("danger");
       }
-
       lastOwnOneAway = ownOneAwayNow;
       lastOpponentOneAway = false;
       updateCompetitiveMusicIntensity();
       return;
     }
 
-    var opponentHighestValue = Number(latestOpponentState.highestTile || 0);
-    var opponentRatio = setProgress("opponent", opponentHighestValue, opponentTarget);
-    var opponentOneAwayNow = opponentHighestValue >= opponentTarget / 2 && opponentHighestValue < opponentTarget;
     var leaderNumber = 0;
     var ownNumber = Number(window.multiplayerPlayerNumber);
     var opponentNumber = getOpponentNumber();
@@ -6972,23 +7185,16 @@
       applyRankBadge(opponentRankBadge, "TIED", false);
     }
 
-    if (lastLeaderNumber !== null && leaderNumber !== lastLeaderNumber) {
-      if (leaderNumber === 0) {
-        showBattleToast("The race is tied.");
-        playSound("tie");
-      } else {
-        var leaderName = leaderNumber === ownNumber ? getOwnNickname() : getOpponentNickname();
-        showBattleToast(leaderName + " takes the lead.");
-        playSound(leaderNumber === ownNumber ? "lead" : "lead-lost");
-      }
+    if (lastLeaderNumber !== null && leaderNumber !== lastLeaderNumber && leaderNumber !== 0) {
+      var leaderName = leaderNumber === ownNumber ? getOwnNickname() : getOpponentNickname();
+      showBattleToast(leaderName + " takes the lead.");
+      playSound(leaderNumber === ownNumber ? "lead" : "lead-lost");
     }
 
     if (ownOneAwayNow && !lastOwnOneAway) {
       showBattleToast(getOwnNickname() + " is one merge away.");
-      playSound("danger");
     } else if (opponentOneAwayNow && !lastOpponentOneAway) {
       showBattleToast(getOpponentNickname() + " is one merge away.");
-      playSound("danger");
     }
 
     lastOwnOneAway = ownOneAwayNow;
@@ -7047,9 +7253,9 @@
     }
 
     if (opponentStatus) {
-      opponentStatus.textContent = state.over
-        ? getOpponentNickname() + "'s board is finished."
-        : getOpponentNickname() + " is playing...";
+      opponentStatus.innerHTML = state.over
+        ? '<span class="finished"></span>Board finished'
+        : '<span></span>Connected';
     }
   }
 
@@ -7311,7 +7517,7 @@
 
     if (opponentHighest) opponentHighest.textContent = "0";
     if (opponentScoreDisplay) opponentScoreDisplay.textContent = "0";
-    if (opponentStatus) opponentStatus.textContent = "Waiting for opponent to move...";
+    if (opponentStatus) opponentStatus.innerHTML = '<span></span>Connected';
 
     if (opponentGrid) {
       var opponentProfile = getProfile(getOpponentNumber());
@@ -7330,12 +7536,11 @@
   }
 
   window.refreshFreeplayControls = function () {
-    var button = document.getElementById("freeplay-undo");
-    if (!button) return;
-
-    button.disabled = !window.multiplayerGame ||
-      !!window.multiplayerGame.undoAnimating ||
-      !window.multiplayerGame.freeplayUndoEntry;
+    var key = document.querySelector(".freeplay-battle .battle-board-foot .control-key-row:last-child kbd");
+    if (!key) return;
+    var enabled = !!window.multiplayerGame && !window.multiplayerGame.undoAnimating && !!window.multiplayerGame.freeplayUndoEntry;
+    key.classList.toggle("disabled", !enabled);
+    key.setAttribute("aria-disabled", enabled ? "false" : "true");
   };
 
   function restartFreeplayBoard() {
@@ -7394,6 +7599,40 @@
     });
   };
 
+  window.showSoloGameOver = function (score, highest, best) {
+    if (window.currentGameMode !== "solo" || window.multiplayerMode) return;
+    var existing = document.getElementById("solo-gameover-overlay");
+    if (existing) return;
+
+    var overlay = document.createElement("div");
+    overlay.id = "solo-gameover-overlay";
+    overlay.className = "result-overlay direction-a-result solo-result";
+    overlay.innerHTML = `
+      <div class="result-box">
+        <span class="result-kicker">ENDLESS SOLO</span>
+        <h1>Game Over</h1>
+        <div class="solo-result-stats">
+          <div><span>FINAL SCORE</span><strong>${Number(score || 0).toLocaleString()}</strong></div>
+          <div><span>HIGHEST</span><strong>${Number(highest || 0).toLocaleString()}</strong></div>
+          <div><span>BEST</span><strong>${Number(best || 0).toLocaleString()}</strong></div>
+        </div>
+        <div class="result-actions">
+          <button class="primary-button" id="solo-result-new">Start New Game</button>
+          <button class="secondary-button" id="solo-result-back">Back to Solo</button>
+        </div>
+      </div>
+    `;
+    document.body.appendChild(overlay);
+    document.getElementById("solo-result-new").addEventListener("click", function () {
+      overlay.remove();
+      withGame(function (game) { game.restart(); });
+    });
+    document.getElementById("solo-result-back").addEventListener("click", function () {
+      overlay.remove();
+      showSoloMenu();
+    });
+  };
+
   // =========================================================
   // RESULTS
   // =========================================================
@@ -7433,11 +7672,11 @@
     overlay.innerHTML = `
       <div class="result-box">
         <div class="result-icon result-icon-graphic">${uiIcon(didWin ? "win" : "loss", "result-graphic")}</div>
-        <h1>${didWin ? "YOU WIN!" : "YOU LOSE"}</h1>
+        <span class="result-kicker">${didWin ? "TARGET REACHED" : "MATCH ENDED"}</span><h1>${didWin ? "You Win" : "You Lost"}</h1>
         <p>${escapeHtml(description)}</p>
         <div class="result-actions">
           <button class="primary-button" id="result-rematch">Rematch</button>
-          <button class="secondary-button" id="result-back">Back to Multiplayer</button>
+          <button class="secondary-button" id="result-back">Back to Lobby</button>
         </div>
       </div>
     `;
@@ -7563,7 +7802,7 @@
             <div class="toggle-row settings-inline-toggle">
               <div>
                 <h4>Solo Undo</h4>
-                <p class="settings-help">One rewind after each successful Solo move. Press Z to rewind one move.</p>
+                <p class="settings-help">Enable one-step Solo Undo. Press Z to rewind one successful move.</p>
               </div>
               <button id="solo-undo-toggle" class="toggle-button ${window.rinasSettings.soloUndo ? "on" : "off"}">${window.rinasSettings.soloUndo ? "ON" : "OFF"}</button>
             </div>
