@@ -27,6 +27,15 @@ GameManager.prototype.restart = function () {
   this.freeplayUndoEntry = null;
   this.actuator.continueGame();
   this.setup();
+
+  if (window.rinasAudio && window.rinasAudio.transitionMusic) {
+    window.rinasAudio.transitionMusic(
+      window.multiplayerMode
+        ? (window.multiplayerModeName === "freeplay" ? "FREEPLAY" : "MULTIPLAYER")
+        : "SOLO",
+      500
+    );
+  }
 };
 
 GameManager.prototype.keepPlaying = function () {
@@ -452,6 +461,7 @@ GameManager.prototype.move = function (direction) {
   var soloShow2048Prompt = false;
   var soloMilestoneToast = null;
   var mergedAny = false;
+  var largestMergedValue = 0;
   var freeplayBoardEnded = false;
 
   if (window.multiplayerGameOver || this.undoAnimating) {
@@ -500,6 +510,7 @@ GameManager.prototype.move = function (direction) {
         );
 
         mergedAny = true;
+        largestMergedValue = Math.max(largestMergedValue, merged.value);
 
         merged.mergedFrom = [tile, next];
 
@@ -627,8 +638,12 @@ GameManager.prototype.move = function (direction) {
 
   this.actuate();
 
-  if (window.rinasPlaySound) {
-    window.rinasPlaySound(mergedAny ? "merge" : "move");
+  if (window.rinasPlaySound && !(this.over && !window.multiplayerMode) && !soloShow2048Prompt) {
+    if (mergedAny) {
+      window.rinasPlaySound(largestMergedValue >= 128 ? "large-merge" : "merge");
+    } else {
+      window.rinasPlaySound("move");
+    }
   }
 
   if (freeplayBoardEnded && window.showFreeplayBoardOver) {
