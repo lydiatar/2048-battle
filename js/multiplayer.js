@@ -71,6 +71,10 @@
   var lastOpponentOneAway = false;
   var audioContext = null;
   var opponentPanelElement = null;
+  var opponentStateQueue = [];
+  var opponentStateAnimating = false;
+  var lastRenderedOpponentState = null;
+  var opponentAnimationTimer = null;
 
   if (TARGETS.indexOf(selectedTarget) === -1) {
     selectedTarget = 2048;
@@ -5872,7 +5876,10 @@
   }
 
   function soloControlsMarkup() {
-    return '<div class="solo-control-strip">' + movementKeysMarkup(true) + '<span class="touch-control-label">Swipe on touch devices</span></div>';
+    var undoHint = window.rinasSettings.soloUndo
+      ? '<div class="control-key-row compact solo-undo-key-hint"><span class="control-label">UNDO</span><kbd>Z</kbd></div>'
+      : '';
+    return '<div class="solo-control-strip">' + movementKeysMarkup(true) + undoHint + '<span class="touch-control-label">Swipe on touch devices</span></div>';
   }
 
   function showMainMenu() {
@@ -6101,7 +6108,6 @@
     actionRow.className = "solo-card-actions";
     actionRow.innerHTML = `
       <button class="small-button solo-command-button" id="solo-new">${uiIcon("new", "button-icon")}<span>New Game</span></button>
-      <button class="small-button solo-command-button" id="solo-undo" data-no-ui-sound="true">${uiIcon("undo", "button-icon")}<span>Undo (Z)</span></button>
     `;
 
     var board = gameContainer.querySelector(".game-container");
@@ -6123,10 +6129,6 @@
         tone: "danger",
         onConfirm: function () { withGame(function (game) { game.restart(); }); }
       });
-    });
-
-    document.getElementById("solo-undo").addEventListener("click", function () {
-      withGame(function (game) { game.undo(); });
     });
 
     window.refreshSoloControls();
@@ -6177,26 +6179,8 @@
   }
 
   window.refreshSoloControls = function () {
-    var undoButton = document.getElementById("solo-undo");
     var strip = document.getElementById("solo-control-strip");
     if (strip) strip.innerHTML = soloControlsMarkup();
-
-    if (!undoButton) return;
-
-    if (!window.rinasSettings.soloUndo) {
-      undoButton.style.display = "none";
-      return;
-    }
-
-    undoButton.style.display = "inline-flex";
-
-    if (!window.multiplayerGame) {
-      undoButton.disabled = true;
-      return;
-    }
-
-    undoButton.disabled = !!window.multiplayerGame.undoAnimating ||
-      window.multiplayerGame.storageManager.getUndoStack().length === 0;
   };
 
   // Z is an action only. It never toggles Undo On/Off.
@@ -6475,7 +6459,7 @@
           <ul>
             <li>There is no winner and no elimination.</li>
             <li>Play side-by-side for as long as you like and watch each other's board.</li>
-            <li>Each successful move earns one single-step Undo. Use the Undo button or Z.</li>
+            <li>Each successful move earns one single-step Undo. Press Z to use it.</li>
             <li>If your board gets stuck, Undo the last move or restart your own board; your opponent keeps playing.</li>
             <li>Score and Highest are shown for friendly comparison only.</li>
           </ul>
@@ -6836,6 +6820,16 @@
   }
 
   function removeBattleShell() {
+    if (opponentAnimationTimer) {
+      window.clearTimeout(opponentAnimationTimer);
+      opponentAnimationTimer = null;
+    }
+
+    opponentStateQueue = [];
+    opponentStateAnimating = false;
+    lastRenderedOpponentState = null;
+    clearOpponentMotionTiles();
+
     if (battleShell && battleShell.parentNode) battleShell.remove();
     battleShell = null;
     opponentGrid = null;
@@ -7003,8 +6997,22 @@
     updateCompetitiveMusicIntensity();
   };
 
-  function renderOpponentState(state) {
-    if (!opponentGrid || !state || !state.grid) return;
+  function opponentCellAt(x, y) {
+    if (!opponentGrid || !opponentGrid.children) return null;
+    var index = (Number(y) * 4) + Number(x);
+    return opponentGrid.children[index] || null;
+  }
+
+  function clearOpponentMotionTiles() {
+    if (!opponentGrid) return;
+    var overlays = opponentGrid.querySelectorAll(".opponent-motion-tile");
+    for (var i = 0; i < overlays.length; i++) {
+      overlays[i].remove();
+    }
+  }
+
+  function applyOpponentStateMeta(state) {
+    if (!state) return;
 
     if (state.nickname) {
       updateOneProfile({
@@ -7014,11 +7022,39 @@
       });
     }
 
-    if (opponentNicknameDisplay) opponentNicknameDisplay.textContent = getOpponentNickname();
+    if (opponentNicknameDisplay) {
+      opponentNicknameDisplay.textContent = getOpponentNickname();
+    }
 
-    var opponentThemeName = THEMES.indexOf(state.theme) !== -1 ? state.theme : "classic";
-    opponentGrid.setAttribute("data-theme", opponentThemeName);
-    if (opponentPanelElement) opponentPanelElement.setAttribute("data-opponent-theme", opponentThemeName);
+    var opponentThemeName = THEMES.indexOf(state.theme) !== -1
+      ? state.theme
+      : "classic";
+
+    if (opponentGrid) {
+      opponentGrid.setAttribute("data-theme", opponentThemeName);
+    }
+
+    if (opponentPanelElement) {
+      opponentPanelElement.setAttribute("data-opponent-theme", opponentThemeName);
+    }
+
+    if (opponentHighest) {
+      opponentHighest.textContent = state.highestTile || 0;
+    }
+
+    if (opponentScoreDisplay) {
+      opponentScoreDisplay.textContent = state.score || 0;
+    }
+
+    if (opponentStatus) {
+      opponentStatus.textContent = state.over
+        ? getOpponentNickname() + "'s board is finished."
+        : getOpponentNickname() + " is playing...";
+    }
+  }
+
+  function paintOpponentGrid(state, motion) {
+    if (!opponentGrid || !state || !state.grid) return;
 
     var cells = opponentGrid.children;
     var cellIndex = 0;
@@ -7027,28 +7063,251 @@
       for (var x = 0; x < 4; x++) {
         var cellElement = cells[cellIndex];
         var tile = state.grid.cells[x][y];
+
         cellElement.className = "opponent-cell";
         cellElement.textContent = "";
+
         if (tile) {
           cellElement.textContent = tile.value;
           cellElement.className = "opponent-cell has-tile tile-" + tile.value;
         }
+
         cellIndex++;
       }
     }
 
-    if (opponentHighest) opponentHighest.textContent = state.highestTile || 0;
-    if (opponentScoreDisplay) opponentScoreDisplay.textContent = state.score || 0;
+    if (!motion) return;
 
-    if (state.over) opponentStatus.textContent = getOpponentNickname() + "'s board is finished.";
-    else opponentStatus.textContent = getOpponentNickname() + " is playing...";
+    var merges = Array.isArray(motion.merges) ? motion.merges : [];
 
+    merges.forEach(function (merge) {
+      var cell = merge && opponentCellAt(merge.x, merge.y);
+      if (!cell) return;
+
+      cell.classList.remove("opponent-cell-pop");
+      void cell.offsetWidth;
+      cell.classList.add("opponent-cell-pop");
+    });
+
+    if (motion.spawnedTile) {
+      var spawned = opponentCellAt(
+        motion.spawnedTile.x,
+        motion.spawnedTile.y
+      );
+
+      if (spawned) {
+        spawned.classList.remove("opponent-cell-spawn");
+        void spawned.offsetWidth;
+        spawned.classList.add("opponent-cell-spawn");
+      }
+    }
+  }
+
+  function commitOpponentState(state, motion) {
+    var hadPreviousState = !!lastRenderedOpponentState;
+
+    clearOpponentMotionTiles();
+    applyOpponentStateMeta(state);
+    paintOpponentGrid(state, motion || null);
+
+    if (hadPreviousState && !motion && opponentGrid) {
+      opponentGrid.classList.remove("opponent-grid-soft-refresh");
+      void opponentGrid.offsetWidth;
+      opponentGrid.classList.add("opponent-grid-soft-refresh");
+    }
+
+    lastRenderedOpponentState = state;
     window.updateMatchProgress(lastOwnHighest, lastOwnScore);
+  }
+
+  function opponentMotionIsUsable(state) {
+    if (!state || !state.motion || !Array.isArray(state.motion.transitions)) {
+      return false;
+    }
+
+    if (
+      window.matchMedia &&
+      window.matchMedia("(prefers-reduced-motion: reduce)").matches
+    ) {
+      return false;
+    }
+
+    return state.motion.transitions.some(function (transition) {
+      return transition &&
+        transition.from &&
+        transition.to &&
+        (
+          Number(transition.from.x) !== Number(transition.to.x) ||
+          Number(transition.from.y) !== Number(transition.to.y)
+        );
+    });
+  }
+
+  function animateOpponentState(state, done) {
+    if (
+      !opponentGrid ||
+      !lastRenderedOpponentState ||
+      !opponentMotionIsUsable(state)
+    ) {
+      commitOpponentState(state, state && state.motion);
+      done();
+      return;
+    }
+
+    var motion = state.motion;
+    var duration = Math.max(
+      90,
+      Math.min(140, Number(motion.duration || 105))
+    );
+
+    clearOpponentMotionTiles();
+
+    var transitions = motion.transitions.filter(function (transition) {
+      return transition &&
+        transition.from &&
+        transition.to &&
+        (
+          Number(transition.from.x) !== Number(transition.to.x) ||
+          Number(transition.from.y) !== Number(transition.to.y)
+        );
+    });
+
+    var overlays = [];
+    var clearedSources = {};
+
+    if (motion.removedTile) {
+      var removedCell = opponentCellAt(
+        Number(motion.removedTile.x),
+        Number(motion.removedTile.y)
+      );
+
+      if (removedCell) {
+        removedCell.className = "opponent-cell";
+        removedCell.textContent = "";
+      }
+    }
+
+    transitions.forEach(function (transition) {
+      var fromX = Number(transition.from.x);
+      var fromY = Number(transition.from.y);
+      var toX = Number(transition.to.x);
+      var toY = Number(transition.to.y);
+
+      var fromCell = opponentCellAt(fromX, fromY);
+      var toCell = opponentCellAt(toX, toY);
+
+      if (!fromCell || !toCell) return;
+
+      var sourceKey = fromX + ":" + fromY;
+
+      if (!clearedSources[sourceKey]) {
+        fromCell.className = "opponent-cell";
+        fromCell.textContent = "";
+        clearedSources[sourceKey] = true;
+      }
+
+      var overlay = document.createElement("div");
+      overlay.className =
+        "opponent-cell opponent-motion-tile has-tile tile-" +
+        Number(transition.value || 2);
+      overlay.textContent = Number(transition.value || 2);
+
+      overlay.style.left = fromCell.offsetLeft + "px";
+      overlay.style.top = fromCell.offsetTop + "px";
+      overlay.style.width = fromCell.offsetWidth + "px";
+      overlay.style.height = fromCell.offsetHeight + "px";
+      overlay.style.transitionDuration = duration + "ms";
+
+      opponentGrid.appendChild(overlay);
+
+      overlays.push({
+        element: overlay,
+        dx: toCell.offsetLeft - fromCell.offsetLeft,
+        dy: toCell.offsetTop - fromCell.offsetTop
+      });
+    });
+
+    if (!overlays.length) {
+      commitOpponentState(state, motion);
+      done();
+      return;
+    }
+
+    // One frame establishes the starting position. The second frame
+    // starts the transform, mirroring the feel of the local 2048 tiles
+    // instead of snapping between network snapshots.
+    window.requestAnimationFrame(function () {
+      window.requestAnimationFrame(function () {
+        overlays.forEach(function (item) {
+          item.element.style.transform =
+            "translate3d(" + item.dx + "px," + item.dy + "px,0)";
+        });
+      });
+    });
+
+    opponentAnimationTimer = window.setTimeout(function () {
+      opponentAnimationTimer = null;
+      commitOpponentState(state, motion);
+      done();
+    }, duration + 22);
+  }
+
+  function processOpponentStateQueue() {
+    if (
+      opponentStateAnimating ||
+      !opponentGrid ||
+      !opponentStateQueue.length
+    ) {
+      return;
+    }
+
+    opponentStateAnimating = true;
+
+    var nextState = opponentStateQueue.shift();
+
+    animateOpponentState(nextState, function () {
+      opponentStateAnimating = false;
+      processOpponentStateQueue();
+    });
+  }
+
+  function renderOpponentState(state) {
+    if (!opponentGrid || !state || !state.grid) return;
+
+    // The first received board should appear immediately. After that,
+    // states are played in order so quick remote moves do not snap.
+    if (!lastRenderedOpponentState && !opponentStateAnimating) {
+      commitOpponentState(state, null);
+      return;
+    }
+
+    opponentStateQueue.push(state);
+
+    // Avoid letting a very fast remote player build seconds of visual lag.
+    // Keep the next queued animation plus the newest state.
+    if (opponentStateQueue.length > 4) {
+      opponentStateQueue = [
+        opponentStateQueue[0],
+        opponentStateQueue[opponentStateQueue.length - 1]
+      ];
+    }
+
+    processOpponentStateQueue();
   }
 
   function resetOpponentView() {
     latestOpponentState = null;
+    lastRenderedOpponentState = null;
+    opponentStateQueue = [];
+    opponentStateAnimating = false;
     lastLeaderNumber = null;
+
+    if (opponentAnimationTimer) {
+      window.clearTimeout(opponentAnimationTimer);
+      opponentAnimationTimer = null;
+    }
+
+    clearOpponentMotionTiles();
 
     if (opponentHighest) opponentHighest.textContent = "0";
     if (opponentScoreDisplay) opponentScoreDisplay.textContent = "0";
@@ -7304,7 +7563,7 @@
             <div class="toggle-row settings-inline-toggle">
               <div>
                 <h4>Solo Undo</h4>
-                <p class="settings-help">One rewind after each successful Solo move. Press Z or use the Undo button.</p>
+                <p class="settings-help">One rewind after each successful Solo move. Press Z to rewind one move.</p>
               </div>
               <button id="solo-undo-toggle" class="toggle-button ${window.rinasSettings.soloUndo ? "on" : "off"}">${window.rinasSettings.soloUndo ? "ON" : "OFF"}</button>
             </div>
@@ -12979,6 +13238,81 @@
     }
   `;
   document.head.appendChild(v59Style);
+
+  // =========================================================
+  // v69: smooth remote-board motion
+  // =========================================================
+  // The local player uses the original 2048 tile actuator, which animates
+  // tiles between coordinates. The opponent board used to repaint 16 static
+  // cells on every Socket.IO snapshot. These transient overlay tiles give
+  // the remote board the same slide -> merge -> spawn rhythm.
+  var v69OpponentMotionStyle = document.createElement("style");
+  v69OpponentMotionStyle.id = "rinas-v69-opponent-motion";
+  v69OpponentMotionStyle.textContent = `
+    .opponent-grid {
+      position:relative !important;
+      overflow:hidden !important;
+      isolation:isolate !important;
+    }
+
+    .opponent-motion-tile {
+      position:absolute !important;
+      z-index:12 !important;
+      margin:0 !important;
+      box-sizing:border-box !important;
+      pointer-events:none !important;
+      will-change:transform !important;
+      transition-property:transform !important;
+      transition-timing-function:cubic-bezier(.22,.75,.28,1) !important;
+      transform:translate3d(0,0,0);
+    }
+
+    .opponent-cell.opponent-cell-pop {
+      animation:rinasOpponentMergePop 145ms cubic-bezier(.2,.9,.25,1) both !important;
+      position:relative;
+      z-index:3;
+    }
+
+    .opponent-cell.opponent-cell-spawn {
+      animation:rinasOpponentSpawn 135ms cubic-bezier(.2,.85,.3,1) both !important;
+      position:relative;
+      z-index:2;
+    }
+
+    .opponent-grid.opponent-grid-soft-refresh {
+      animation:rinasOpponentSoftRefresh 120ms ease-out both !important;
+    }
+
+    @keyframes rinasOpponentSoftRefresh {
+      0% { opacity:.72; }
+      100% { opacity:1; }
+    }
+
+    @keyframes rinasOpponentMergePop {
+      0% { transform:scale(.88); }
+      58% { transform:scale(1.07); }
+      100% { transform:scale(1); }
+    }
+
+    @keyframes rinasOpponentSpawn {
+      0% { transform:scale(.78); opacity:.35; }
+      70% { transform:scale(1.04); opacity:1; }
+      100% { transform:scale(1); opacity:1; }
+    }
+
+    @media (prefers-reduced-motion:reduce) {
+      .opponent-motion-tile {
+        transition:none !important;
+      }
+
+      .opponent-cell.opponent-cell-pop,
+      .opponent-cell.opponent-cell-spawn,
+      .opponent-grid.opponent-grid-soft-refresh {
+        animation:none !important;
+      }
+    }
+  `;
+  document.head.appendChild(v69OpponentMotionStyle);
 
   restoreGameContainer();
   showMainMenu();
