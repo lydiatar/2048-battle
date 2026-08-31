@@ -12678,6 +12678,94 @@
   `;
   document.head.appendChild(v57Style);
 
+
+  // =========================================================
+  // v58: button-matched score chips + remove high-tile glow
+  // =========================================================
+  var v58Style = document.createElement("style");
+  v58Style.id = "rinas-v58-rounded-chips-no-glow";
+  v58Style.textContent = `
+    /*
+      SOLO SCORE / BEST
+      Match the geometry of Settings / New Game / Undo:
+      clear rounded corners, compact proportions, no clipped square edges.
+    */
+    body.solo-active .score-container,
+    body.solo-active .best-container {
+      width:108px !important;
+      min-width:108px !important;
+      height:66px !important;
+      min-height:66px !important;
+      padding:28px 12px 9px !important;
+      border-radius:12px !important;
+      -webkit-border-radius:12px !important;
+      clip-path:none !important;
+      -webkit-clip-path:none !important;
+      overflow:hidden !important;
+      background-clip:padding-box !important;
+      box-shadow:none !important;
+      transform:none !important;
+    }
+
+    body.solo-active .score-container::before,
+    body.solo-active .best-container::before {
+      content:none !important;
+      display:none !important;
+    }
+
+    body.solo-active .score-container::after,
+    body.solo-active .best-container::after {
+      top:10px !important;
+      font-size:10px !important;
+      letter-spacing:.09em !important;
+    }
+
+    /* Keep the stat row comfortably below the header divider. */
+    body.solo-active .container .heading {
+      margin-top:8px !important;
+      margin-bottom:12px !important;
+      min-height:68px !important;
+    }
+
+    /*
+      Remove the legacy 2048 glow from high-value tiles.
+      The original stylesheet applies increasingly strong box-shadows to
+      high tiles; theme colors already communicate value, so no glow is needed.
+    */
+    body.solo-active .tile.tile-128 .tile-inner,
+    body.solo-active .tile.tile-256 .tile-inner,
+    body.solo-active .tile.tile-512 .tile-inner,
+    body.solo-active .tile.tile-1024 .tile-inner,
+    body.solo-active .tile.tile-2048 .tile-inner,
+    body.solo-active .tile.tile-4096 .tile-inner,
+    body.solo-active .tile.tile-8192 .tile-inner,
+    body.solo-active .tile.tile-super .tile-inner {
+      box-shadow:none !important;
+      filter:none !important;
+      text-shadow:none !important;
+    }
+
+    /* Also prevent a neighboring tile/board effect from reading as a glow. */
+    body.solo-active .game-container,
+    body.solo-active .tile-container,
+    body.solo-active .tile .tile-inner {
+      filter:none !important;
+    }
+
+    @media (max-width:900px) {
+      body.solo-active .score-container,
+      body.solo-active .best-container {
+        width:102px !important;
+        min-width:102px !important;
+        height:64px !important;
+        min-height:64px !important;
+        border-radius:11px !important;
+        -webkit-border-radius:11px !important;
+      }
+    }
+  `;
+  document.head.appendChild(v58Style);
+
   restoreGameContainer();
   showMainMenu();
 
