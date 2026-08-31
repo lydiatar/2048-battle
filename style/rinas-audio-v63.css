@@ -1,0 +1,79 @@
+/* Rina's 2048 v63 — approved audio settings polish */
+
+body .settings-audio-section .settings-audio-stack-v63 {
+  display: grid !important;
+  grid-template-columns: 1fr !important;
+  gap: 9px !important;
+  margin-top: 2px !important;
+}
+
+body .settings-audio-section .audio-control-group {
+  margin: 0 !important;
+  padding: 9px 0 0 !important;
+  border-top: 1px solid color-mix(in srgb, var(--app-border, #d7d0c6) 72%, transparent) !important;
+  background: transparent !important;
+  box-shadow: none !important;
+  border-radius: 0 !important;
+}
+
+body .settings-audio-section .audio-control-group:first-child {
+  border-top: 0 !important;
+  padding-top: 0 !important;
+}
+
+body .settings-audio-section .audio-control-group .toggle-row {
+  min-height: 42px !important;
+  gap: 12px !important;
+  padding: 0 !important;
+}
+
+body .settings-audio-section .audio-control-group h4 {
+  margin: 0 0 2px !important;
+}
+
+body .settings-audio-section .audio-control-group .settings-help {
+  margin: 0 !important;
+  max-width: 290px !important;
+  line-height: 1.22 !important;
+}
+
+body .settings-audio-section .volume-row {
+  grid-template-columns: 88px minmax(110px, 1fr) 46px !important;
+  gap: 9px !important;
+  margin-top: 6px !important;
+  min-height: 30px !important;
+}
+
+body .settings-audio-section input[type="range"]:disabled {
+  opacity: .38 !important;
+  cursor: not-allowed !important;
+}
+
+body .settings-audio-section .toggle-button {
+  flex: 0 0 auto !important;
+}
+
+@media (max-height: 760px) and (min-width: 761px) {
+  body .settings-audio-section .settings-audio-stack-v63 {
+    gap: 6px !important;
+  }
+
+  body .settings-audio-section .audio-control-group {
+    padding-top: 6px !important;
+  }
+
+  body .settings-audio-section .audio-control-group .settings-help {
+    font-size: 11px !important;
+  }
+
+  body .settings-audio-section .volume-row {
+    margin-top: 4px !important;
+    min-height: 26px !important;
+  }
+}
+
+@media (max-width: 760px) {
+  body .settings-audio-section .volume-row {
+    grid-template-columns: 82px minmax(100px, 1fr) 44px !important;
+  }
+}
