@@ -5424,7 +5424,10 @@
       celebrate: "celebrate",
       milestone: "milestone",
       exit: "exit",
-      disconnect: "disconnect"
+      disconnect: "disconnect",
+      "tile-race": "tile-race",
+      freeplay: "freeplay",
+      "custom-race": "custom-race"
     };
 
     if (graphicAssetNames[name]) {
@@ -6245,8 +6248,10 @@
         <div class="mode-showcase-list">
           <button class="mode-showcase mode-showcase-race" id="mode-tile-race">
             <div class="mode-showcase-copy">
-              <span class="mode-showcase-index">01 · COMPETITIVE</span>
-              <h2>Tile Race</h2>
+              <div class="mode-showcase-title-row">
+                <span class="mode-showcase-modeicon">${uiIcon("tile-race", "mode-art-icon")}</span>
+                <div><span class="mode-showcase-index">01 · COMPETITIVE</span><h2>Tile Race</h2></div>
+              </div>
               <p>First player to reach the target tile wins. A stuck board loses.</p>
               <div class="mode-showcase-facts"><span>Live position</span><span>No Undo</span><span>2048 / 4096 / 8192</span></div>
               <strong class="mode-showcase-action">Play Tile Race →</strong>
@@ -6256,8 +6261,10 @@
 
           <button class="mode-showcase mode-showcase-freeplay" id="mode-freeplay">
             <div class="mode-showcase-copy">
-              <span class="mode-showcase-index">02 · CASUAL</span>
-              <h2>Freeplay Duel</h2>
+              <div class="mode-showcase-title-row">
+                <span class="mode-showcase-modeicon">${uiIcon("freeplay", "mode-art-icon")}</span>
+                <div><span class="mode-showcase-index">02 · CASUAL</span><h2>Freeplay Duel</h2></div>
+              </div>
               <p>Build side-by-side with no winner or elimination. Compare progress and rewind one move at a time.</p>
               <div class="mode-showcase-facts"><span>No finish line</span><span>One-step Undo</span><span>Restart anytime</span></div>
               <strong class="mode-showcase-action">Play Freeplay →</strong>
@@ -6267,8 +6274,10 @@
 
           <button class="mode-showcase mode-showcase-custom" id="mode-custom-race">
             <div class="mode-showcase-copy">
-              <span class="mode-showcase-index">03 · HANDICAP</span>
-              <h2>Custom Race</h2>
+              <div class="mode-showcase-title-row">
+                <span class="mode-showcase-modeicon">${uiIcon("custom-race", "mode-art-icon")}</span>
+                <div><span class="mode-showcase-index">03 · HANDICAP</span><h2>Custom Race</h2></div>
+              </div>
               <p>Give each player a different finish tile. Balance a beginner against an expert without hidden advantages.</p>
               <div class="mode-showcase-facts"><span>Different targets</span><span>Live position</span><span>Transparent rules</span></div>
               <strong class="mode-showcase-action">Build Custom Race →</strong>
@@ -11725,6 +11734,430 @@
   `;
   document.head.appendChild(v51Style);
 
+
+
+  // =========================================================
+  // v52: approved icon-system + exact theme-aware score chips
+  // =========================================================
+  var v52Style = document.createElement("style");
+  v52Style.id = "rinas-v52-approved-system";
+  v52Style.textContent = `
+    /* -----------------------------------------------------
+       THEME TOKENS FOR THE APPROVED GRAPHIC SYSTEM
+       Same geometry everywhere; only the palette changes.
+       ----------------------------------------------------- */
+    body.theme-classic {
+      --approved-chip-bg:#fff8ee;
+      --approved-chip-border:#e5d4bf;
+      --approved-chip-label:#8a786a;
+      --approved-chip-text:#2c2723;
+      --approved-chip-shadow:rgba(83,59,40,.13);
+      --approved-icon-soft:#fff7ed;
+      --approved-icon-tertiary:#efc44a;
+    }
+    body.theme-pastel {
+      --approved-chip-bg:#fbf9ff;
+      --approved-chip-border:#ddd5f2;
+      --approved-chip-label:#7e7394;
+      --approved-chip-text:#302c42;
+      --approved-chip-shadow:rgba(89,73,128,.12);
+      --approved-icon-soft:#fbf8ff;
+      --approved-icon-tertiary:#f0c95a;
+    }
+    body.theme-ocean {
+      --approved-chip-bg:#153847;
+      --approved-chip-border:#326a79;
+      --approved-chip-label:#9ec6cf;
+      --approved-chip-text:#f4fcff;
+      --approved-chip-shadow:rgba(0,14,21,.28);
+      --approved-icon-soft:#dff5f7;
+      --approved-icon-tertiary:#f0c85a;
+    }
+    body.theme-candy {
+      --approved-chip-bg:#48223f;
+      --approved-chip-border:#86476f;
+      --approved-chip-label:#e8b6d0;
+      --approved-chip-text:#fff6fb;
+      --approved-chip-shadow:rgba(24,7,21,.30);
+      --approved-icon-soft:#fff2f8;
+      --approved-icon-tertiary:#f4c956;
+    }
+    body.theme-midnight {
+      --approved-chip-bg:#1d223b;
+      --approved-chip-border:#4b5482;
+      --approved-chip-label:#b6bddf;
+      --approved-chip-text:#f7f8ff;
+      --approved-chip-shadow:rgba(5,7,18,.34);
+      --approved-icon-soft:#eef0ff;
+      --approved-icon-tertiary:#f0c85a;
+    }
+
+    /* The approved drawings keep their line-art proportions and inherit
+       the current game palette rather than being hard-coded beige/orange. */
+    .icon-asset {
+      --ri-accent:var(--app-accent) !important;
+      --ri-secondary:var(--game-accent-2) !important;
+      --ri-tertiary:var(--approved-icon-tertiary) !important;
+      --ri-soft:var(--approved-icon-soft) !important;
+      color:var(--app-text) !important;
+      overflow:visible !important;
+    }
+    .settings-button .icon-asset,
+    .home-brush-button .icon-asset,
+    .mode-showcase-modeicon .icon-asset {
+      color:var(--app-text) !important;
+    }
+
+    /* -----------------------------------------------------
+       SOLO ACTIVE HEADER — exact score-chip language from the
+       approved icon-system graphic. Passive info, not buttons.
+       ----------------------------------------------------- */
+    body.solo-active .container {
+      width:500px !important;
+      max-width:500px !important;
+      padding-top:10px !important;
+    }
+    body.solo-active .container .heading {
+      width:100% !important;
+      display:grid !important;
+      grid-template-columns:132px auto !important;
+      justify-content:center !important;
+      align-items:center !important;
+      gap:16px !important;
+      min-height:72px !important;
+      margin:0 auto 11px !important;
+      padding:0 !important;
+      border:0 !important;
+      overflow:visible !important;
+    }
+    body.solo-active .container .title {
+      width:132px !important;
+      margin:0 !important;
+      padding:0 !important;
+      color:var(--app-text) !important;
+      font-family:var(--hud-display) !important;
+      font-size:42px !important;
+      font-weight:900 !important;
+      line-height:.95 !important;
+      letter-spacing:-.035em !important;
+      text-align:left !important;
+    }
+    body.solo-active .scores-container {
+      display:flex !important;
+      align-items:stretch !important;
+      justify-content:flex-start !important;
+      gap:10px !important;
+      width:auto !important;
+      min-width:0 !important;
+      height:auto !important;
+      margin:0 !important;
+      padding:0 !important;
+      border:0 !important;
+      border-radius:0 !important;
+      background:transparent !important;
+      box-shadow:none !important;
+      overflow:visible !important;
+    }
+    body.solo-active .score-container,
+    body.solo-active .best-container {
+      box-sizing:border-box !important;
+      position:relative !important;
+      width:112px !important;
+      min-width:112px !important;
+      height:66px !important;
+      min-height:66px !important;
+      margin:0 !important;
+      padding:28px 10px 8px !important;
+      display:flex !important;
+      align-items:flex-end !important;
+      justify-content:center !important;
+      border:1px solid var(--approved-chip-border) !important;
+      border-radius:13px !important;
+      background:var(--approved-chip-bg) !important;
+      box-shadow:0 7px 18px var(--approved-chip-shadow) !important;
+      color:var(--approved-chip-text) !important;
+      font-family:var(--hud-display) !important;
+      font-size:25px !important;
+      font-weight:900 !important;
+      line-height:1 !important;
+      letter-spacing:-.015em !important;
+      text-align:center !important;
+      overflow:hidden !important;
+      pointer-events:none !important;
+      cursor:default !important;
+    }
+    body.solo-active .best-container { border-left:1px solid var(--approved-chip-border) !important; }
+    body.solo-active .score-container::after,
+    body.solo-active .best-container::after {
+      position:absolute !important;
+      top:9px !important;
+      left:0 !important;
+      right:0 !important;
+      width:100% !important;
+      margin:0 !important;
+      color:var(--approved-chip-label) !important;
+      font-family:var(--hud-display) !important;
+      font-size:9px !important;
+      font-weight:900 !important;
+      line-height:1 !important;
+      letter-spacing:.12em !important;
+      text-align:center !important;
+      text-transform:uppercase !important;
+    }
+    body.solo-active .score-container::after { content:"SCORE" !important; }
+    body.solo-active .best-container::after { content:"BEST" !important; }
+
+    /* -----------------------------------------------------
+       SOLO COMMANDS — New Game and Undo are one component.
+       ----------------------------------------------------- */
+    body.solo-active .solo-card-actions {
+      display:grid !important;
+      grid-template-columns:132px 132px !important;
+      justify-content:space-between !important;
+      align-items:center !important;
+      width:100% !important;
+      gap:14px !important;
+      margin:0 0 9px !important;
+      padding:0 !important;
+    }
+    body.solo-active .solo-command-button,
+    body.solo-active #solo-new,
+    body.solo-active #solo-undo {
+      box-sizing:border-box !important;
+      width:132px !important;
+      min-width:132px !important;
+      height:40px !important;
+      min-height:40px !important;
+      margin:0 !important;
+      padding:0 12px !important;
+      display:inline-flex !important;
+      align-items:center !important;
+      justify-content:center !important;
+      gap:7px !important;
+      border:1px solid color-mix(in srgb,var(--app-accent) 30%,var(--game-line)) !important;
+      border-radius:10px !important;
+      background:color-mix(in srgb,var(--game-panel-strong) 94%,var(--app-bg) 6%) !important;
+      color:var(--app-text) !important;
+      box-shadow:0 5px 14px color-mix(in srgb,var(--app-shadow) 16%,transparent) !important;
+      font:900 11px/1 var(--hud-display) !important;
+      white-space:nowrap !important;
+      transition:transform 170ms cubic-bezier(.2,.8,.2,1), border-color 170ms ease, box-shadow 170ms ease, background 170ms ease !important;
+    }
+    body.solo-active .solo-command-button:hover:not(:disabled),
+    body.solo-active #solo-new:hover:not(:disabled),
+    body.solo-active #solo-undo:hover:not(:disabled) {
+      transform:translateY(-2px) !important;
+      border-color:var(--app-accent) !important;
+      background:color-mix(in srgb,var(--app-accent) 7%,var(--game-panel-strong)) !important;
+      box-shadow:0 8px 18px color-mix(in srgb,var(--app-accent) 16%,transparent) !important;
+    }
+    body.solo-active .solo-command-button:disabled,
+    body.solo-active #solo-undo:disabled {
+      opacity:.42 !important;
+      transform:none !important;
+      box-shadow:none !important;
+    }
+    body.solo-active .solo-command-button .button-icon { width:15px !important; height:15px !important; }
+
+    /* -----------------------------------------------------
+       SOLO LANDING ACTIONS — actually centered, same motion.
+       ----------------------------------------------------- */
+    .solo-launch-actions {
+      box-sizing:border-box !important;
+      width:290px !important;
+      max-width:100% !important;
+      margin:28px auto 0 !important;
+      padding:0 !important;
+      align-self:center !important;
+      justify-self:center !important;
+      display:grid !important;
+      grid-template-columns:1fr !important;
+      gap:10px !important;
+    }
+    .solo-launch-actions .solo-main-action,
+    .solo-launch-actions .solo-text-action {
+      box-sizing:border-box !important;
+      width:290px !important;
+      max-width:100% !important;
+      min-width:0 !important;
+      height:49px !important;
+      min-height:49px !important;
+      margin:0 auto !important;
+      padding:0 18px !important;
+      display:flex !important;
+      align-items:center !important;
+      justify-content:center !important;
+      text-align:center !important;
+      border-radius:12px !important;
+      font:900 15px/1 var(--hud-display) !important;
+      transition:transform 180ms cubic-bezier(.2,.8,.2,1), box-shadow 180ms ease, background 180ms ease, border-color 180ms ease !important;
+    }
+    .solo-launch-actions .solo-main-action:hover,
+    .solo-launch-actions .solo-text-action:hover {
+      transform:translateY(-2px) scale(1.01) !important;
+      box-shadow:0 10px 24px color-mix(in srgb,var(--app-accent) 18%,transparent) !important;
+    }
+    .solo-launch-actions .solo-text-action:hover {
+      border-color:var(--app-accent) !important;
+      background:color-mix(in srgb,var(--app-accent) 8%,var(--game-panel-strong)) !important;
+    }
+
+    /* -----------------------------------------------------
+       APPROVED MODE ICONS — the old emoji concepts now use
+       restrained line-art graphics from rinas-icons.svg.
+       ----------------------------------------------------- */
+    .mode-showcase-title-row {
+      display:flex !important;
+      align-items:center !important;
+      gap:13px !important;
+      margin:0 0 5px !important;
+    }
+    .mode-showcase-title-row > div { min-width:0 !important; }
+    .mode-showcase-modeicon {
+      flex:0 0 48px !important;
+      width:48px !important;
+      height:48px !important;
+      display:grid !important;
+      place-items:center !important;
+      border:1px solid color-mix(in srgb,var(--mode-hue) 25%,var(--game-line)) !important;
+      border-radius:12px !important;
+      background:color-mix(in srgb,var(--game-panel-strong) 88%,transparent) !important;
+      box-shadow:0 6px 15px color-mix(in srgb,var(--app-shadow) 13%,transparent) !important;
+    }
+    .mode-showcase-modeicon .mode-art-icon {
+      width:30px !important;
+      height:30px !important;
+      display:block !important;
+    }
+    .mode-showcase-title-row .mode-showcase-index { display:block !important; margin:0 0 3px !important; }
+    .mode-showcase-title-row h2 { margin:0 !important; }
+
+    /* -----------------------------------------------------
+       MULTIPLAYER MENU — reclaim the top air and spend it on
+       larger mode choices + genuinely readable live previews.
+       ----------------------------------------------------- */
+    @media (min-width:901px) {
+      .screen-multiplayer-menu.app-screen {
+        padding-top:0 !important;
+        padding-bottom:18px !important;
+      }
+      .screen-multiplayer-menu .app-screen-inner {
+        width:min(1180px,calc(100% - 34px)) !important;
+        max-width:1180px !important;
+        padding-top:0 !important;
+      }
+      .screen-multiplayer-menu .app-header {
+        min-height:54px !important;
+        margin:0 0 2px !important;
+        padding:1px 0 6px !important;
+      }
+      .screen-multiplayer-menu .app-title-stack h1 { font-size:29px !important; }
+      .screen-multiplayer-menu .multiplayer-entry-head {
+        min-height:34px !important;
+        margin:0 0 7px !important;
+        padding:2px 0 6px !important;
+      }
+      .screen-multiplayer-menu .mode-showcase-list {
+        display:grid !important;
+        grid-template-columns:1fr !important;
+        gap:10px !important;
+        width:100% !important;
+        overflow:visible !important;
+      }
+      .screen-multiplayer-menu #mode-tile-race,
+      .screen-multiplayer-menu #mode-freeplay,
+      .screen-multiplayer-menu #mode-custom-race,
+      .screen-multiplayer-menu .mode-showcase {
+        box-sizing:border-box !important;
+        width:100% !important;
+        height:178px !important;
+        min-height:178px !important;
+        padding:17px 22px !important;
+        display:grid !important;
+        grid-template-columns:minmax(0,1fr) 360px !important;
+        align-items:center !important;
+        gap:26px !important;
+        overflow:visible !important;
+        border-radius:17px !important;
+      }
+      .screen-multiplayer-menu .mode-showcase-copy { min-width:0 !important; align-self:center !important; }
+      .screen-multiplayer-menu .mode-showcase h2 { font-size:28px !important; line-height:1 !important; }
+      .screen-multiplayer-menu .mode-showcase p {
+        max-width:650px !important;
+        margin:5px 0 7px !important;
+        font-size:14px !important;
+        line-height:1.32 !important;
+      }
+      .screen-multiplayer-menu .mode-showcase-facts { gap:16px !important; margin:0 0 6px !important; }
+      .screen-multiplayer-menu .mode-showcase-action { margin-top:0 !important; }
+      .screen-multiplayer-menu .mode-showcase-preview {
+        box-sizing:border-box !important;
+        width:360px !important;
+        min-width:360px !important;
+        height:138px !important;
+        min-height:138px !important;
+        padding:10px 14px !important;
+        justify-self:start !important;
+        align-self:center !important;
+        display:flex !important;
+        align-items:center !important;
+        justify-content:center !important;
+        overflow:visible !important;
+      }
+      .screen-multiplayer-menu .mode-showcase .ui-mini-board {
+        width:112px !important;
+        height:112px !important;
+      }
+      .screen-multiplayer-menu .mode-visual-pair { gap:15px !important; justify-content:center !important; }
+      .screen-multiplayer-menu .mode-freeplay-visual {
+        width:100% !important;
+        grid-template-columns:112px minmax(0,1fr) !important;
+        gap:18px !important;
+      }
+      .screen-multiplayer-menu .custom-target { min-height:96px !important; padding:11px 13px !important; }
+      .screen-multiplayer-menu .custom-target strong { font-size:29px !important; }
+      .screen-multiplayer-menu .future-modes-strip {
+        margin:7px 0 14px !important;
+        gap:26px !important;
+      }
+    }
+
+    @media (max-height:800px) and (min-width:901px) {
+      .screen-multiplayer-menu #mode-tile-race,
+      .screen-multiplayer-menu #mode-freeplay,
+      .screen-multiplayer-menu #mode-custom-race,
+      .screen-multiplayer-menu .mode-showcase {
+        height:166px !important;
+        min-height:166px !important;
+      }
+      .screen-multiplayer-menu .mode-showcase-preview {
+        height:126px !important;
+        min-height:126px !important;
+      }
+      .screen-multiplayer-menu .mode-showcase .ui-mini-board { width:102px !important; height:102px !important; }
+      .screen-multiplayer-menu .mode-freeplay-visual { grid-template-columns:102px minmax(0,1fr) !important; }
+      .screen-multiplayer-menu .mode-showcase-modeicon { width:44px !important; height:44px !important; flex-basis:44px !important; }
+      .screen-multiplayer-menu .mode-showcase-modeicon .mode-art-icon { width:27px !important; height:27px !important; }
+    }
+
+    @media (max-width:900px) {
+      body.solo-active .container .heading { grid-template-columns:1fr !important; gap:10px !important; }
+      body.solo-active .container .title { width:auto !important; text-align:center !important; }
+      body.solo-active .scores-container { justify-content:center !important; }
+      .solo-launch-actions,
+      .solo-launch-actions .solo-main-action,
+      .solo-launch-actions .solo-text-action { width:100% !important; }
+      .mode-showcase-title-row { align-items:flex-start !important; }
+      .mode-showcase-modeicon { width:42px !important; height:42px !important; flex-basis:42px !important; }
+    }
+  `;
+  document.head.appendChild(v52Style);
+
   restoreGameContainer();
   showMainMenu();
+
+  // The designed application is now fully styled and rendered.
+  // Reveal the static game host/footer only after boot so no plain-text
+  // "Original 2048 by Gabriele Cirulli" flash appears during page load.
+  document.body.classList.add("rinas-app-ready");
 })();
