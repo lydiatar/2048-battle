@@ -12489,6 +12489,195 @@
   `;
   document.head.appendChild(v56Style);
 
+
+  // =========================================================
+  // v57: exact mockup-style Solo score chips
+  // =========================================================
+  var v57Style = document.createElement("style");
+  v57Style.id = "rinas-v57-mockup-score-chips";
+  v57Style.textContent = `
+    /*
+      SCORE / BEST
+      Match the approved icon-system mockup:
+      - clearly rounded
+      - light, softly theme-tinted surface
+      - dark readable type
+      - visible darker outline
+      - compact proportions
+      - no black fill, no glass, no gradient, no shine
+    */
+    body.solo-active .container {
+      padding-top:14px !important;
+    }
+
+    body.solo-active .container .heading {
+      grid-template-columns:132px auto !important;
+      gap:18px !important;
+      min-height:64px !important;
+      margin:0 auto 10px !important;
+      padding:0 !important;
+      align-items:center !important;
+      overflow:visible !important;
+    }
+
+    body.solo-active .scores-container {
+      display:flex !important;
+      align-items:center !important;
+      justify-content:flex-start !important;
+      gap:10px !important;
+      width:auto !important;
+      height:auto !important;
+      margin:0 !important;
+      padding:0 !important;
+      border:0 !important;
+      border-radius:0 !important;
+      background:transparent !important;
+      box-shadow:none !important;
+      overflow:visible !important;
+    }
+
+    body.solo-active .score-container,
+    body.solo-active .best-container {
+      box-sizing:border-box !important;
+      position:relative !important;
+      width:104px !important;
+      min-width:104px !important;
+      height:64px !important;
+      min-height:64px !important;
+      margin:0 !important;
+      padding:27px 10px 8px !important;
+      display:flex !important;
+      align-items:flex-end !important;
+      justify-content:center !important;
+      border-width:2px !important;
+      border-style:solid !important;
+      border-left-width:2px !important;
+      border-radius:18px !important;
+      background-image:none !important;
+      box-shadow:0 4px 10px rgba(40,32,28,.06) !important;
+      -webkit-backdrop-filter:none !important;
+      backdrop-filter:none !important;
+      font-family:var(--hud-display) !important;
+      font-size:24px !important;
+      font-weight:900 !important;
+      line-height:1 !important;
+      letter-spacing:-.02em !important;
+      text-align:center !important;
+      overflow:hidden !important;
+      pointer-events:none !important;
+      cursor:default !important;
+    }
+
+    body.solo-active .score-container::before,
+    body.solo-active .best-container::before {
+      content:none !important;
+      display:none !important;
+    }
+
+    body.solo-active .score-container::after,
+    body.solo-active .best-container::after {
+      position:absolute !important;
+      top:9px !important;
+      left:0 !important;
+      right:0 !important;
+      width:100% !important;
+      margin:0 !important;
+      font-family:var(--hud-display) !important;
+      font-size:10px !important;
+      font-weight:900 !important;
+      line-height:1 !important;
+      letter-spacing:.10em !important;
+      text-align:center !important;
+      text-transform:uppercase !important;
+    }
+    body.solo-active .score-container::after { content:"SCORE" !important; }
+    body.solo-active .best-container::after { content:"BEST" !important; }
+
+    /* Classic — warm cream, never black. */
+    body.theme-classic.solo-active .score-container,
+    body.theme-classic.solo-active .best-container {
+      background:#f8f2e8 !important;
+      border-color:#8d7f72 !important;
+      color:#2c2825 !important;
+    }
+    body.theme-classic.solo-active .score-container::after,
+    body.theme-classic.solo-active .best-container::after { color:#6f645c !important; }
+
+    /* Pastel — soft lilac white. */
+    body.theme-pastel.solo-active .score-container,
+    body.theme-pastel.solo-active .best-container {
+      background:#f7f4ff !important;
+      border-color:#83799b !important;
+      color:#312e43 !important;
+    }
+    body.theme-pastel.solo-active .score-container::after,
+    body.theme-pastel.solo-active .best-container::after { color:#6f6682 !important; }
+
+    /* Ocean — light aqua chip over the dark ocean board/page. */
+    body.theme-ocean.solo-active .score-container,
+    body.theme-ocean.solo-active .best-container {
+      background:#e7f6f8 !important;
+      border-color:#447783 !important;
+      color:#183f49 !important;
+    }
+    body.theme-ocean.solo-active .score-container::after,
+    body.theme-ocean.solo-active .best-container::after { color:#4e727b !important; }
+
+    /* Candy — light blush, not plum/black. */
+    body.theme-candy.solo-active .score-container,
+    body.theme-candy.solo-active .best-container {
+      background:#fff0f7 !important;
+      border-color:#8e5873 !important;
+      color:#533442 !important;
+    }
+    body.theme-candy.solo-active .score-container::after,
+    body.theme-candy.solo-active .best-container::after { color:#8c6073 !important; }
+
+    /* Midnight — still a LIGHT chip, tinted cool lavender-gray. */
+    body.theme-midnight.solo-active .score-container,
+    body.theme-midnight.solo-active .best-container {
+      background:#eef0fb !important;
+      border-color:#656c98 !important;
+      color:#242842 !important;
+    }
+    body.theme-midnight.solo-active .score-container::after,
+    body.theme-midnight.solo-active .best-container::after { color:#626986 !important; }
+
+    /* Fallback: if a theme class is ever missing, use the mockup's light treatment. */
+    body.solo-active:not(.theme-classic):not(.theme-pastel):not(.theme-ocean):not(.theme-candy):not(.theme-midnight) .score-container,
+    body.solo-active:not(.theme-classic):not(.theme-pastel):not(.theme-ocean):not(.theme-candy):not(.theme-midnight) .best-container {
+      background:#f8f2e8 !important;
+      border-color:#8d7f72 !important;
+      color:#2c2825 !important;
+    }
+
+    /* Keep chips visually separated from the top divider. */
+    body.solo-active #solo-toolbar {
+      margin-bottom:0 !important;
+    }
+
+    @media (max-width:900px) {
+      body.solo-active .container { padding-top:10px !important; }
+      body.solo-active .container .heading {
+        grid-template-columns:1fr !important;
+        gap:9px !important;
+      }
+      body.solo-active .container .title {
+        width:auto !important;
+        text-align:center !important;
+      }
+      body.solo-active .scores-container { justify-content:center !important; }
+      body.solo-active .score-container,
+      body.solo-active .best-container {
+        width:100px !important;
+        min-width:100px !important;
+        height:62px !important;
+        min-height:62px !important;
+      }
+    }
+  `;
+  document.head.appendChild(v57Style);
+
   restoreGameContainer();
   showMainMenu();
 
