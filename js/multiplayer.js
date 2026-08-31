@@ -9010,17 +9010,32 @@
     // window.innerHeight - 8 estimate, which ignored the header/footer
     // and was the reason players had to zoom the browser out manually.
     if (isSolo && gameHost) {
-      var footerTop = footer
-        ? footer.getBoundingClientRect().top
-        : window.innerHeight - 10;
-      var hostTop = Math.max(0, gameHost.getBoundingClientRect().top);
-      var availableHeight = Math.max(360, footerTop - hostTop - 10);
-      var naturalHeight = Math.max(1, gameHost.scrollHeight);
+      // Measure what is actually painted, including the board, action row and
+      // bottom controls. scrollHeight was too optimistic because several legacy
+      // 2048 elements use positioned descendants.
+      gameHost.style.zoom = "1";
+
+      var hostRect = gameHost.getBoundingClientRect();
+      var hostTop = Math.max(0, hostRect.top);
+      var naturalBottom = hostRect.bottom;
+      var soloMeasured = gameHost.querySelectorAll(
+        ".container, .heading, #solo-card-actions, .game-container, #solo-control-strip"
+      );
+      for (var sm = 0; sm < soloMeasured.length; sm++) {
+        var smRect = soloMeasured[sm].getBoundingClientRect();
+        if (smRect.bottom > naturalBottom) naturalBottom = smRect.bottom;
+      }
+
+      var naturalHeight = Math.max(1, naturalBottom - hostTop);
+      // Reserve explicit breathing room for the fixed credit/footer.
+      var safeBottom = window.innerHeight - 34;
+      if (footer) safeBottom = Math.min(safeBottom, footer.getBoundingClientRect().top - 8);
+      var availableHeight = Math.max(320, safeBottom - hostTop);
       var scale = Math.min(1, availableHeight / naturalHeight);
 
-      // Keep the board comfortably legible while guaranteeing the whole
-      // Solo HUD + controls + board fit at normal browser zoom.
-      scale = Math.max(0.68, scale);
+      // At desktop sizes the entire board and controls must fit at browser 100%.
+      // Prefer fitting over preserving an arbitrary minimum scale.
+      scale = Math.max(0.56, scale);
       gameHost.style.zoom = scale.toFixed(3);
     }
 
@@ -12234,6 +12249,98 @@
     }
   `;
   document.head.appendChild(v54Style);
+
+  // =========================================================
+  // v55: approved soft-glass stat chips + hard viewport fit
+  // =========================================================
+  var v55Style = document.createElement("style");
+  v55Style.id = "rinas-v55-soft-chips-fit";
+  v55Style.textContent = `
+    /* Score and Best must match the approved mockup: light, soft,
+       glassy stat surfaces. They are information chips, not dark HUD cards. */
+    body.solo-active .score-container,
+    body.solo-active .best-container {
+      background:#fffaf5 !important;
+      background-image:linear-gradient(145deg,rgba(255,255,255,.94),rgba(255,247,239,.82)) !important;
+      border:1px solid rgba(160,135,110,.24) !important;
+      border-left:1px solid rgba(160,135,110,.24) !important;
+      color:#2d2925 !important;
+      box-shadow:inset 0 1px 0 rgba(255,255,255,.98), 0 7px 20px rgba(76,56,42,.10) !important;
+      -webkit-backdrop-filter:blur(12px) saturate(1.06) !important;
+      backdrop-filter:blur(12px) saturate(1.06) !important;
+    }
+    body.solo-active .score-container::after,
+    body.solo-active .best-container::after { color:#84786e !important; }
+    body.solo-active .score-container::before,
+    body.solo-active .best-container::before {
+      background:linear-gradient(to bottom,rgba(255,255,255,.72),rgba(255,255,255,0)) !important;
+      opacity:.72 !important;
+    }
+
+    body.theme-pastel.solo-active .score-container,
+    body.theme-pastel.solo-active .best-container {
+      background:#faf7ff !important;
+      background-image:linear-gradient(145deg,rgba(255,255,255,.95),rgba(240,234,255,.88)) !important;
+      border-color:rgba(145,124,202,.28) !important;
+      color:#332e42 !important;
+      box-shadow:inset 0 1px 0 rgba(255,255,255,.98),0 7px 20px rgba(91,73,132,.11) !important;
+    }
+    body.theme-pastel.solo-active .score-container::after,
+    body.theme-pastel.solo-active .best-container::after { color:#796e91 !important; }
+
+    body.theme-ocean.solo-active .score-container,
+    body.theme-ocean.solo-active .best-container {
+      background:#edfafd !important;
+      background-image:linear-gradient(145deg,rgba(250,255,255,.97),rgba(211,239,245,.90)) !important;
+      border-color:rgba(62,146,168,.30) !important;
+      color:#214b57 !important;
+      box-shadow:inset 0 1px 0 rgba(255,255,255,.98),0 7px 20px rgba(21,91,107,.13) !important;
+    }
+    body.theme-ocean.solo-active .score-container::after,
+    body.theme-ocean.solo-active .best-container::after { color:#4d7883 !important; }
+
+    body.theme-candy.solo-active .score-container,
+    body.theme-candy.solo-active .best-container {
+      background:#fff7fb !important;
+      background-image:linear-gradient(145deg,rgba(255,255,255,.97),rgba(251,222,236,.90)) !important;
+      border-color:rgba(208,85,139,.28) !important;
+      color:#61384b !important;
+      box-shadow:inset 0 1px 0 rgba(255,255,255,.98),0 7px 20px rgba(138,67,100,.12) !important;
+    }
+    body.theme-candy.solo-active .score-container::after,
+    body.theme-candy.solo-active .best-container::after { color:#9a627a !important; }
+
+    body.theme-midnight.solo-active .score-container,
+    body.theme-midnight.solo-active .best-container {
+      /* Midnight is still glass, but lifted from the page so it never reads as a black block. */
+      background:#313750 !important;
+      background-image:linear-gradient(145deg,rgba(69,77,112,.94),rgba(43,49,76,.91)) !important;
+      border-color:rgba(156,168,235,.32) !important;
+      color:#f8f9ff !important;
+      box-shadow:inset 0 1px 0 rgba(235,239,255,.25),0 8px 22px rgba(3,5,16,.24) !important;
+    }
+    body.theme-midnight.solo-active .score-container::after,
+    body.theme-midnight.solo-active .best-container::after { color:#d1d6f2 !important; }
+
+    /* Keep the approved chip proportions and avoid any old score-strip styling. */
+    body.solo-active .scores-container {
+      background:transparent !important;
+      border:0 !important;
+      box-shadow:none !important;
+      overflow:visible !important;
+      gap:10px !important;
+    }
+
+    @media (min-width:901px) {
+      body.solo-active #game-host {
+        zoom:1;
+        transform:none !important;
+        transform-origin:top center !important;
+      }
+      body.solo-active #solo-control-strip { margin-bottom:2px !important; }
+    }
+  `;
+  document.head.appendChild(v55Style);
 
   restoreGameContainer();
   showMainMenu();
