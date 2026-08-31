@@ -416,15 +416,13 @@ GameManager.prototype.actuate = function () {
     ? false
     : this.over;
 
-  // Multiplayer has its own result modal. Solo also uses a
-  // custom 2048 milestone dialog, so the original 2048 win
-  // overlay is suppressed. The original Game Over overlay is
-  // still used for an actual Solo loss.
+  // Rina's 2048 uses game-native result states for Multiplayer,
+  // Solo milestones, and Solo Game Over. Keep the original 2048
+  // message layer suppressed so the board stays visible behind
+  // the custom presentation.
   var displayWon = false;
 
-  var displayTerminated = window.multiplayerMode
-    ? false
-    : this.over;
+  var displayTerminated = false;
 
   this.actuator.actuate(this.grid, {
     score: this.score,
@@ -433,6 +431,14 @@ GameManager.prototype.actuate = function () {
     bestScore: displayBestScore,
     terminated: displayTerminated
   });
+
+  if (!window.multiplayerMode && window.updateSoloGameplayHud) {
+    window.updateSoloGameplayHud(this.score, highestTile, this.storageManager.getBestScore());
+  }
+
+  if (!window.multiplayerMode && this.over && window.showSoloGameOver) {
+    window.showSoloGameOver(this.score, highestTile, this.storageManager.getBestScore());
+  }
 
   if (
     window.multiplayerMode &&
