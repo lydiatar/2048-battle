@@ -82,6 +82,8 @@
   var opponentStateAnimating = false;
   var lastRenderedOpponentState = null;
   var opponentAnimationTimer = null;
+  var preMatchCountdownTimers = [];
+  var pendingGameStartData = null;
 
   if (TARGETS.indexOf(selectedTarget) === -1) {
     selectedTarget = 2048;
@@ -6393,7 +6395,7 @@
         <span class="match-setup-kicker">JOIN A ROOM</span>
         <h2>Enter a room code.</h2>
         <p>Paste the six-character code your friend sent you.</p>
-        <input id="room-code" class="match-room-input" maxlength="6" placeholder="SS4MAL" autocomplete="off" autocapitalize="characters" spellcheck="false">
+        <input id="room-code" class="match-room-input" maxlength="6" placeholder="ENTER CODE" autocomplete="off" autocapitalize="characters" spellcheck="false">
         <button class="primary-button" id="join-room">Join Match</button>
       </section>
     `;
@@ -6696,7 +6698,7 @@
             <span class="match-setup-kicker">PLAYERS</span>
             <div class="match-staging-player ready"><div><strong>${escapeHtml(ownName)}</strong><span><i></i>Ready</span></div><b>YOU</b></div>
             <div class="match-staging-player waiting"><div><strong>Player 2</strong><span><i></i>Waiting to join</span></div><b>OPPONENT</b></div>
-            <p class="match-staging-wait">The match starts automatically when Player 2 joins.</p>
+            <p class="match-staging-wait">Waiting for your opponent. When they join, both players get a short 3–2–1 countdown.</p>
           </section>
         </div>
       `
@@ -6742,6 +6744,101 @@
       }
     });
     document.getElementById("match-copy-code").addEventListener("click", copyRoomCode);
+  }
+
+  function clearPreMatchCountdown() {
+    while (preMatchCountdownTimers.length) {
+      window.clearTimeout(preMatchCountdownTimers.pop());
+    }
+    pendingGameStartData = null;
+  }
+
+  function countdownModeSummary(data) {
+    var mode = data.mode || "tile-race";
+    if (mode === "freeplay") return "No finish line · One-step Undo · Restart anytime";
+    if (mode === "custom-race") {
+      return "Your target " + Number(data.ownTarget || data.targetTile || 2048) +
+        " · Opponent target " + Number(data.opponentTarget || data.targetTile || 2048);
+    }
+    return "First to " + Number(data.targetTile || 2048) + " · No Undo · A stuck board loses";
+  }
+
+  function showPreMatchCountdown(data) {
+    clearPreMatchCountdown();
+    pendingGameStartData = data;
+
+    currentRoomCode = data.roomCode || currentRoomCode;
+    window.multiplayerRoomCode = currentRoomCode;
+    window.multiplayerPlayerNumber = Number(data.playerNumber);
+    updateProfiles(data.players || []);
+
+    var mode = data.mode || "tile-race";
+    var ownName = getOwnNickname();
+    var opponentName = getOpponentNickname();
+
+    window.currentGameMode = "multiplayer-countdown";
+
+    showScreen(
+      modeTitle(mode),
+      function () {
+        clearPreMatchCountdown();
+        leaveRoomSilently();
+        backToLobbyForMode(mode);
+      },
+      `
+        <div class="match-countdown-screen" aria-live="polite">
+          <section class="match-countdown-copy">
+            <span class="match-setup-kicker">MATCH FOUND</span>
+            <h2>Your opponent joined.</h2>
+            <p>${escapeHtml(countdownModeSummary(data))}</p>
+            <div class="match-countdown-number" id="match-countdown-number"><span>GET READY</span></div>
+          </section>
+
+          <section class="match-countdown-players" aria-label="Players ready">
+            <span class="match-setup-kicker">PLAYERS</span>
+            <div class="match-staging-player ready connected">
+              <div><strong>${escapeHtml(ownName)}</strong><span><i></i>Ready</span></div><b>YOU</b>
+            </div>
+            <div class="match-staging-player ready connected">
+              <div><strong>${escapeHtml(opponentName)}</strong><span><i></i>Connected</span></div><b>OPPONENT</b>
+            </div>
+            <p class="match-countdown-status" id="match-countdown-status">Both players are connected.</p>
+          </section>
+        </div>
+      `
+    );
+
+    var numberNode = document.getElementById("match-countdown-number");
+    var statusNode = document.getElementById("match-countdown-status");
+
+    function showCount(value, statusText) {
+      if (!numberNode) return;
+      numberNode.classList.remove("count-snap");
+      numberNode.innerHTML = "<strong>" + value + "</strong>";
+      void numberNode.offsetWidth;
+      numberNode.classList.add("count-snap");
+      if (statusNode) statusNode.textContent = statusText;
+      playSound("ui");
+    }
+
+    // Give the host and joiner a visible connected state before counting.
+    preMatchCountdownTimers.push(window.setTimeout(function () {
+      showCount("3", "Match starts in 3…");
+    }, 850));
+
+    preMatchCountdownTimers.push(window.setTimeout(function () {
+      showCount("2", "Match starts in 2…");
+    }, 1550));
+
+    preMatchCountdownTimers.push(window.setTimeout(function () {
+      showCount("1", "Match starts in 1…");
+    }, 2250));
+
+    preMatchCountdownTimers.push(window.setTimeout(function () {
+      var startData = pendingGameStartData;
+      clearPreMatchCountdown();
+      if (startData) startMultiplayerMatch(startData);
+    }, 3050));
   }
 
   // =========================================================
@@ -7067,12 +7164,14 @@
   }
 
   function leaveRoomSilently() {
+    clearPreMatchCountdown();
     if (currentRoomCode) socket.emit("leaveRoom");
     currentRoomCode = null;
     window.multiplayerRoomCode = null;
   }
 
   function leaveMultiplayerMatch() {
+    clearPreMatchCountdown();
     stopCompetitiveMusic(320);
     socket.emit("leaveRoom");
     currentRoomCode = null;
@@ -8017,7 +8116,7 @@
 
   socket.on("gameStart", function (data) {
     currentRoomCode = data.roomCode || currentRoomCode;
-    startMultiplayerMatch(data);
+    showPreMatchCountdown(data);
   });
 
   socket.on("opponentState", function (data) {
@@ -9635,15 +9734,21 @@
     }
 
     if (shell) {
-      var shellFooterTop = footer
-        ? footer.getBoundingClientRect().top
-        : window.innerHeight - 10;
-      var shellTop = Math.max(0, shell.getBoundingClientRect().top);
-      var shellAvailable = Math.max(360, shellFooterTop - shellTop - 10);
-      var shellNatural = Math.max(1, shell.scrollHeight);
-      var shellScale = Math.min(1, shellAvailable / shellNatural);
-      shellScale = Math.max(0.68, shellScale);
-      shell.style.zoom = shellScale.toFixed(3);
+      // Direction A has its own responsive board sizes. Legacy shell zoom was
+      // shrinking the three-column match and causing the opponent panel to wrap.
+      if (shell.classList.contains("direction-a-battle")) {
+        shell.style.zoom = "1";
+      } else {
+        var shellFooterTop = footer
+          ? footer.getBoundingClientRect().top
+          : window.innerHeight - 10;
+        var shellTop = Math.max(0, shell.getBoundingClientRect().top);
+        var shellAvailable = Math.max(360, shellFooterTop - shellTop - 10);
+        var shellNatural = Math.max(1, shell.scrollHeight);
+        var shellScale = Math.min(1, shellAvailable / shellNatural);
+        shellScale = Math.max(0.68, shellScale);
+        shell.style.zoom = shellScale.toFixed(3);
+      }
     }
   }
 
