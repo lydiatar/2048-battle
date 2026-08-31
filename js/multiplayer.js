@@ -5412,6 +5412,70 @@
     );
   }
 
+  function uiIcon(name, extraClass) {
+    var cls = "ui-icon" + (extraClass ? " " + extraClass : "");
+    var common = 'viewBox="0 0 24 24" aria-hidden="true" focusable="false"';
+    var body = "";
+
+    if (name === "solo") {
+      body = '<rect x="3.5" y="3.5" width="7" height="7" rx="1.7"></rect>' +
+        '<rect x="13.5" y="3.5" width="7" height="7" rx="1.7"></rect>' +
+        '<rect x="3.5" y="13.5" width="7" height="7" rx="1.7"></rect>' +
+        '<rect x="13.5" y="13.5" width="7" height="7" rx="1.7"></rect>';
+    } else if (name === "multiplayer") {
+      body = '<rect x="2.5" y="5" width="7" height="7" rx="1.5"></rect>' +
+        '<rect x="5" y="12" width="4.5" height="4.5" rx="1.1"></rect>' +
+        '<rect x="14.5" y="5" width="7" height="7" rx="1.5"></rect>' +
+        '<rect x="14.5" y="12" width="4.5" height="4.5" rx="1.1"></rect>' +
+        '<path d="M10.8 8.5h2.4M12 7.3v2.4"></path>';
+    } else if (name === "settings") {
+      body = '<path d="M4 6h10M18 6h2M4 12h3M11 12h9M4 18h8M16 18h4"></path>' +
+        '<circle cx="16" cy="6" r="2"></circle>' +
+        '<circle cx="9" cy="12" r="2"></circle>' +
+        '<circle cx="14" cy="18" r="2"></circle>';
+    } else if (name === "new") {
+      body = '<circle cx="12" cy="12" r="8.5"></circle>' +
+        '<path d="M12 8v8M8 12h8"></path>';
+    } else if (name === "undo") {
+      body = '<path d="M8.5 7H4v-4"></path>' +
+        '<path d="M4.4 7.2A8.2 8.2 0 1 1 5.6 17"></path>';
+    } else if (name === "sound") {
+      body = '<path d="M4 10h4l5-4v12l-5-4H4z"></path>' +
+        '<path d="M16 9.2c1.2 1.4 1.2 4.2 0 5.6M18.8 7c2.6 2.8 2.6 7.2 0 10"></path>';
+    } else if (name === "sound-off") {
+      body = '<path d="M4 10h4l5-4v12l-5-4H4z"></path>' +
+        '<path d="M16 9l5 6M21 9l-5 6"></path>';
+    } else if (name === "exit") {
+      body = '<path d="M13 4H5v16h8"></path>' +
+        '<path d="M11 12h10M17 8l4 4-4 4"></path>';
+    } else if (name === "save") {
+      body = '<circle cx="12" cy="12" r="9"></circle>' +
+        '<path d="M8 12.2l2.6 2.6L16.8 8.6"></path>';
+    } else if (name === "win") {
+      body = '<path d="M4 9l4 3 4-7 4 7 4-3-1.8 9H5.8z"></path>' +
+        '<path d="M7 21h10"></path>';
+    } else if (name === "loss") {
+      body = '<path d="M4 4h7v7H4zM13 4h7v5h-7zM4 13h5v7H4zM12 13h8v7h-8z"></path>' +
+        '<path d="M11 9l2 4M9 13l3-2"></path>';
+    } else if (name === "celebrate") {
+      body = '<rect x="4" y="5" width="4" height="4" rx=".8"></rect>' +
+        '<rect x="15.5" y="4" width="3.5" height="3.5" rx=".8"></rect>' +
+        '<rect x="10" y="10" width="4.5" height="4.5" rx="1"></rect>' +
+        '<rect x="5" y="16" width="3.5" height="3.5" rx=".8"></rect>' +
+        '<rect x="16" y="15" width="4" height="4" rx=".8"></rect>' +
+        '<path d="M3 12h2M19 11h2M12 3v2M12 19v2"></path>';
+    } else if (name === "disconnect") {
+      body = '<path d="M13 4H5v16h8"></path>' +
+        '<path d="M11 12h10M17 8l4 4-4 4"></path>';
+    } else if (name === "back") {
+      body = '<path d="M20 12H5M10 7l-5 5 5 5"></path>';
+    } else {
+      body = '<circle cx="12" cy="12" r="8"></circle>';
+    }
+
+    return '<svg class="' + cls + '" ' + common + '>' + body + '</svg>';
+  }
+
   var nextScreenTransitionDirection = 1;
 
   function removeIdsFromClone(root) {
@@ -5471,14 +5535,14 @@
         <div class="app-screen-inner">
           <div class="app-header">
             <div class="app-header-side left">
-              ${backHandler ? '<button class="nav-button" id="screen-back">← Back</button>' : ""}
+              ${backHandler ? '<button class="nav-button icon-text-button" id="screen-back">' + uiIcon('back','button-icon') + '<span>Back</span></button>' : ""}
             </div>
             <div class="app-title-stack">
               <span class="app-title-brand">Rina's 2048</span>
               <h1>${escapeHtml(title)}</h1>
             </div>
             <div class="app-header-side right">
-              <button class="settings-button" id="screen-settings">Settings</button>
+              <button class="settings-button icon-text-button" id="screen-settings">${uiIcon("settings", "button-icon")}<span>Settings</span></button>
             </div>
           </div>
           <div id="screen-content">${contentHtml}</div>
@@ -5772,13 +5836,13 @@
 
         <div class="home-mode-stack">
           <button class="home-brush-button solo-brush" id="choose-solo">
-            <span class="brush-icon">🎮</span>
+            <span class="brush-icon graphic-icon">${uiIcon("solo", "home-mode-icon")}</span>
             <span class="brush-copy"><strong>SOLO</strong><small>Build an endless board and beat your best.</small></span>
             <span class="brush-arrow">›</span>
           </button>
 
           <button class="home-brush-button multiplayer-brush" id="choose-multiplayer">
-            <span class="brush-icon">👥</span>
+            <span class="brush-icon graphic-icon">${uiIcon("multiplayer", "home-mode-icon")}</span>
             <span class="brush-copy"><strong>MULTIPLAYER</strong><small>Race, freeplay, or balance a match with custom targets.</small></span>
             <span class="brush-arrow">›</span>
           </button>
@@ -5900,7 +5964,7 @@
               </div>
 
               <div class="solo-launch-actions">
-                ${hasSave ? '<button class="solo-main-action" id="continue-solo">Continue Run <span>→</span></button>' : '<button class="solo-main-action" id="start-solo">Start Run <span>→</span></button>'}
+                ${hasSave ? '<button class="solo-main-action" id="continue-solo">Continue Run</button>' : '<button class="solo-main-action" id="start-solo">Start Run</button>'}
                 ${hasSave ? '<button class="solo-text-action" id="new-solo">Start a new run</button>' : ''}
               </div>
             </section>
@@ -5950,13 +6014,13 @@
   function renderSoloChrome() {
     soloToolbar.innerHTML = `
       <div class="solo-floating-header">
-        <div><button class="nav-button" id="solo-back">← Back</button></div>
+        <div><button class="nav-button icon-text-button" id="solo-back">${uiIcon("back", "button-icon")}<span>Back</span></button></div>
         <div class="solo-floating-center">
           <strong>Rina's 2048</strong>
           <span class="solo-mode-label">SOLO</span>
         </div>
         <div class="solo-floating-right">
-          <button class="settings-button" id="solo-settings">Settings</button>
+          <button class="settings-button icon-text-button" id="solo-settings">${uiIcon("settings", "button-icon")}<span>Settings</span></button>
         </div>
       </div>
     `;
@@ -5972,8 +6036,8 @@
     actionRow.id = "solo-card-actions";
     actionRow.className = "solo-card-actions";
     actionRow.innerHTML = `
-      <button class="small-button" id="solo-new">New Game</button>
-      <button class="small-button" id="solo-undo" data-no-ui-sound="true">Undo (Z)</button>
+      <button class="small-button solo-command-button" id="solo-new">${uiIcon("new", "button-icon")}<span>New Game</span></button>
+      <button class="small-button solo-command-button" id="solo-undo" data-no-ui-sound="true">${uiIcon("undo", "button-icon")}<span>Undo</span><span class="button-shortcut">(Z)</span></button>
     `;
 
     var board = gameContainer.querySelector(".game-container");
@@ -6102,7 +6166,7 @@
     overlay.className = "result-overlay";
     overlay.innerHTML = `
       <div class="result-box">
-        <div class="result-icon">🎉</div>
+        <div class="result-icon result-icon-graphic">${uiIcon("celebrate", "result-graphic")}</div>
         <h1>You made 2048!</h1>
         <p>2048 is only the first milestone. Keep this board and see how far you can go.</p>
         <div class="result-actions">
@@ -6567,14 +6631,14 @@
 
     battleShell.innerHTML = `
       <div class="battle-topbar">
-        <button class="danger-button" id="leave-match">Leave Match</button>
+        <button class="danger-button icon-text-button" id="leave-match">${uiIcon("exit", "button-icon")}<span>Leave Match</span></button>
         <div class="battle-mode-title">
           <strong>Rina's 2048</strong>
           <span>${escapeHtml(modeTitle(mode))}</span>
         </div>
         <div class="battle-topbar-right">
           <span class="battle-room-mini">Room ${escapeHtml(window.multiplayerRoomCode || "------")}</span>
-          <button class="settings-button" id="battle-settings">Settings</button>
+          <button class="settings-button icon-text-button" id="battle-settings">${uiIcon("settings", "button-icon")}<span>Settings</span></button>
         </div>
       </div>
 
@@ -6630,7 +6694,7 @@
       var controls = document.createElement("div");
       controls.className = "freeplay-controls";
       controls.innerHTML = `
-        <button class="small-button" id="freeplay-undo" data-no-ui-sound="true">Undo (Z)</button>
+        <button class="small-button solo-command-button" id="freeplay-undo" data-no-ui-sound="true">${uiIcon("undo", "button-icon")}<span>Undo</span><span class="button-shortcut">(Z)</span></button>
         <button class="small-button" id="freeplay-restart">Restart Board</button>
       `;
       ownPanel.appendChild(controls);
@@ -7035,7 +7099,7 @@
     overlay.className = "result-overlay";
     overlay.innerHTML = `
       <div class="result-box">
-        <div class="result-icon">${didWin ? "🏆" : "💥"}</div>
+        <div class="result-icon result-icon-graphic">${uiIcon(didWin ? "win" : "loss", "result-graphic")}</div>
         <h1>${didWin ? "YOU WIN!" : "YOU LOSE"}</h1>
         <p>${escapeHtml(description)}</p>
         <div class="result-actions">
@@ -7072,7 +7136,7 @@
     overlay.className = "result-overlay";
     overlay.innerHTML = `
       <div class="result-box">
-        <div class="result-icon">👋</div>
+        <div class="result-icon result-icon-graphic">${uiIcon("disconnect", "result-graphic")}</div>
         <h1>Room Ended</h1>
         <p>${escapeHtml(getOpponentNickname())} left the room.</p>
         <div class="result-actions"><button class="primary-button" id="opponent-left-back">Back to Multiplayer</button></div>
@@ -7132,7 +7196,7 @@
             <h2>Settings</h2>
           </div>
           <div class="settings-header-actions">
-            <button class="settings-done-inline" id="settings-save">Save</button>
+            <button class="settings-done-inline icon-text-button" id="settings-save">${uiIcon("save", "button-icon")}<span>Save</span></button>
           </div>
         </div>
 
@@ -11082,6 +11146,325 @@
     }
   `;
   document.head.appendChild(v49Style);
+
+
+  // =========================================================
+  // v50: unified game components + custom SVG icon system
+  // =========================================================
+  var v50Style = document.createElement("style");
+  v50Style.id = "rinas-v50-style";
+  v50Style.textContent = `
+    /* ---------- Custom graphics ---------- */
+    .ui-icon {
+      width: 1.15em;
+      height: 1.15em;
+      display: inline-block;
+      flex: 0 0 auto;
+      fill: none;
+      stroke: currentColor;
+      stroke-width: 1.7;
+      stroke-linecap: round;
+      stroke-linejoin: round;
+      vertical-align: -.15em;
+    }
+
+    .icon-text-button {
+      display: inline-flex !important;
+      align-items: center !important;
+      justify-content: center !important;
+      gap: 8px !important;
+    }
+
+    .button-icon { width: 16px; height: 16px; }
+    .settings-done-inline .button-icon { width: 17px; height: 17px; }
+
+    .graphic-icon {
+      display: grid !important;
+      place-items: center !important;
+    }
+    .home-mode-icon {
+      width: 28px;
+      height: 28px;
+      transition: transform 180ms cubic-bezier(.2,.8,.2,1);
+    }
+    .home-brush-button:hover .home-mode-icon { transform: scale(1.08); }
+    .solo-brush:hover .home-mode-icon rect:nth-child(2) { transform: translate(-1px, 1px); }
+    .multiplayer-brush:hover .home-mode-icon { transform: scale(1.08) translateX(1px); }
+
+    .result-icon-graphic {
+      width: 76px !important;
+      height: 76px !important;
+      display: grid !important;
+      place-items: center !important;
+      margin: 0 auto 14px !important;
+      color: var(--app-accent) !important;
+      font-size: 0 !important;
+    }
+    .result-graphic { width: 62px; height: 62px; stroke-width: 1.45; }
+
+    /* ---------- Solo launch actions: truly centered ---------- */
+    .solo-launch-copy { min-width: 0 !important; }
+    .solo-launch-actions {
+      width: min(340px, 100%) !important;
+      margin: 30px auto 0 !important;
+      display: grid !important;
+      gap: 10px !important;
+      justify-items: stretch !important;
+    }
+    .solo-main-action,
+    .solo-text-action {
+      width: 100% !important;
+      margin: 0 !important;
+      justify-self: stretch !important;
+      text-align: center !important;
+    }
+    .solo-main-action {
+      min-height: 48px !important;
+      padding: 0 22px !important;
+      border: 1px solid color-mix(in srgb, var(--app-accent) 58%, transparent) !important;
+      border-radius: 12px !important;
+      background: var(--app-accent) !important;
+      color: var(--app-accent-contrast, #fff) !important;
+      box-shadow: 0 8px 20px color-mix(in srgb, var(--app-accent) 18%, transparent) !important;
+      font-size: 16px !important;
+      transform: none !important;
+    }
+    .solo-main-action::after { content: "" !important; }
+    .solo-main-action:hover {
+      transform: translateY(-1px) !important;
+      filter: brightness(1.03);
+    }
+    .solo-text-action {
+      min-height: 44px !important;
+      border-radius: 12px !important;
+      border: 1px solid color-mix(in srgb, var(--app-accent) 32%, var(--game-line)) !important;
+      background: color-mix(in srgb, var(--game-panel-strong) 80%, transparent) !important;
+    }
+
+    /* ---------- Active Solo HUD: compact, readable, button-like surfaces without button affordance ---------- */
+    body.solo-active .container .heading {
+      display: grid !important;
+      grid-template-columns: minmax(92px, auto) auto !important;
+      align-items: center !important;
+      justify-content: center !important;
+      gap: 18px !important;
+      min-height: 72px !important;
+      padding: 0 0 10px !important;
+      margin: 0 auto 8px !important;
+      border: 0 !important;
+    }
+    body.solo-active .container .title {
+      margin: 0 !important;
+      font-family: var(--hud-display) !important;
+      font-size: 38px !important;
+      font-weight: 900 !important;
+      line-height: 1 !important;
+      letter-spacing: -.035em !important;
+      color: var(--app-text) !important;
+    }
+    body.solo-active .scores-container {
+      display: flex !important;
+      gap: 8px !important;
+      width: auto !important;
+      border: 0 !important;
+      background: transparent !important;
+    }
+    body.solo-active .score-container,
+    body.solo-active .best-container {
+      position: relative !important;
+      width: 104px !important;
+      min-width: 104px !important;
+      height: 58px !important;
+      min-height: 58px !important;
+      padding: 24px 10px 7px !important;
+      border: 1px solid color-mix(in srgb, var(--app-accent) 16%, var(--game-line)) !important;
+      border-radius: 11px !important;
+      background: color-mix(in srgb, var(--game-panel-strong) 90%, transparent) !important;
+      box-shadow: 0 5px 14px color-mix(in srgb, var(--app-shadow) 38%, transparent) !important;
+      color: var(--app-text) !important;
+      font-family: var(--hud-display) !important;
+      font-size: 21px !important;
+      font-weight: 900 !important;
+      line-height: 1 !important;
+      text-align: center !important;
+      overflow: hidden !important;
+    }
+    body.solo-active .score-container::after,
+    body.solo-active .best-container::after {
+      position: absolute !important;
+      top: 8px !important;
+      left: 0 !important;
+      right: 0 !important;
+      margin: 0 !important;
+      font-family: var(--hud-display) !important;
+      font-size: 8px !important;
+      font-weight: 900 !important;
+      line-height: 1 !important;
+      letter-spacing: .12em !important;
+      color: var(--app-muted) !important;
+    }
+
+    /* New Game and Undo are one component. */
+    body.solo-active .solo-card-actions {
+      display: flex !important;
+      justify-content: space-between !important;
+      align-items: center !important;
+      gap: 10px !important;
+      margin: 0 0 8px !important;
+    }
+    body.solo-active .solo-command-button,
+    .solo-command-button {
+      width: auto !important;
+      min-width: 116px !important;
+      min-height: 36px !important;
+      padding: 0 13px !important;
+      display: inline-flex !important;
+      align-items: center !important;
+      justify-content: center !important;
+      gap: 6px !important;
+      border: 1px solid color-mix(in srgb, var(--app-accent) 24%, var(--game-line)) !important;
+      border-radius: 10px !important;
+      background: color-mix(in srgb, var(--game-panel-strong) 88%, transparent) !important;
+      box-shadow: 0 4px 10px color-mix(in srgb, var(--app-shadow) 22%, transparent) !important;
+      color: var(--app-text) !important;
+      font: 900 11px/1 var(--hud-display) !important;
+    }
+    body.solo-active .solo-command-button:hover:not(:disabled) {
+      border-color: var(--app-accent) !important;
+      transform: translateY(-1px) !important;
+    }
+    body.solo-active .solo-command-button:disabled {
+      opacity: .42 !important;
+      box-shadow: none !important;
+    }
+    .button-shortcut {
+      color: var(--app-muted);
+      font-size: .88em;
+      letter-spacing: 0;
+    }
+
+    /* Tile numerals: adult, clean and less chunky. */
+    .tile .tile-inner,
+    .ui-mini-cell,
+    .opponent-cell {
+      font-family: "Nunito Sans", system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif !important;
+      font-weight: 800 !important;
+      letter-spacing: -.035em !important;
+    }
+
+    /* ---------- Multiplayer mode select: roomier previews, still one viewport ---------- */
+    .screen-multiplayer-menu .app-screen-inner {
+      width: min(1040px, calc(100% - 36px)) !important;
+      padding-top: 10px !important;
+      padding-bottom: 30px !important;
+    }
+    .screen-multiplayer-menu .app-header {
+      min-height: 72px !important;
+      margin-bottom: 6px !important;
+    }
+    .screen-multiplayer-menu .multiplayer-entry-head {
+      min-height: 42px !important;
+      margin: 0 0 8px !important;
+      padding-bottom: 8px !important;
+    }
+    .mode-showcase-list { gap: 9px !important; }
+    #mode-tile-race, #mode-freeplay, #mode-custom-race,
+    .mode-showcase {
+      height: 154px !important;
+      min-height: 154px !important;
+      padding: 14px 18px !important;
+      grid-template-columns: minmax(0, 1fr) 280px !important;
+      gap: 20px !important;
+      border-radius: 16px !important;
+      overflow: hidden !important;
+    }
+    .mode-showcase-copy { min-width: 0 !important; }
+    .mode-showcase h2 {
+      margin: 2px 0 3px !important;
+      font-size: 27px !important;
+      line-height: 1 !important;
+    }
+    .mode-showcase p {
+      max-width: 580px !important;
+      margin: 0 0 5px !important;
+      font-size: 13.5px !important;
+      line-height: 1.28 !important;
+    }
+    .mode-showcase-preview {
+      width: 280px !important;
+      min-height: 112px !important;
+      justify-self: end !important;
+      align-self: center !important;
+      padding: 8px 10px !important;
+      overflow: visible !important;
+      border-radius: 13px !important;
+    }
+    .mode-showcase .ui-mini-board {
+      width: 82px !important;
+      height: 82px !important;
+    }
+    .mode-visual-player > span { font-size: 16px !important; }
+    .mode-freeplay-visual { grid-template-columns: 82px minmax(0,1fr) !important; gap: 14px !important; }
+    .custom-target { min-height: 76px !important; padding: 8px 9px !important; border-radius: 11px !important; }
+    .custom-target strong { font-size: 25px !important; }
+    .future-modes-strip {
+      margin: 7px 0 24px !important;
+      gap: 28px !important;
+      font-size: 11px !important;
+    }
+
+    /* ---------- Settings: icon-aware button and balanced spacing ---------- */
+    .settings-done-inline {
+      min-width: 112px !important;
+      min-height: 42px !important;
+      border-radius: 11px !important;
+    }
+    .settings-section h3 { margin-bottom: 12px !important; }
+    .settings-profile-section > h3 { text-align: center !important; }
+    .nickname-setting-centered {
+      width: min(330px, 100%) !important;
+      margin: 0 auto !important;
+    }
+
+    /* Give selected movement cards a calm visual explanation. */
+    .control-choice-visual {
+      border-radius: 13px !important;
+      overflow: hidden !important;
+    }
+    .control-choice-visual.selected {
+      box-shadow: 0 8px 18px color-mix(in srgb, var(--app-accent) 10%, transparent) !important;
+    }
+
+    /* ---------- Result graphic states ---------- */
+    .result-box .result-icon-graphic + h1 { margin-top: 2px !important; }
+
+    @media (max-height: 760px) and (min-width: 901px) {
+      .screen-multiplayer-menu .app-header { min-height: 66px !important; }
+      .screen-multiplayer-menu .multiplayer-entry-head { min-height: 38px !important; }
+      #mode-tile-race, #mode-freeplay, #mode-custom-race,
+      .mode-showcase { height: 148px !important; min-height: 148px !important; }
+      .mode-showcase-preview { min-height: 106px !important; }
+      .future-modes-strip { margin-bottom: 20px !important; }
+    }
+
+    @media (max-width: 900px) {
+      #mode-tile-race, #mode-freeplay, #mode-custom-race,
+      .mode-showcase {
+        height: auto !important;
+        min-height: 0 !important;
+        grid-template-columns: 1fr !important;
+      }
+      .mode-showcase-preview {
+        width: 100% !important;
+        justify-self: stretch !important;
+      }
+      body.solo-active .container .heading {
+        grid-template-columns: 1fr !important;
+        text-align: center !important;
+      }
+    }
+  `;
+  document.head.appendChild(v50Style);
 
   restoreGameContainer();
   showMainMenu();
