@@ -1,5 +1,3 @@
-
-<!DOCTYPE html>
 <html>
 <head>
   <meta charset="utf-8">
@@ -60,9 +58,15 @@
       <div class="heading">
         <h1 class="title">2048</h1>
 
-        <div class="scores-container">
-          <div class="score-container">0</div>
-          <div class="best-container">0</div>
+        <div class="scores-container rinas-stat-group">
+          <div class="rinas-stat-chip rinas-stat-chip-score">
+            <span class="rinas-stat-label">SCORE</span>
+            <div class="score-container">0</div>
+          </div>
+          <div class="rinas-stat-chip rinas-stat-chip-best">
+            <span class="rinas-stat-label">BEST</span>
+            <div class="best-container">0</div>
+          </div>
         </div>
       </div>
 
@@ -154,6 +158,6 @@
   <script src="js/application.js?v=37"></script>
 
   <script src="https://two048-battle-oc8k.onrender.com/socket.io/socket.io.js"></script>
-  <script src="js/multiplayer.js?v=58"></script>
+  <script src="js/multiplayer.js?v=59"></script>
 </body>
 </html>
