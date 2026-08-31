@@ -5468,7 +5468,10 @@
       disconnect: "disconnect",
       "tile-race": "tile-race",
       freeplay: "freeplay",
-      "custom-race": "custom-race"
+      "custom-race": "custom-race",
+      move: "move",
+      undo: "undo",
+      edit: "edit"
     };
 
     if (graphicAssetNames[name]) {
@@ -5980,7 +5983,7 @@
     if (mode === 'freeplay') {
       return '<div class="mode-freeplay-visual">' +
         previewBoardMarkup([0,2,4,0,8,16,0,0,32,0,64,0,0,2,4,8], 'freeplay-preview') +
-        '<div class="undo-loop"><span>MOVE</span><i>↔</i><span>UNDO</span></div>' +
+        '<div class="undo-loop"><span>' + uiIcon("move", "mode-rewind-icon") + '<b>MOVE</b></span><i></i><span>' + uiIcon("undo", "mode-rewind-icon") + '<b>UNDO</b></span></div>' +
       '</div>';
     }
 
@@ -6025,8 +6028,8 @@
               </div>
 
               <div class="solo-launch-actions">
-                ${hasSave ? '<button class="solo-main-action" id="continue-solo">Continue Run</button>' : '<button class="solo-main-action" id="start-solo">Start Run</button>'}
-                ${hasSave ? '<button class="solo-text-action" id="new-solo">Start a new run</button>' : ''}
+                ${hasSave ? '<button class="solo-main-action" id="continue-solo">Continue Game</button>' : '<button class="solo-main-action" id="start-solo">Start New Game</button>'}
+                ${hasSave ? '<button class="solo-text-action" id="new-solo">Start New Game</button>' : ''}
               </div>
             </section>
 
@@ -6039,8 +6042,8 @@
               </div>
               ${savedSoloPreviewMarkup(savedState)}
               <div class="solo-preview-caption">
-                <span>${window.rinasSettings.controlScheme === 'wasd' ? 'WASD' : 'ARROW KEYS'} TO MOVE</span>
-                ${window.rinasSettings.soloUndo ? '<span>Z TO UNDO</span>' : ''}
+                ${movementKeysMarkup(true)}
+                ${window.rinasSettings.soloUndo ? '<div class="solo-preview-undo-hint"><span class="control-label">UNDO</span>' + uiIcon("undo", "solo-preview-undo-inline") + '<kbd>Z</kbd></div>' : ''}
               </div>
             </aside>
           </div>
@@ -6056,9 +6059,9 @@
       if (newButton) {
         newButton.addEventListener("click", function () {
           openGameConfirm({
-            title: "Start a new run?",
+            title: "Start a new game?",
             message: "Your current saved board will be replaced. Your Best Score and records will stay saved.",
-            confirmLabel: "Start New Run",
+            confirmLabel: "Start New Game",
             tone: "danger",
             onConfirm: function () { startSolo(true); }
           });
