@@ -1,8 +1,11 @@
-<html>
+
+<!doctype html>
+<html lang="en">
 <head>
   <meta charset="utf-8">
+  <meta name="theme-color" content="#f3efe6">
 
-  <title>Rina's 2048</title>
+  <title>Rina's 2048 — Tile Race</title>
 
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -11,8 +14,8 @@
     rel="stylesheet"
   >
   <link href="style/main.css" rel="stylesheet" type="text/css">
-  <link href="style/rinas-ui-v72.css?v=72" rel="stylesheet" type="text/css">
-  <link href="style/rinas-audio-v63.css?v=63" rel="stylesheet" type="text/css">
+  <link href="style/rinas-ui-v72.css?v=73" rel="stylesheet" type="text/css">
+  <link href="style/rinas-audio-v63.css?v=73" rel="stylesheet" type="text/css">
   <link rel="shortcut icon" href="favicon.ico">
   <link rel="apple-touch-icon" href="meta/apple-touch-icon.png">
 
@@ -33,7 +36,7 @@
   <meta name="MobileOptimized" content="320">
   <meta
     name="viewport"
-    content="width=device-width, initial-scale=1.0, maximum-scale=1, user-scalable=no"
+    content="width=device-width, initial-scale=1.0, viewport-fit=cover"
   >
   <style id="rinas-critical-boot-style">
     /* Prevent the original static footer/game markup from flashing before the designed UI boots. */
@@ -134,8 +137,8 @@
   </div>
 
   <footer id="site-footer">
-    Original 2048 by
-    <a href="https://github.com/gabrielecirulli/2048" target="_blank" rel="noopener noreferrer">Gabriele Cirulli</a><span id="support-links" hidden></span>
+    Based on the original 2048 by
+    <a href="https://github.com/gabrielecirulli/2048" target="_blank" rel="noopener noreferrer">Gabriele Cirulli</a>.<span id="support-links" hidden></span>
   </footer>
   <script src="js/bind_polyfill.js"></script>
   <script src="js/classlist_polyfill.js"></script>
@@ -145,12 +148,13 @@
   <script src="js/grid.js"></script>
   <script src="js/tile.js"></script>
   <script src="js/local_storage_manager.js?v=37"></script>
-  <script src="js/game_manager.js?v=72"></script>
+  <script src="js/game_manager.js?v=73"></script>
   <script src="js/application.js?v=37"></script>
-  <script src="https://two048-battle-oc8k.onrender.com/socket.io/socket.io.js"></script>
-  <script src="js/rinas-audio-v64.js?v=64"></script>
-  <script src="js/multiplayer.js?v=72"></script>
-  <link href="style/rinas-gameplay-v72.css?v=72" rel="stylesheet" type="text/css">
-  <script src="js/rinas-ui-v72.js?v=72"></script>
+  <script src="https://cdn.socket.io/4.8.1/socket.io.min.js"></script>
+  <script src="js/rinas-audio-v64.js?v=73"></script>
+  <script src="js/multiplayer.js?v=73"></script>
+  <link href="style/rinas-gameplay-v72.css?v=73" rel="stylesheet" type="text/css">
+  <link href="style/rinas-refinement-v73.css?v=73" rel="stylesheet" type="text/css">
+  <script src="js/rinas-ui-v73.js?v=73"></script>
 </body>
 </html>
