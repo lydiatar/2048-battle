@@ -1,4 +1,4 @@
-/* Rina's 2048 v72 — Direction A gameplay + multiplayer staging.
+/* Rina's 2048 v72 â€” Direction A gameplay + multiplayer staging.
    Loaded AFTER multiplayer.js so this is the authoritative gameplay layer. */
 
 :root {
@@ -11,7 +11,7 @@
 }
 
 /* ---------------------------------------------------------
-   SOLO — BOARD STAGE HUD
+   SOLO â€” BOARD STAGE HUD
    --------------------------------------------------------- */
 body.solo-active {
   overflow: hidden;
@@ -264,7 +264,7 @@ body.solo-active .solo-next-milestone strong {
 }
 
 .match-setup-facts span::before {
-  content: "▪";
+  content: "â–ª";
   margin-right: 7px;
   color: var(--app-accent);
 }
@@ -496,7 +496,7 @@ body.solo-active .solo-next-milestone strong {
 }
 
 /* ---------------------------------------------------------
-   MULTIPLAYER — DIRECTION A BOARD STAGE
+   MULTIPLAYER â€” DIRECTION A BOARD STAGE
    --------------------------------------------------------- */
 .direction-a-battle.battle-shell {
   --d71-local-board-width: 460px;
@@ -962,7 +962,7 @@ body.solo-active .solo-next-milestone strong {
 }
 
 /* ---------------------------------------------------------
-   MULTIPLAYER LOBBY FREEPLAY PREVIEW — NO OVERLAP
+   MULTIPLAYER LOBBY FREEPLAY PREVIEW â€” NO OVERLAP
    --------------------------------------------------------- */
 .mp-freeplay-scene {
   display: grid !important;
@@ -1023,7 +1023,7 @@ body.solo-active .solo-next-milestone strong {
 }
 
 /* ---------------------------------------------------------
-   RESULTS — KEEP THE BOARD VISIBLE
+   RESULTS â€” KEEP THE BOARD VISIBLE
    --------------------------------------------------------- */
 .direction-a-result.result-overlay,
 .direction-a-battle + .result-overlay,
@@ -1149,7 +1149,7 @@ body.solo-active .solo-next-milestone strong {
 
 
 /* =========================================================
-   v72 — AUTHORITATIVE MULTIPLAYER LAYOUT FIX
+   v72 â€” AUTHORITATIVE MULTIPLAYER LAYOUT FIX
    Legacy injected CSS still contains !important two-column battle rules.
    These selectors deliberately win and lock Direction A to three columns.
    ========================================================= */
@@ -1311,7 +1311,7 @@ html body .direction-a-battle .race-spine {
 }
 
 /* =========================================================
-   v72 — PRE-MATCH CONNECTED STATE + 3–2–1 COUNTDOWN
+   v72 â€” PRE-MATCH CONNECTED STATE + 3â€“2â€“1 COUNTDOWN
    ========================================================= */
 .match-countdown-screen {
   width: min(980px, 100%);
