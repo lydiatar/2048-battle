@@ -1,64 +1,9 @@
 (function () {
   "use strict";
 
-  var SOCKET_SERVER_URL = "https://two048-battle-oc8k.onrender.com";
-
-  function createOfflineSocket() {
-    var handlers = Object.create(null);
-
-    function fire(eventName, payload) {
-      var list = handlers[eventName] || [];
-      list.slice().forEach(function (handler) {
-        try {
-          handler(payload);
-        } catch (error) {
-          console.error("Rina offline socket handler failed:", error);
-        }
-      });
-    }
-
-    return {
-      connected: false,
-      offlineFallback: true,
-      on: function (eventName, handler) {
-        if (typeof handler === "function") {
-          if (!handlers[eventName]) handlers[eventName] = [];
-          handlers[eventName].push(handler);
-        }
-        return this;
-      },
-      emit: function (eventName) {
-        console.warn("Multiplayer unavailable while Socket.IO is not loaded:", eventName);
-        if (
-          eventName === "createRoom" ||
-          eventName === "joinRoom" ||
-          eventName === "requestRematch"
-        ) {
-          window.setTimeout(function () {
-            fire("connect_error", new Error("Socket.IO client library unavailable."));
-          }, 0);
-        }
-        return this;
-      }
-    };
-  }
-
-  var socket;
-
-  try {
-    socket = typeof window.io === "function"
-      ? window.io(SOCKET_SERVER_URL, {
-          reconnection: true,
-          reconnectionAttempts: Infinity,
-          reconnectionDelay: 700,
-          reconnectionDelayMax: 5000,
-          timeout: 30000
-        })
-      : createOfflineSocket();
-  } catch (socketBootError) {
-    console.error("Rina multiplayer socket boot failed:", socketBootError);
-    socket = createOfflineSocket();
-  }
+  var socket = io(
+    "https://two048-battle-oc8k.onrender.com"
+  );
 
   window.multiplayerSocket = socket;
 
@@ -5664,19 +5609,19 @@
     appRoot.innerHTML = `
       <div class="app-screen ${getScreenClass()} ${direction < 0 ? "enter-back" : "enter-forward"}">
         <div class="app-screen-inner">
-          <header class="app-header refinement-header">
+          <div class="app-header">
             <div class="app-header-side left">
-              ${backHandler ? '<button class="nav-button icon-text-button" id="screen-back" type="button">' + uiIcon('back','button-icon') + '<span>Back</span></button>' : ""}
+              ${backHandler ? '<button class="nav-button icon-text-button" id="screen-back">' + uiIcon('back','button-icon') + '<span>Back</span></button>' : ""}
             </div>
-            <div class="app-title-stack refinement-wordmark" aria-label="Rina's 2048, ${escapeHtml(title)}">
-              <h1>Rina's 2048</h1>
-              <span class="app-title-brand">${escapeHtml(title)}</span>
+            <div class="app-title-stack">
+              <span class="app-title-brand">Rina's 2048</span>
+              <h1>${escapeHtml(title)}</h1>
             </div>
             <div class="app-header-side right">
-              <button class="settings-button icon-text-button" id="screen-settings" type="button">${uiIcon("settings", "button-icon")}<span>Settings</span></button>
+              <button class="settings-button icon-text-button" id="screen-settings">${uiIcon("settings", "button-icon")}<span>Settings</span></button>
             </div>
-          </header>
-          <main id="screen-content">${contentHtml}</main>
+          </div>
+          <div id="screen-content">${contentHtml}</div>
         </div>
       </div>
     `;
@@ -5698,6 +5643,7 @@
       document.body.scrollTop = 0;
     });
   }
+
 
   function closeOverlaySmoothly(overlay, callback) {
     if (!overlay) {
@@ -5954,52 +5900,44 @@
     stopCompetitiveMusic(260);
 
     showScreen(
-      "Choose a game",
+      "Rina's 2048",
       null,
       `
-        <section class="refinement-mode-select" aria-labelledby="mode-select-title">
-          <header class="refinement-mode-heading">
-            <span class="refinement-eyebrow">Choose how to play</span>
-            <h2 id="mode-select-title">A quiet run or a friendly race?</h2>
-            <p>Both modes use the same board. Play at your own pace or share a room with a friend.</p>
-          </header>
-
-          <div class="refinement-mode-grid">
-            <article class="refinement-mode-card">
-              <div class="refinement-preview-wrap">
-                <div class="motion-board" data-preview="solo" aria-label="Animated numberless Solo board preview">
-                  <div class="motion-wells" aria-hidden="true"></div>
-                  <div class="motion-tiles" aria-hidden="true"></div>
-                </div>
-              </div>
-              <div class="refinement-mode-copy">
-                <span class="refinement-eyebrow">Solo</span>
-                <h3>Take your time</h3>
-                <p>Settle into the rhythm of each swipe and build the board at your own pace.</p>
-                <button class="primary-button refinement-primary" id="choose-solo" type="button">Play solo</button>
-              </div>
-            </article>
-
-            <article class="refinement-mode-card">
-              <div class="refinement-preview-wrap refinement-preview-pair">
-                <div class="motion-board motion-board-small" data-preview="multi-a" aria-label="Animated numberless multiplayer board preview">
-                  <div class="motion-wells" aria-hidden="true"></div>
-                  <div class="motion-tiles" aria-hidden="true"></div>
-                </div>
-                <div class="motion-board motion-board-small" data-preview="multi-b" aria-label="Animated numberless opponent board preview">
-                  <div class="motion-wells" aria-hidden="true"></div>
-                  <div class="motion-tiles" aria-hidden="true"></div>
-                </div>
-              </div>
-              <div class="refinement-mode-copy">
-                <span class="refinement-eyebrow">Multiplayer</span>
-                <h3>Race a friend</h3>
-                <p>Share a room, watch both boards move, and see who reaches the target first.</p>
-                <button class="primary-button refinement-primary" id="choose-multiplayer" type="button">Play multiplayer</button>
-              </div>
-            </article>
+        <div class="title-stage">
+          <div class="game-logo">
+            <span class="logo-float-tile one">8</span>
+            <span class="logo-float-tile two">16</span>
+            <span class="game-logo-rinas">RINA'S</span>
+            <span class="game-logo-number">20<em>48</em></span>
+            <p class="logo-tagline">Merge. Race. Win.</p>
           </div>
-        </section>
+        </div>
+
+        <div class="home-mode-stack">
+          <button class="home-brush-button solo-brush" id="choose-solo">
+            <span class="brush-icon graphic-icon">${uiIcon("solo", "home-mode-icon")}</span>
+            <span class="brush-copy"><strong>SOLO</strong><small>Build an endless board and beat your best.</small></span>
+            <span class="brush-arrow">›</span>
+          </button>
+
+          <button class="home-brush-button multiplayer-brush" id="choose-multiplayer">
+            <span class="brush-icon graphic-icon">${uiIcon("multiplayer", "home-mode-icon")}</span>
+            <span class="brush-copy"><strong>MULTIPLAYER</strong><small>Race, freeplay, or balance a match with custom targets.</small></span>
+            <span class="brush-arrow">›</span>
+          </button>
+        </div>
+
+        <div class="home-controls-ribbon">
+          ${movementKeysMarkup(false)}
+          <span class="home-controls-copy">Choose Arrow Keys or WASD in Settings.</span>
+          <span class="touch-control-label">Swipe on touch devices</span>
+        </div>
+
+        <div class="home-footnote">
+          <span>Solo saves locally</span>
+          <i></i>
+          <span>Multiplayer with friends</span>
+        </div>
       `
     );
 
@@ -6013,10 +5951,13 @@
       }
 
       openNicknamePrompt(function () {
+        // Build the destination while the nickname overlay is fading out.
+        // This avoids a blank/refresh-like flash between the two screens.
         showMultiplayerMenu();
       });
     });
   }
+
 
   function previewBoardMarkup(values, extraClass) {
     var items = Array.isArray(values) ? values.slice(0, 16) : [];
@@ -6381,50 +6322,83 @@
       "Multiplayer",
       showMainMenu,
       `
-        <section class="refinement-mp-select" aria-labelledby="mp-select-title">
-          <header class="refinement-mp-heading">
-            <div>
-              <span class="refinement-eyebrow">Playing as</span>
-              <strong id="multiplayer-current-nickname">${escapeHtml(sanitizeNickname(window.rinasSettings.nickname) || "Player")}</strong>
-              <button class="refinement-text-button" id="change-nickname" type="button">Change</button>
+        <div class="multiplayer-entry-head">
+          <span>PLAYING AS</span>
+          <strong id="multiplayer-current-nickname">${escapeHtml(sanitizeNickname(window.rinasSettings.nickname) || "Player")}</strong>
+          <button class="nickname-link" id="change-nickname">Change</button>
+        </div>
+
+        <div class="mode-showcase-list">
+          <button class="mode-showcase mode-showcase-race" id="mode-tile-race">
+            <div class="mode-showcase-copy">
+              <div class="mode-showcase-title-row">
+                <span class="mode-showcase-modeicon">${uiIcon("tile-race", "mode-art-icon")}</span>
+                <div><span class="mode-showcase-index">01 · COMPETITIVE</span><h2>Tile Race</h2></div>
+              </div>
+              <p>First player to reach the target tile wins. A stuck board loses.</p>
+              <div class="mode-showcase-facts"><span>Live position</span><span>No Undo</span><span>2048 / 4096 / 8192</span></div>
+              <strong class="mode-showcase-action">Play Tile Race →</strong>
             </div>
-            <div>
-              <span class="refinement-eyebrow">Choose a match</span>
-              <h2 id="mp-select-title">Make it a race.</h2>
-              <p>Choose the rules, create a private room, and share the code with a friend.</p>
+            <div class="mode-showcase-preview">${modePreviewMarkup('tile-race')}</div>
+          </button>
+
+          <button class="mode-showcase mode-showcase-freeplay" id="mode-freeplay">
+            <div class="mode-showcase-copy">
+              <div class="mode-showcase-title-row">
+                <span class="mode-showcase-modeicon">${uiIcon("freeplay", "mode-art-icon")}</span>
+                <div><span class="mode-showcase-index">02 · CASUAL</span><h2>Freeplay Duel</h2></div>
+              </div>
+              <p>Build side-by-side with no winner or elimination. Compare progress and rewind one move at a time.</p>
+              <div class="mode-showcase-facts"><span>No finish line</span><span>One-step Undo</span><span>Restart anytime</span></div>
+              <strong class="mode-showcase-action">Play Freeplay →</strong>
             </div>
-          </header>
+            <div class="mode-showcase-preview">${modePreviewMarkup('freeplay')}</div>
+          </button>
 
-          <div class="refinement-mp-grid">
-            <button class="refinement-mp-card" id="mode-tile-race" type="button">
-              <div class="refinement-mp-preview">${modePreviewMarkup('tile-race')}</div>
-              <div><span class="refinement-eyebrow">Competitive</span><h3>Tile Race</h3><p>Reach the shared target first. If either board locks, the other player wins.</p><strong>Choose Tile Race</strong></div>
-            </button>
+          <button class="mode-showcase mode-showcase-custom" id="mode-custom-race">
+            <div class="mode-showcase-copy">
+              <div class="mode-showcase-title-row">
+                <span class="mode-showcase-modeicon">${uiIcon("custom-race", "mode-art-icon")}</span>
+                <div><span class="mode-showcase-index">03 · HANDICAP</span><h2>Custom Race</h2></div>
+              </div>
+              <p>Give each player a different finish tile. Balance a beginner against an expert without hidden advantages.</p>
+              <div class="mode-showcase-facts"><span>Different targets</span><span>Live position</span><span>Transparent rules</span></div>
+              <strong class="mode-showcase-action">Build Custom Race →</strong>
+            </div>
+            <div class="mode-showcase-preview">${modePreviewMarkup('custom-race')}</div>
+          </button>
+        </div>
 
-            <button class="refinement-mp-card" id="mode-freeplay" type="button">
-              <div class="refinement-mp-preview">${modePreviewMarkup('freeplay')}</div>
-              <div><span class="refinement-eyebrow">Casual</span><h3>Freeplay Duel</h3><p>Build side by side with no finish line, one-step Undo, and independent restarts.</p><strong>Choose Freeplay</strong></div>
-            </button>
-
-            <button class="refinement-mp-card" id="mode-custom-race" type="button">
-              <div class="refinement-mp-preview">${modePreviewMarkup('custom-race')}</div>
-              <div><span class="refinement-eyebrow">Balanced</span><h3>Custom Race</h3><p>Give each player a different target so different skill levels can still have a fair race.</p><strong>Choose Custom Race</strong></div>
-            </button>
-          </div>
-        </section>
+        <div class="future-modes-strip" aria-label="Future multiplayer modes">
+          <span><b>Score Sprint</b> Coming soon</span>
+          <span><b>Blitz</b> Coming soon</span>
+          <span><b>Survival</b> Coming soon</span>
+        </div>
       `
     );
 
     document.getElementById("change-nickname").addEventListener("click", function () {
       openNicknamePrompt(function () {
-        var name = document.getElementById("multiplayer-current-nickname");
-        if (name) name.textContent = sanitizeNickname(window.rinasSettings.nickname) || "Player";
+        var label = document.getElementById("multiplayer-current-nickname");
+        if (label) label.textContent = sanitizeNickname(window.rinasSettings.nickname) || "Player";
       });
     });
 
     document.getElementById("mode-tile-race").addEventListener("click", function () { animateCurrentScreenOut(1, showTileRaceLobby); });
     document.getElementById("mode-freeplay").addEventListener("click", function () { animateCurrentScreenOut(1, showFreeplayLobby); });
     document.getElementById("mode-custom-race").addEventListener("click", function () { animateCurrentScreenOut(1, showCustomRaceLobby); });
+  }
+
+  function roomJoinMarkup() {
+    return `
+      <section class="match-setup-join" aria-label="Join a room">
+        <span class="match-setup-kicker">JOIN A ROOM</span>
+        <h2>Enter a room code.</h2>
+        <p>Paste the six-character code your friend sent you.</p>
+        <input id="room-code" class="match-room-input" maxlength="6" placeholder="ENTER CODE" autocomplete="off" autocapitalize="characters" spellcheck="false">
+        <button class="primary-button" id="join-room">Join Match</button>
+      </section>
+    `;
   }
 
   function normalizeRoomCode(value) {
@@ -6932,20 +6906,23 @@
   }
 
   function spinePositionPercent(value, maxTarget) {
-    var ratio = progressRatio(value, maxTarget);
-    return Math.max(0, Math.min(100, ratio * 100));
+    var startStep = 1;
+    var targetStep = Math.max(startStep + 1, powerStep(maxTarget));
+    var currentStep = Math.max(startStep, Math.min(targetStep, powerStep(value)));
+    var ratio = (currentStep - startStep) / (targetStep - startStep);
+    return 92 - (ratio * 82);
   }
 
   function raceSpineTicks(maxTarget) {
     var maxStep = powerStep(maxTarget);
-    var values = [2, 32, 512, maxTarget];
-    if (maxTarget <= 1024) values = [2, 16, 128, maxTarget];
+    var candidates = [maxStep, maxStep - 1, maxStep - 2, Math.round((maxStep + 1) / 2), Math.max(2, maxStep - 5)];
     var seen = {};
-    return values.filter(function (value) {
-      var n = Math.min(maxTarget, Math.max(2, Number(value || 2)));
-      if (seen[n]) return false;
-      seen[n] = true;
+    return candidates.filter(function (step) {
+      if (step <= 1 || step > maxStep || seen[step]) return false;
+      seen[step] = true;
       return true;
+    }).sort(function (a, b) { return b - a; }).slice(0, 5).map(function (step) {
+      return Math.pow(2, step);
     });
   }
 
@@ -6954,19 +6931,22 @@
     var ticks = raceSpineTicks(maxTarget);
     var isCustom = mode === "custom-race";
     var tickHtml = ticks.map(function (value) {
-      return '<span class="race-spine-tick" data-value="' + value + '" style="left:' + spinePositionPercent(value, maxTarget) + '%"><i></i><b>' + Number(value).toLocaleString() + '</b></span>';
+      return '<span class="race-spine-tick" data-value="' + value + '" style="top:' + spinePositionPercent(value, maxTarget) + '%"><i></i><b>' + value + '</b></span>';
     }).join("");
 
-    var targetCopy = isCustom
-      ? '<div class="race-target-copy"><span>Targets</span><strong>' + Number(ownTarget).toLocaleString() + ' / ' + Number(opponentTarget).toLocaleString() + '</strong></div>'
-      : '<div class="race-target-copy"><span>Target</span><strong>' + Number(ownTarget).toLocaleString() + '</strong></div>';
+    var targetFlags = isCustom
+      ? '<span class="race-target-flag local" id="race-local-target" style="top:' + spinePositionPercent(ownTarget, maxTarget) + '%"><b>' + ownTarget + '</b><small>YOUR TARGET</small></span>' +
+        '<span class="race-target-flag opponent" id="race-opponent-target" style="top:' + spinePositionPercent(opponentTarget, maxTarget) + '%"><b>' + opponentTarget + '</b><small>OPPONENT TARGET</small></span>'
+      : '<span class="race-spine-target"><b>' + ownTarget + '</b><small>TARGET</small></span>';
 
-    return '<section class="race-spine race-strip" id="race-spine" data-max-target="' + maxTarget + '" data-mode="' + escapeHtml(mode) + '">' +
-      '<header class="race-strip-header"><div class="race-leader-copy"><span class="refinement-eyebrow">Live race</span><strong id="race-leader-summary">Race is level</strong></div>' + targetCopy + '</header>' +
-      '<div class="race-track"><div class="race-spine-track race-track-line" id="race-spine-track"><i class="race-spine-fill race-track-fill" id="race-spine-fill"></i>' + tickHtml +
-      '<span class="race-spine-marker local race-runner local" id="race-spine-local-marker"><span class="marker-copy"><strong>' + escapeHtml(getOwnNickname()) + '</strong><small>2</small></span><i></i></span>' +
-      '<span class="race-spine-marker opponent race-runner opponent" id="race-spine-opponent-marker"><i></i><span class="marker-copy"><strong>' + escapeHtml(getOpponentNickname()) + '</strong><small>2</small></span></span>' +
-      '</div></div></section>';
+    return '<div class="race-spine" id="race-spine" data-max-target="' + maxTarget + '" data-mode="' + escapeHtml(mode) + '">' +
+      targetFlags +
+      '<div class="race-spine-track" id="race-spine-track"><span class="race-spine-fill" id="race-spine-fill"></span></div>' +
+      tickHtml +
+      '<span class="race-spine-marker local" id="race-spine-local-marker"><span class="marker-copy"><strong>' + escapeHtml(getOwnNickname()) + '</strong><small>2</small></span><i></i></span>' +
+      '<span class="race-spine-marker opponent" id="race-spine-opponent-marker"><i></i><span class="marker-copy"><strong>' + escapeHtml(getOpponentNickname()) + '</strong><small>2</small></span></span>' +
+      '<span class="race-spine-start">START</span>' +
+    '</div>';
   }
 
   function updateRaceSpine(ownHighest, opponentHighest) {
@@ -6974,23 +6954,22 @@
     var maxTarget = Number(raceSpineElement.getAttribute("data-max-target") || 2048);
     var ownValue = Math.max(2, Number(ownHighest || 2));
     var opponentValue = Math.max(2, Number(opponentHighest || 2));
-    var ownLeft = spinePositionPercent(ownValue, maxTarget);
-    var opponentLeft = spinePositionPercent(opponentValue, maxTarget);
-
-    raceSpineLocalMarker.style.left = ownLeft + "%";
-    raceSpineOpponentMarker.style.left = opponentLeft + "%";
-
+    var ownTop = spinePositionPercent(ownValue, maxTarget);
+    var opponentTop = spinePositionPercent(opponentValue, maxTarget);
+    raceSpineLocalMarker.style.top = ownTop + "%";
+    raceSpineOpponentMarker.style.top = opponentTop + "%";
     var ownSmall = raceSpineLocalMarker.querySelector("small");
     var opponentSmall = raceSpineOpponentMarker.querySelector("small");
     var ownStrong = raceSpineLocalMarker.querySelector("strong");
     var opponentStrong = raceSpineOpponentMarker.querySelector("strong");
-    if (ownSmall) ownSmall.textContent = Number(ownValue).toLocaleString();
-    if (opponentSmall) opponentSmall.textContent = Number(opponentValue).toLocaleString();
+    if (ownSmall) ownSmall.textContent = ownValue;
+    if (opponentSmall) opponentSmall.textContent = opponentValue;
     if (ownStrong) ownStrong.textContent = getOwnNickname();
     if (opponentStrong) opponentStrong.textContent = getOpponentNickname();
 
     if (raceSpineFill) {
-      raceSpineFill.style.width = Math.max(ownLeft, opponentLeft) + "%";
+      var leadingTop = Math.min(ownTop, opponentTop);
+      raceSpineFill.style.top = leadingTop + "%";
     }
   }
 
@@ -7018,66 +6997,62 @@
     var opponentName = getOpponentNickname();
     var opponentProfile = getProfile(getOpponentNumber());
     var opponentTheme = opponentProfile && THEMES.indexOf(opponentProfile.theme) !== -1 ? opponentProfile.theme : "classic";
-    var ownHint = window.rinasSettings && window.rinasSettings.controlScheme === "wasd"
-      ? "Use W, A, S, and D or swipe to move your tiles."
-      : "Use the arrow keys or swipe to move your tiles.";
 
     battleShell = document.createElement("div");
-    battleShell.className = "battle-shell refinement-battle " + (isFreeplay ? "freeplay-battle" : "race-battle");
+    battleShell.className = "battle-shell direction-a-battle " + (isFreeplay ? "freeplay-battle" : "race-battle");
 
     var ruleLine = isFreeplay
-      ? "Build side by side at your own pace. Each player may use one-step Undo."
+      ? "Build side-by-side. No finish line, no elimination. Use Z for one-step Undo."
       : mode === "custom-race"
-        ? "Reach your assigned target before your opponent; if either board locks first, the other player wins."
-        : "Reach " + Number(ownTarget).toLocaleString() + " before your opponent; if either board locks first, the other player wins.";
+        ? "Each player races to their own target. A stuck board loses."
+        : "First to the target tile wins. A stuck board loses.";
 
-    var raceMarkup = isFreeplay ? "" : createRaceSpineHtml(mode, ownTarget, opponentTarget);
+    var middleStage = isFreeplay
+      ? `<div class="freeplay-match-center">
+          <span class="freeplay-match-kicker">FREEPLAY</span>
+          <strong>No finish line.</strong>
+          <div class="freeplay-live-controls">${movementKeysMarkup(true)}<div class="control-key-row compact"><span class="control-label">UNDO</span><kbd>Z</kbd></div></div>
+        </div>`
+      : createRaceSpineHtml(mode, ownTarget, opponentTarget);
 
     battleShell.innerHTML = `
-      <header class="battle-topbar refinement-match-bar">
-        <div class="refinement-match-left"><button class="danger-button icon-text-button" id="leave-match" type="button">${uiIcon("exit", "button-icon")}<span>Leave match</span></button></div>
-        <div class="battle-mode-title refinement-match-wordmark"><strong>Rina's 2048</strong><span>${escapeHtml(modeTitle(mode))}</span></div>
-        <div class="refinement-match-right"><button class="settings-button icon-text-button" id="battle-settings" type="button">${uiIcon("settings", "button-icon")}<span>Settings</span></button></div>
-      </header>
+      <div class="battle-topbar">
+        <button class="danger-button icon-text-button" id="leave-match">${uiIcon("exit", "button-icon")}<span>Leave Match</span></button>
+        <div class="battle-mode-title"><strong>Rina's 2048</strong><span>${escapeHtml(modeTitle(mode))}</span></div>
+        <div class="battle-topbar-right"><span class="battle-room-mini">Room ${escapeHtml(window.multiplayerRoomCode || "------")}</span><button class="settings-button icon-text-button" id="battle-settings">${uiIcon("settings", "button-icon")}<span>Settings</span></button></div>
+      </div>
+      <div class="battle-heading"><p class="battle-rule-line">${ruleLine}</p></div>
+      <div class="battle-layout direction-a-layout">
+        <section class="battle-player-card own-panel" id="own-panel" aria-label="Your board">
+          <div class="player-card-header">
+            <div class="player-name-block"><span class="player-role-label">YOU${isFreeplay ? '' : ' · '}<b id="own-rank-inline">${isFreeplay ? '' : 'TIED'}</b></span><h2 class="player-name" id="own-nickname">${escapeHtml(ownName)}</h2></div>
+            ${isFreeplay
+              ? '<div class="stat-pair"><div class="mini-stat"><span>Score</span><strong id="own-score">0</strong></div><div class="mini-stat"><span>Highest</span><strong id="own-highest">' + Number(lastOwnHighest || 0) + '</strong></div></div>'
+              : '<div class="highest-box"><span>Highest</span><strong id="own-highest">' + Number(lastOwnHighest || 0) + '</strong></div>'}
+          </div>
+          <div class="own-board-slot" id="own-board-slot"></div>
+          <div class="battle-board-foot">${movementKeysMarkup(true)}${isFreeplay ? '<div class="control-key-row compact"><span class="control-label">UNDO</span><kbd>Z</kbd></div>' : '<span class="battle-no-undo">NO UNDO</span>'}</div>
+          ${isFreeplay ? '<button class="small-button freeplay-restart-only" id="freeplay-restart">Restart Board</button>' : ''}
+        </section>
 
-      <main class="refinement-match-main">
-        <p class="battle-rule-line refinement-match-rule">${escapeHtml(ruleLine)}</p>
+        <div class="battle-center-stage">${middleStage}</div>
 
-        <div class="battle-layout refinement-duel" aria-label="2048 multiplayer boards">
-          <section class="battle-player-card own-panel refinement-player-station" id="own-panel" aria-label="Your board">
-            <header class="refinement-player-heading">
-              <div><span class="refinement-eyebrow">You</span><h2 id="own-nickname">${escapeHtml(ownName)}</h2></div>
-              <span class="refinement-connection"><i aria-hidden="true"></i> Playing</span>
-            </header>
-            <dl class="refinement-stats-line" aria-label="Your live statistics">
-              <div><dt>Score</dt><dd id="own-score">${Number(lastOwnScore || 0).toLocaleString()}</dd></div>
-              <div><dt>Highest</dt><dd id="own-highest">${Number(lastOwnHighest || 0).toLocaleString()}</dd></div>
-            </dl>
-            <div class="own-board-slot" id="own-board-slot"></div>
-            <p class="refinement-input-hint" data-control-hint>${escapeHtml(ownHint)}</p>
-            ${isFreeplay ? '<div class="refinement-freeplay-actions"><span>Press Z for one-step Undo.</span><button class="small-button" id="freeplay-restart" type="button">Restart board</button></div>' : ''}
-          </section>
-
-          <section class="battle-player-card opponent-panel refinement-player-station" id="opponent-panel" data-opponent-theme="${escapeHtml(opponentTheme)}" aria-label="Opponent board">
-            <header class="refinement-player-heading">
-              <div><span class="refinement-eyebrow">Opponent</span><h2 id="opponent-nickname">${escapeHtml(opponentName)}</h2></div>
-              <span class="refinement-connection" id="opponent-status"><i aria-hidden="true"></i> Playing</span>
-            </header>
-            <dl class="refinement-stats-line" aria-label="Opponent live statistics">
-              <div><dt>Score</dt><dd id="opponent-score">0</dd></div>
-              <div><dt>Highest</dt><dd id="opponent-highest">0</dd></div>
-            </dl>
-            <div id="opponent-grid" class="opponent-grid refinement-opponent-grid" data-theme="${escapeHtml(opponentTheme)}"></div>
-            <p class="refinement-input-hint refinement-input-hint-status" id="opponent-move-hint">${escapeHtml(opponentName)} is choosing a move.</p>
-          </section>
-        </div>
-
-        ${raceMarkup}
-      </main>
+        <section class="battle-player-card opponent-panel" id="opponent-panel" data-opponent-theme="${escapeHtml(opponentTheme)}" aria-label="Opponent board">
+          <div class="player-card-header">
+            <div class="player-name-block"><span class="player-role-label opponent">OPPONENT${isFreeplay ? '' : ' · '}<b id="opponent-rank-inline">${isFreeplay ? '' : 'TIED'}</b></span><h2 class="player-name" id="opponent-nickname">${escapeHtml(opponentName)}</h2></div>
+            ${isFreeplay
+              ? '<div class="stat-pair"><div class="mini-stat"><span>Score</span><strong id="opponent-score">0</strong></div><div class="mini-stat"><span>Highest</span><strong id="opponent-highest">0</strong></div></div>'
+              : '<div class="highest-box"><span>Highest</span><strong id="opponent-highest">0</strong></div>'}
+          </div>
+          <div id="opponent-grid" class="opponent-grid" data-theme="${escapeHtml(opponentTheme)}"></div>
+          <div id="opponent-status" class="opponent-live-status"><span></span>Connected</div>
+        </section>
+      </div>
     `;
 
     document.body.appendChild(battleShell);
 
+    var ownPanel = document.getElementById("own-panel");
     var ownBoardSlot = document.getElementById("own-board-slot");
     ownBoardSlot.appendChild(gameContainer);
 
@@ -7086,7 +7061,7 @@
         openGameConfirm({
           title: "Restart your board?",
           message: "Your Freeplay board will restart. Your opponent will keep playing.",
-          confirmLabel: "Restart board",
+          confirmLabel: "Restart Board",
           tone: "danger",
           onConfirm: restartFreeplayBoard
         });
@@ -7098,8 +7073,8 @@
     opponentScoreDisplay = document.getElementById("opponent-score");
     ownNicknameDisplay = document.getElementById("own-nickname");
     opponentNicknameDisplay = document.getElementById("opponent-nickname");
-    ownRankBadge = null;
-    opponentRankBadge = null;
+    ownRankBadge = document.getElementById("own-rank-inline");
+    opponentRankBadge = document.getElementById("opponent-rank-inline");
     opponentPanelElement = document.getElementById("opponent-panel");
     opponentGrid = document.getElementById("opponent-grid");
     opponentHighest = document.getElementById("opponent-highest");
@@ -7115,8 +7090,8 @@
     raceSpineFill = document.getElementById("race-spine-fill");
     raceSpineLocalMarker = document.getElementById("race-spine-local-marker");
     raceSpineOpponentMarker = document.getElementById("race-spine-opponent-marker");
-    raceSpineLocalTarget = null;
-    raceSpineOpponentTarget = null;
+    raceSpineLocalTarget = document.getElementById("race-local-target");
+    raceSpineOpponentTarget = document.getElementById("race-opponent-target");
 
     for (var i = 0; i < 16; i++) {
       var cell = document.createElement("div");
@@ -7127,11 +7102,8 @@
     document.getElementById("leave-match").addEventListener("click", function () {
       openGameConfirm({
         title: "Leave this match?",
-        message: isFreeplay
-          ? "You will leave the room and return to the multiplayer menu."
-          : "Your current board will be forfeited, and your opponent will win.",
-        confirmLabel: "Leave match",
-        cancelLabel: "Stay in match",
+        message: "You will disconnect from the room and return to the multiplayer menu.",
+        confirmLabel: "Leave Match",
         tone: "danger",
         onConfirm: leaveMultiplayerMatch
       });
@@ -7220,15 +7192,7 @@
 
     var toast = document.createElement("div");
     toast.id = "battle-toast";
-    toast.className = "refinement-battle-toast";
-    var label = /takes the lead/i.test(message)
-      ? "Lead change"
-      : /one merge away/i.test(message)
-        ? "Closing in"
-        : "Match update";
-    toast.innerHTML = '<span>' + escapeHtml(label) + '</span><strong>' + escapeHtml(message) + '</strong>';
-    toast.setAttribute("role", "status");
-    toast.setAttribute("aria-live", "polite");
+    toast.textContent = message;
     document.body.appendChild(toast);
 
     setTimeout(function () {
@@ -7269,8 +7233,8 @@
     lastOwnHighest = Number(ownHighest || 0);
     lastOwnScore = Number(ownScore || 0);
 
-    if (ownHighestDisplay) ownHighestDisplay.textContent = Number(lastOwnHighest).toLocaleString();
-    if (ownScoreDisplay) ownScoreDisplay.textContent = Number(lastOwnScore).toLocaleString();
+    if (ownHighestDisplay) ownHighestDisplay.textContent = lastOwnHighest;
+    if (ownScoreDisplay) ownScoreDisplay.textContent = lastOwnScore;
 
     var mode = window.multiplayerModeName || "tile-race";
     if (mode === "freeplay") {
@@ -7286,38 +7250,43 @@
     var ownOneAwayNow = lastOwnHighest >= ownTarget / 2 && lastOwnHighest < ownTarget;
     var opponentHighestValue = latestOpponentState ? Number(latestOpponentState.highestTile || 0) : 0;
     var opponentRatio = latestOpponentState ? progressRatio(opponentHighestValue, opponentTarget) : 0;
-    var opponentOneAwayNow = !!(latestOpponentState && opponentHighestValue >= opponentTarget / 2 && opponentHighestValue < opponentTarget);
+    var opponentOneAwayNow = latestOpponentState && opponentHighestValue >= opponentTarget / 2 && opponentHighestValue < opponentTarget;
 
     updateRaceSpine(lastOwnHighest || 2, opponentHighestValue || 2);
+
+    if (!latestOpponentState) {
+      applyRankBadge(ownRankBadge, "TIED", false);
+      applyRankBadge(opponentRankBadge, "TIED", false);
+      if (ownOneAwayNow && !lastOwnOneAway) {
+        showBattleToast(getOwnNickname() + " is one merge away.");
+      }
+      lastOwnOneAway = ownOneAwayNow;
+      lastOpponentOneAway = false;
+      updateCompetitiveMusicIntensity();
+      return;
+    }
 
     var leaderNumber = 0;
     var ownNumber = Number(window.multiplayerPlayerNumber);
     var opponentNumber = getOpponentNumber();
     var epsilon = 0.00001;
-    var summary = document.getElementById("race-leader-summary");
 
-    if (latestOpponentState) {
-      if (ownRatio > opponentRatio + epsilon) leaderNumber = ownNumber;
-      else if (opponentRatio > ownRatio + epsilon) leaderNumber = opponentNumber;
-    }
-
-    if (summary) {
-      if (!latestOpponentState || leaderNumber === 0) {
-        summary.textContent = "Race is level";
-      } else {
-        var leaderName = leaderNumber === ownNumber ? getOwnNickname() : getOpponentNickname();
-        var stepDifference = Math.abs(powerStep(lastOwnHighest || 2) - powerStep(opponentHighestValue || 2));
-        summary.textContent = leaderName + (stepDifference === 1
-          ? " leads by one tile"
-          : stepDifference > 1
-            ? " leads by " + stepDifference + " tile steps"
-            : " leads");
-      }
+    if (ownRatio > opponentRatio + epsilon) {
+      leaderNumber = ownNumber;
+      applyRankBadge(ownRankBadge, "1ST", true);
+      applyRankBadge(opponentRankBadge, "2ND", false);
+    } else if (opponentRatio > ownRatio + epsilon) {
+      leaderNumber = opponentNumber;
+      applyRankBadge(ownRankBadge, "2ND", false);
+      applyRankBadge(opponentRankBadge, "1ST", true);
+    } else {
+      applyRankBadge(ownRankBadge, "TIED", false);
+      applyRankBadge(opponentRankBadge, "TIED", false);
     }
 
     if (lastLeaderNumber !== null && leaderNumber !== lastLeaderNumber && leaderNumber !== 0) {
-      var changedLeaderName = leaderNumber === ownNumber ? getOwnNickname() : getOpponentNickname();
-      showBattleToast(changedLeaderName + " takes the lead.");
+      var leaderName = leaderNumber === ownNumber ? getOwnNickname() : getOpponentNickname();
+      showBattleToast(leaderName + " takes the lead.");
       playSound(leaderNumber === ownNumber ? "lead" : "lead-lost");
     }
 
@@ -7375,20 +7344,17 @@
     }
 
     if (opponentHighest) {
-      opponentHighest.textContent = Number(state.highestTile || 0).toLocaleString();
+      opponentHighest.textContent = state.highestTile || 0;
     }
 
     if (opponentScoreDisplay) {
-      opponentScoreDisplay.textContent = Number(state.score || 0).toLocaleString();
+      opponentScoreDisplay.textContent = state.score || 0;
     }
-
-    var moveHint = document.getElementById("opponent-move-hint");
-    if (moveHint) moveHint.textContent = getOpponentNickname() + " is choosing a move.";
 
     if (opponentStatus) {
       opponentStatus.innerHTML = state.over
-        ? '<i class="finished" aria-hidden="true"></i> Finished'
-        : '<i aria-hidden="true"></i> Playing';
+        ? '<span class="finished"></span>Board finished'
+        : '<span></span>Connected';
     }
   }
 
@@ -7650,7 +7616,7 @@
 
     if (opponentHighest) opponentHighest.textContent = "0";
     if (opponentScoreDisplay) opponentScoreDisplay.textContent = "0";
-    if (opponentStatus) opponentStatus.innerHTML = '<i aria-hidden="true"></i> Playing';
+    if (opponentStatus) opponentStatus.innerHTML = '<span></span>Connected';
 
     if (opponentGrid) {
       var opponentProfile = getProfile(getOpponentNumber());
@@ -7784,11 +7750,7 @@
     var opponentName = getOpponentNickname();
     var description;
 
-    if (data.reason === "forfeit") {
-      description = didWin
-        ? opponentName + " left the match, so you win by forfeit."
-        : "You left the match.";
-    } else if (data.reason === "board-stuck") {
+    if (data.reason === "board-stuck") {
       description = didWin
         ? opponentName + " ran out of legal moves."
         : "Your board ran out of legal moves.";
@@ -7812,7 +7774,7 @@
         <span class="result-kicker">${didWin ? "TARGET REACHED" : "MATCH ENDED"}</span><h1>${didWin ? "You Win" : "You Lost"}</h1>
         <p>${escapeHtml(description)}</p>
         <div class="result-actions">
-          ${data.reason === "forfeit" ? "" : '<button class="primary-button" id="result-rematch">Rematch</button>'}
+          <button class="primary-button" id="result-rematch">Rematch</button>
           <button class="secondary-button" id="result-back">Back to Lobby</button>
         </div>
       </div>
@@ -7822,15 +7784,12 @@
     duckCompetitiveMusic();
     playSound(didWin ? "win" : "lose");
 
-    var rematchButton = document.getElementById("result-rematch");
-    if (rematchButton) {
-      rematchButton.addEventListener("click", function () {
-        playSound("rematch");
-        this.disabled = true;
-        this.textContent = "Waiting...";
-        socket.emit("requestRematch");
-      });
-    }
+    document.getElementById("result-rematch").addEventListener("click", function () {
+      playSound("rematch");
+      this.disabled = true;
+      this.textContent = "Waiting...";
+      socket.emit("requestRematch");
+    });
     document.getElementById("result-back").addEventListener("click", function () {
       removeResultOverlay();
       leaveMultiplayerMatch();
@@ -7955,7 +7914,7 @@
                 <div class="toggle-row">
                   <div>
                     <h4>Sound Effects</h4>
-                    <p class="settings-help">Moves, merges, Undo, milestones, and match results.</p>
+                    <p class="settings-help">Moves, merges, Undo, milestones and match results.</p>
                   </div>
                   <button id="sound-effects-toggle" class="toggle-button ${window.rinasSettings.soundEffects ? "on" : "off"}">${window.rinasSettings.soundEffects ? "ON" : "OFF"}</button>
                 </div>
@@ -7970,7 +7929,7 @@
                 <div class="toggle-row">
                   <div>
                     <h4>Background Music</h4>
-                    <p class="settings-help">Lobby, Solo focus music, and the Multiplayer layer.</p>
+                    <p class="settings-help">Lobby, Solo focus music and the Multiplayer layer.</p>
                   </div>
                   <button id="background-music-toggle" class="toggle-button ${window.rinasSettings.musicEnabled ? "on" : "off"}">${window.rinasSettings.musicEnabled ? "ON" : "OFF"}</button>
                 </div>
@@ -8172,8 +8131,6 @@
       if (ownNicknameDisplay) ownNicknameDisplay.textContent = getOwnNickname();
     } else {
       if (opponentNicknameDisplay) opponentNicknameDisplay.textContent = getOpponentNickname();
-      var moveHint = document.getElementById("opponent-move-hint");
-      if (moveHint) moveHint.textContent = getOpponentNickname() + " is choosing a move.";
       if (opponentGrid && THEMES.indexOf(profile.theme) !== -1) opponentGrid.setAttribute("data-theme", profile.theme);
       if (opponentPanelElement && THEMES.indexOf(profile.theme) !== -1) opponentPanelElement.setAttribute("data-opponent-theme", profile.theme);
     }
@@ -8220,13 +8177,6 @@
 
   socket.on("disconnect", function () {
     console.log("Disconnected from Rina's 2048 server.");
-    var status = document.getElementById("lobby-status");
-    if (status) status.textContent = "Reconnecting to the multiplayer server…";
-  });
-
-  socket.on("connect_error", function () {
-    var status = document.getElementById("lobby-status");
-    if (status) status.textContent = "Multiplayer is waking up or temporarily unavailable. Retrying automatically…";
   });
 
 
@@ -13715,8 +13665,4 @@
   // Reveal the static game host/footer only after boot so no plain-text
   // "Original 2048 by Gabriele Cirulli" flash appears during page load.
   document.body.classList.add("rinas-app-ready");
-  if (window.__rinasBootWatchdog) {
-    window.clearTimeout(window.__rinasBootWatchdog);
-    window.__rinasBootWatchdog = null;
-  }
 })();
