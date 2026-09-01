@@ -1,4 +1,4 @@
-/* Rina's 2048 — production UI v80
+/* Rina's 2048 â€” production UI v80
    One authoritative presentation layer based on the approved Phase 1 interface review.
    No gradients. The original 2048 engine and board geometry remain intact. */
 
@@ -30,7 +30,7 @@
 
   --tile-dark-text: #776e65;
   --tile-light-text: #f9f6f2;
-  --tile-2048-text: #2c2825;
+  --tile-2048-text: #fffaf2;
   --tile-2: #eee4da;
   --tile-4: #ede0c8;
   --tile-8: #f2b179;
@@ -158,7 +158,7 @@ body.theme-candy {
   --shadow: 0 18px 46px rgba(0, 0, 0, .3);
   --tile-dark-text: #704b59;
   --tile-light-text: #fff7fa;
-  --tile-2048-text: #2a1024;
+  --tile-2048-text: #fff7fa;
   --tile-2: #ffe1ec;
   --tile-4: #ffd2e1;
   --tile-8: #ffc3a0;
@@ -453,10 +453,10 @@ body.solo-active #solo-toolbar { display:block!important; width:100%!important; 
 .opponent-cell { min-width:0; min-height:0; display:flex; align-items:center; justify-content:center; border-radius:var(--radius-sm); background:var(--well); color:var(--tile-dark-text); font:800 clamp(1.2rem,3vw,2.7rem)/1 var(--font-body); }
 .opponent-cell.has-tile { box-shadow:inset 0 1px 0 rgba(255,255,255,.16), inset 0 -2px 0 rgba(50,35,25,.06); }
 .opponent-cell.tile-2{background:var(--tile-2);color:var(--tile-dark-text)}.opponent-cell.tile-4{background:var(--tile-4);color:var(--tile-dark-text)}.opponent-cell.tile-8{background:var(--tile-8);color:var(--tile-light-text)}.opponent-cell.tile-16{background:var(--tile-16);color:var(--tile-light-text)}.opponent-cell.tile-32{background:var(--tile-32);color:var(--tile-light-text)}.opponent-cell.tile-64{background:var(--tile-64);color:var(--tile-light-text)}.opponent-cell.tile-128{background:var(--tile-128);color:var(--tile-light-text)}.opponent-cell.tile-256{background:var(--tile-256);color:var(--tile-light-text)}.opponent-cell.tile-512{background:var(--tile-512);color:var(--tile-light-text)}.opponent-cell.tile-1024{background:var(--tile-1024);color:var(--tile-light-text)}.opponent-cell.tile-2048{background:var(--tile-2048);color:var(--tile-2048-text)}.opponent-cell.tile-4096{background:var(--tile-4096);color:var(--tile-light-text)}.opponent-cell.tile-8192{background:var(--tile-8192);color:var(--tile-light-text)}.opponent-cell.tile-16384{background:var(--tile-16384);color:var(--tile-light-text)}.opponent-cell.tile-32768{background:var(--tile-32768);color:var(--tile-light-text)}.opponent-cell.tile-65536{background:var(--tile-65536);color:var(--tile-light-text)}.opponent-cell.tile-131072{background:var(--tile-131072);color:var(--tile-light-text)}
-#opponent-grid[data-theme="classic"]{--tile-dark-text:#776e65;--tile-light-text:#f9f6f2;--tile-2048-text:#2c2825;--tile-2:#eee4da;--tile-4:#ede0c8;--tile-8:#f2b179;--tile-16:#f59563;--tile-32:#f67c5f;--tile-64:#f65e3b;--tile-128:#edcf72;--tile-256:#edcc61;--tile-512:#edc850;--tile-1024:#edc53f;--tile-2048:#edc22e;--tile-4096:#b35731;--tile-8192:#9f4735;--tile-16384:#873b39;--tile-32768:#6f343b;--tile-65536:#55303a;--tile-131072:#392a32;--board:#9f8d7c;--well:rgba(255,246,232,.38)}
+#opponent-grid[data-theme="classic"]{--tile-dark-text:#776e65;--tile-light-text:#f9f6f2;--tile-2048-text:#fffaf2;--tile-2:#eee4da;--tile-4:#ede0c8;--tile-8:#f2b179;--tile-16:#f59563;--tile-32:#f67c5f;--tile-64:#f65e3b;--tile-128:#edcf72;--tile-256:#edcc61;--tile-512:#edc850;--tile-1024:#edc53f;--tile-2048:#edc22e;--tile-4096:#b35731;--tile-8192:#9f4735;--tile-16384:#873b39;--tile-32768:#6f343b;--tile-65536:#55303a;--tile-131072:#392a32;--board:#9f8d7c;--well:rgba(255,246,232,.38)}
 #opponent-grid[data-theme="pastel"]{--tile-dark-text:#403942;--tile-light-text:#403942;--tile-2048-text:#403942;--tile-2:#f8e8ee;--tile-4:#eadcf8;--tile-8:#cfe8f6;--tile-16:#cdeedb;--tile-32:#fff0b8;--tile-64:#ffd6b8;--tile-128:#ffc8dd;--tile-256:#cdb4db;--tile-512:#a2d2ff;--tile-1024:#bde0fe;--tile-2048:#ffafcc;--tile-4096:#f29bc0;--tile-8192:#dda1d6;--tile-16384:#c2a7e4;--tile-32768:#a9b6e8;--tile-65536:#98c9e4;--tile-131072:#89d5d4;--board:#d9d2e9;--well:#f4f1fb}
 #opponent-grid[data-theme="ocean"]{--tile-dark-text:#31525b;--tile-light-text:#f4fbfd;--tile-2048-text:#f4fbfd;--tile-2:#d9f0f7;--tile-4:#b8e3ef;--tile-8:#83c5d5;--tile-16:#5bb5c8;--tile-32:#3c9db5;--tile-64:#2589a5;--tile-128:#16758f;--tile-256:#0e647c;--tile-512:#0a5368;--tile-1024:#084456;--tile-2048:#063747;--tile-4096:#0b6574;--tile-8192:#0d5a73;--tile-16384:#174e6e;--tile-32768:#284263;--tile-65536:#383854;--tile-131072:#432e48;--board:#1f5360;--well:#2a6572}
-#opponent-grid[data-theme="candy"]{--tile-dark-text:#704b59;--tile-light-text:#fff7fa;--tile-2048-text:#2a1024;--tile-2:#ffe1ec;--tile-4:#ffd2e1;--tile-8:#ffc3a0;--tile-16:#ff9f9f;--tile-32:#ff7b9c;--tile-64:#ff5d8f;--tile-128:#f759ab;--tile-256:#d65db1;--tile-512:#aa66cc;--tile-1024:#845ec2;--tile-2048:#ff9671;--tile-4096:#c13e6b;--tile-8192:#b64292;--tile-16384:#994eaf;--tile-32768:#6f51a5;--tile-65536:#4e467f;--tile-131072:#342f5b;--board:#6d335e;--well:#81446f}
+#opponent-grid[data-theme="candy"]{--tile-dark-text:#704b59;--tile-light-text:#fff7fa;--tile-2048-text:#fff7fa;--tile-2:#ffe1ec;--tile-4:#ffd2e1;--tile-8:#ffc3a0;--tile-16:#ff9f9f;--tile-32:#ff7b9c;--tile-64:#ff5d8f;--tile-128:#f759ab;--tile-256:#d65db1;--tile-512:#aa66cc;--tile-1024:#845ec2;--tile-2048:#ff9671;--tile-4096:#c13e6b;--tile-8192:#b64292;--tile-16384:#994eaf;--tile-32768:#6f51a5;--tile-65536:#4e467f;--tile-131072:#342f5b;--board:#6d335e;--well:#81446f}
 #opponent-grid[data-theme="midnight"]{--tile-dark-text:#303548;--tile-light-text:#f3f4ff;--tile-2048-text:#f3f4ff;--tile-2:#dce1f2;--tile-4:#c8cee8;--tile-8:#9ea7d8;--tile-16:#7f8acb;--tile-32:#626db8;--tile-64:#4d579e;--tile-128:#41477f;--tile-256:#343963;--tile-512:#2d3154;--tile-1024:#262947;--tile-2048:#211e3d;--tile-4096:#4d579e;--tile-8192:#5d4fa8;--tile-16384:#704ca6;--tile-32768:#864a97;--tile-65536:#974a7f;--tile-131072:#743861;--board:#262b49;--well:#343a5d}
 .opponent-motion-tile { position:absolute!important; z-index:10; pointer-events:none; transition-property:transform!important; transition-timing-function:ease-in-out!important; }
 .input-hint-status { color:var(--faint); }
@@ -656,7 +656,7 @@ body.solo-active #solo-toolbar { display:block!important; width:100%!important; 
 
 
 /* ============================================================
-   v81 — Friend-vs-friend multiplayer polish
+   v81 â€” Friend-vs-friend multiplayer polish
    ============================================================ */
 
 /* Multiplayer modes: stronger hover/focus affordance and a visible preview state. */
@@ -865,7 +865,7 @@ body.solo-active #solo-toolbar { display:block!important; width:100%!important; 
   background: color-mix(in srgb,var(--accent) 22%,var(--line));
 }
 
-/* Nickname dialog — intentional form field instead of browser-default textbox. */
+/* Nickname dialog â€” intentional form field instead of browser-default textbox. */
 .nickname-modal {
   width: min(100%, 500px);
   padding: 30px;
@@ -965,7 +965,7 @@ body.solo-active #solo-toolbar { display:block!important; width:100%!important; 
   margin-top: 18px;
 }
 
-/* Waiting room — one coherent "match ready" surface. */
+/* Waiting room â€” one coherent "match ready" surface. */
 .waiting-room-screen {
   width: min(100%, 940px)!important;
   display: block!important;
@@ -1191,7 +1191,7 @@ body.solo-active #solo-toolbar { display:block!important; width:100%!important; 
 
 
 /* ============================================================
-   v82 — Preview consistency, controls, spacing, and transitions
+   v82 â€” Preview consistency, controls, spacing, and transitions
    ============================================================ */
 
 @keyframes r82-screen-enter-forward {
@@ -1502,7 +1502,7 @@ body.solo-active #solo-toolbar { display:block!important; width:100%!important; 
 .match-create-button { margin-top:20px!important; }
 .match-setup-status { margin-top:-24px!important; }
 
-/* Shared profile field — exact component for Settings + multiplayer name */
+/* Shared profile field â€” exact component for Settings + multiplayer name */
 .profile-text-field,.settings-profile input {
   width:min(100%,280px)!important;
   min-height:44px!important;
@@ -1579,7 +1579,7 @@ body.solo-active #solo-toolbar { display:block!important; width:100%!important; 
 
 
 /* ============================================================
-   v83 — UX alignment, copy hierarchy, footer, and number polish
+   v83 â€” UX alignment, copy hierarchy, footer, and number polish
    ============================================================ */
 
 #site-footer {
@@ -1895,7 +1895,7 @@ body.solo-active #site-footer { display:none!important; }
 
 
 /* ============================================================
-   v84 — alignment, responsive polish, and final copy layout
+   v84 â€” alignment, responsive polish, and final copy layout
    ============================================================ */
 
 /* ---------- Main choice cards ---------- */
@@ -2462,7 +2462,7 @@ body.solo-active #site-footer { display:none!important; }
 
 
 /* ============================================================
-   v85 — viewport use, Solo copy polish, and high-value tiles
+   v85 â€” viewport use, Solo copy polish, and high-value tiles
    ============================================================ */
 
 /* ---------- Better use of large/full-screen viewports ---------- */
@@ -2708,7 +2708,7 @@ body.solo-active #site-footer { display:none!important; }
 
 
 /* ============================================================
-   v87 — non-maximized main-menu resilience + Solo reset hierarchy
+   v87 â€” non-maximized main-menu resilience + Solo reset hierarchy
    ============================================================ */
 
 /* ------------------------------------------------------------
@@ -3001,7 +3001,7 @@ body.solo-active #site-footer { display:none!important; }
 
 
 /* ============================================================
-   v88 — main-menu preview balance + Solo header utility action
+   v88 â€” main-menu preview balance + Solo header utility action
    ============================================================ */
 
 /* ------------------------------------------------------------
@@ -3202,5 +3202,462 @@ body.solo-active #site-footer { display:none!important; }
 
   .solo-header-actions #solo-settings {
     padding-inline: 10px!important;
+  }
+}
+
+
+/* ============================================================
+   v89 â€” multiplayer popup system + theme lock + 2048 study
+   ============================================================ */
+
+/* ---------- Multiplayer popup system ---------- */
+.multiplayer-popup {
+  width: min(calc(100% - 28px), 410px)!important;
+  padding: 28px 30px 26px!important;
+  border-radius: 14px!important;
+  text-align: center!important;
+}
+
+.multiplayer-popup .result-icon {
+  width: 58px!important;
+  height: 58px!important;
+  display: grid!important;
+  place-items: center!important;
+  margin: 0 auto 16px!important;
+  padding: 0!important;
+  border: 1px solid var(--line)!important;
+  border-radius: 12px!important;
+  background: var(--control-inset)!important;
+  color: var(--accent)!important;
+  font-size: 0!important;
+  overflow: hidden!important;
+}
+
+.multiplayer-popup .result-icon svg,
+.multiplayer-popup .result-icon .result-graphic,
+.multiplayer-popup svg.result-graphic {
+  width: 38px!important;
+  height: 38px!important;
+  max-width: 38px!important;
+  max-height: 38px!important;
+  display: block!important;
+  fill: none!important;
+  stroke: currentColor!important;
+}
+
+.multiplayer-popup.is-loss .result-icon,
+.multiplayer-disconnect-popup .result-icon {
+  color: var(--danger)!important;
+}
+
+.multiplayer-popup .result-kicker {
+  display: block;
+  margin: 0 0 7px;
+  color: var(--muted);
+  font: 700 .68rem/1 var(--font-display);
+  letter-spacing: .11em;
+  text-transform: uppercase;
+}
+
+.multiplayer-popup h1 {
+  margin: 0!important;
+  color: var(--ink);
+  font: 700 2.15rem/.98 var(--font-display)!important;
+  letter-spacing: -.025em;
+}
+
+.multiplayer-popup > p {
+  max-width: 310px;
+  margin: 12px auto 0!important;
+  color: var(--muted)!important;
+  font-size: .9rem!important;
+  line-height: 1.5!important;
+}
+
+.multiplayer-popup .result-actions {
+  display: flex!important;
+  justify-content: center!important;
+  align-items: center!important;
+  flex-wrap: wrap!important;
+  gap: 8px!important;
+  margin-top: 22px!important;
+}
+
+.multiplayer-popup .result-actions button {
+  min-height: 44px!important;
+  padding: 9px 14px!important;
+}
+
+/* Board-full has no decorative icon; its hierarchy still matches. */
+.multiplayer-freeplay-popup {
+  padding-top: 30px!important;
+}
+
+/* ---------- Multiplayer confirmations ---------- */
+.multiplayer-confirm-modal {
+  width: min(calc(100% - 28px), 390px)!important;
+  padding: 27px 28px 25px!important;
+}
+
+.multiplayer-confirm-modal .game-modal-accent {
+  width: 30px!important;
+  height: 3px!important;
+  margin-bottom: 16px!important;
+}
+
+.multiplayer-confirm-modal .game-modal-kicker {
+  font-size: .67rem!important;
+}
+
+.multiplayer-confirm-modal h2 {
+  margin: 7px 0 9px!important;
+  font-size: 1.9rem!important;
+  line-height: 1!important;
+}
+
+.multiplayer-confirm-modal p {
+  margin: 0!important;
+  font-size: .88rem!important;
+  line-height: 1.5!important;
+}
+
+.multiplayer-confirm-modal .game-modal-actions {
+  margin-top: 21px!important;
+}
+
+/* Protect every result icon from generic SVG sizing. */
+.result-overlay .result-icon svg {
+  display: block;
+}
+
+/* ---------- Theme lock during active multiplayer ---------- */
+.theme-group.is-locked .theme-options {
+  opacity: .68;
+}
+
+.theme-group.is-locked .theme-option,
+.theme-option:disabled {
+  cursor: not-allowed!important;
+}
+
+.theme-group.is-locked .theme-option:hover,
+.theme-option:disabled:hover {
+  border-left-color: transparent!important;
+  background: transparent!important;
+  transform: none!important;
+}
+
+.theme-group.is-locked .theme-option.is-selected,
+.theme-group.is-locked .theme-option.is-selected:hover {
+  border-left-color: var(--accent)!important;
+  background: color-mix(in srgb,var(--accent) 8%,transparent)!important;
+}
+
+
+/* ---------- 2048 study ---------- */
+/* 2048 is the first high-value milestone and uses the study's
+   light high-contrast label in Classic/Candy instead of black. */
+.tile.tile-2048 .tile-inner,
+.opponent-cell.tile-2048 {
+  font-weight: 900!important;
+  text-shadow: none!important;
+}
+
+/* ---------- Small screens ---------- */
+@media (max-width: 520px) {
+  .multiplayer-popup,
+  .multiplayer-confirm-modal {
+    width: min(calc(100% - 20px), 380px)!important;
+    padding: 24px 20px!important;
+  }
+
+  .multiplayer-popup .result-icon {
+    width: 52px!important;
+    height: 52px!important;
+    margin-bottom: 14px!important;
+  }
+
+  .multiplayer-popup .result-icon svg,
+  .multiplayer-popup .result-icon .result-graphic,
+  .multiplayer-popup svg.result-graphic {
+    width: 34px!important;
+    height: 34px!important;
+    max-width: 34px!important;
+    max-height: 34px!important;
+  }
+
+  .multiplayer-popup h1 {
+    font-size: 1.95rem!important;
+  }
+
+  .multiplayer-popup .result-actions,
+  .multiplayer-confirm-modal .game-modal-actions {
+    display: grid!important;
+    grid-template-columns: 1fr!important;
+  }
+
+  .multiplayer-popup .result-actions button,
+  .multiplayer-confirm-modal .game-modal-actions button {
+    width: 100%!important;
+  }
+}
+
+
+/* ============================================================
+   v90 â€” Solo gameplay alignment and reset hierarchy
+   ============================================================ */
+
+/*
+  Screen-level navigation stays screen-level:
+  Back â€” centered wordmark â€” Settings.
+  Board-level reset now sits with the player's board heading.
+*/
+.solo-production-header {
+  grid-template-columns: minmax(0,1fr) auto minmax(0,1fr)!important;
+  align-items: center!important;
+}
+
+.solo-production-header > div:first-child {
+  justify-self: start!important;
+}
+
+.solo-production-header > div:last-child {
+  justify-self: end!important;
+}
+
+/* Board station owns a single alignment system from title through controls. */
+.solo-board-station {
+  box-sizing: border-box;
+}
+
+.solo-live-heading {
+  width: 100%;
+  min-height: 54px!important;
+  display: flex!important;
+  align-items: flex-end!important;
+  justify-content: space-between!important;
+  gap: 18px!important;
+  margin: 0 0 10px!important;
+  padding: 0 2px!important;
+}
+
+.solo-live-heading > div,
+.solo-live-heading > .solo-player-identity {
+  width: auto!important;
+  min-width: 0;
+}
+
+.solo-player-identity .eyebrow {
+  display: block;
+  margin: 0 0 5px;
+}
+
+.solo-player-identity h2,
+.solo-live-heading h2 {
+  margin: 0!important;
+  font-size: 1.7rem!important;
+  line-height: 1!important;
+}
+
+/*
+  Quiet tertiary reset action:
+  intentionally not the same raised button as navigation/settings.
+*/
+.solo-reset-action {
+  appearance: none;
+  min-height: 38px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  flex: 0 0 auto;
+  margin: 0 0 1px;
+  padding: 7px 8px;
+  border: 0;
+  border-radius: 7px;
+  outline: 0;
+  background: transparent;
+  color: var(--muted);
+  font: 700 .76rem/1 var(--font-body);
+  cursor: pointer;
+  transition:
+    color 140ms ease,
+    background-color 140ms ease,
+    opacity 100ms ease,
+    transform 100ms ease;
+}
+
+.solo-reset-action .solo-reset-icon {
+  width: 16px!important;
+  height: 16px!important;
+  flex: 0 0 16px;
+  fill: none!important;
+  stroke: currentColor!important;
+}
+
+.solo-reset-action:hover {
+  color: var(--ink);
+  background: var(--control-inset);
+}
+
+.solo-reset-action:focus-visible {
+  color: var(--ink);
+  background: var(--control-inset);
+  box-shadow: 0 0 0 3px color-mix(in srgb,var(--accent) 13%,transparent);
+}
+
+.solo-reset-action:active {
+  opacity: .78;
+  transform: translateY(1px);
+}
+
+/* Stats/board/controls all share the board width and exact left/right edges. */
+.solo-stats-line {
+  width: 100%;
+  margin: 0 0 10px!important;
+}
+
+.solo-board-slot {
+  max-width: 100%;
+}
+
+.solo-control-strip-wrap {
+  width: 100%;
+  margin: 12px 0 0!important;
+}
+
+.solo-control-strip {
+  width: 100%;
+  min-height: 0!important;
+  display: grid!important;
+  grid-template-columns: 1fr!important;
+  justify-items: center!important;
+  gap: 8px!important;
+  color: var(--muted);
+}
+
+.solo-control-move-line {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 14px;
+  min-height: 48px;
+}
+
+.solo-control-move-line .control-key-row {
+  flex: 0 0 auto;
+}
+
+.solo-control-undo-line {
+  min-height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.solo-control-strip .control-key-row {
+  display: grid!important;
+  grid-template-columns: 48px auto!important;
+  align-items: center!important;
+  justify-content: center!important;
+  gap: 10px!important;
+}
+
+.solo-control-strip .control-label {
+  width: 48px;
+  text-align: right;
+}
+
+.solo-control-strip .solo-swipe-copy {
+  max-width: none!important;
+  color: var(--muted);
+  font-size: .76rem;
+  white-space: nowrap;
+}
+
+.solo-undo-key-hint {
+  padding-left: 0!important;
+  border-left: 0!important;
+}
+
+/* Keep attribution visually separate, centered to the board composition. */
+.solo-production-layout > .in-game-attribution {
+  width: min(100%, 500px);
+  margin: 14px auto 0!important;
+}
+
+/* Old v88 header-action styling is obsolete now. */
+.solo-header-actions,
+.solo-header-new {
+  display: none!important;
+}
+
+/* Laptop / short desktop: same hierarchy, slightly tighter vertical rhythm. */
+@media (min-width: 901px) and (max-height: 820px) {
+  .solo-live-heading {
+    min-height: 48px!important;
+    margin-bottom: 8px!important;
+  }
+
+  .solo-player-identity h2,
+  .solo-live-heading h2 {
+    font-size: 1.58rem!important;
+  }
+
+  .solo-control-strip-wrap {
+    margin-top: 9px!important;
+  }
+
+  .solo-control-move-line {
+    min-height: 42px;
+  }
+
+  .solo-control-strip {
+    gap: 5px!important;
+  }
+}
+
+/* Tablet/mobile: New game stays opposite the player name when space allows. */
+@media (max-width: 640px) {
+  .solo-live-heading {
+    align-items: center!important;
+  }
+
+  .solo-reset-action {
+    min-height: 36px;
+    padding-inline: 7px;
+    font-size: .72rem;
+  }
+
+  .solo-control-move-line {
+    width: 100%;
+    flex-wrap: wrap;
+    gap: 8px 12px;
+  }
+
+  .solo-control-strip .solo-swipe-copy {
+    white-space: normal;
+    text-align: center;
+  }
+}
+
+/* Very narrow phones: keep the identity/action row readable instead of colliding. */
+@media (max-width: 380px) {
+  .solo-live-heading {
+    gap: 10px!important;
+  }
+
+  .solo-reset-action span {
+    display: none;
+  }
+
+  .solo-reset-action {
+    width: 36px;
+    padding: 0;
+  }
+
+  .solo-reset-action .solo-reset-icon {
+    width: 17px!important;
+    height: 17px!important;
   }
 }
