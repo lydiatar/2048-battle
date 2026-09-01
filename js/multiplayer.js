@@ -685,9 +685,10 @@
     var confirmLabel = options.confirmLabel || "Confirm";
     var cancelLabel = options.cancelLabel || "Cancel";
     var toneClass = options.tone === "danger" ? " danger" : "";
+    var contextClass = options.contextClass ? " " + options.contextClass : "";
 
     overlay.innerHTML = `
-      <div class="game-modal confirm-modal" role="dialog" aria-modal="true" aria-labelledby="game-confirm-title">
+      <div class="game-modal confirm-modal${contextClass}" role="dialog" aria-modal="true" aria-labelledby="game-confirm-title">
         <div class="game-modal-accent"></div>
         <span class="game-modal-kicker">RINA'S 2048</span>
         <h2 id="game-confirm-title">${escapeHtml(title)}</h2>
@@ -951,11 +952,13 @@
 
   function soloControlsMarkup() {
     var undoHint = window.rinasSettings.soloUndo
-      ? '<div class="control-key-row compact solo-undo-key-hint"><span class="control-label">Undo</span><span class="key-cluster action-key"><span class="key-row"><kbd>Z</kbd></span></span></div>'
+      ? '<div class="solo-control-undo-line"><div class="control-key-row compact solo-undo-key-hint"><span class="control-label">Undo</span><span class="key-cluster action-key"><span class="key-row"><kbd>Z</kbd></span></span></div></div>'
       : '';
     return '<div class="solo-control-strip">' +
-      movementKeysMarkup(true) +
-      '<span class="solo-swipe-copy">or swipe to move your tiles.</span>' +
+      '<div class="solo-control-move-line">' +
+        movementKeysMarkup(true) +
+        '<span class="solo-swipe-copy">or swipe to move your tiles.</span>' +
+      '</div>' +
       undoHint +
     '</div>';
   }
@@ -1139,10 +1142,7 @@
       <header class="solo-production-header page-width">
         <div><button class="button button-secondary" id="solo-back">${uiIcon("back", "button-icon")}<span>Back</span></button></div>
         <div class="production-wordmark"><strong>Rina's 2048</strong><span>Solo</span></div>
-        <div class="solo-header-actions">
-          <button class="button button-secondary solo-header-new" id="solo-new">New game</button>
-          <button class="button button-secondary" id="solo-settings">${uiIcon("settings", "button-icon")}<span>Settings</span></button>
-        </div>
+        <div><button class="button button-secondary" id="solo-settings">${uiIcon("settings", "button-icon")}<span>Settings</span></button></div>
       </header>
     `;
     soloToolbar.style.display = "block";
@@ -1153,7 +1153,14 @@
     layout.innerHTML = `
       <section class="solo-board-station">
         <header class="solo-live-heading">
-          <div><span class="eyebrow">Solo</span><h2>${escapeHtml(sanitizeNickname(window.rinasSettings.nickname) || "Your board")}</h2></div>
+          <div class="solo-player-identity">
+            <span class="eyebrow">Solo</span>
+            <h2>${escapeHtml(sanitizeNickname(window.rinasSettings.nickname) || "Your board")}</h2>
+          </div>
+          <button class="solo-reset-action" id="solo-new" type="button">
+            ${uiIcon("new", "solo-reset-icon")}
+            <span>New game</span>
+          </button>
         </header>
         <dl class="stats-line solo-stats-line" aria-label="Current Solo statistics">
           <div><dt>Score</dt><dd id="solo-live-score">0</dd></div>
@@ -2118,6 +2125,7 @@
           message: "Your Freeplay board will restart. Your opponent will keep playing.",
           confirmLabel: "Restart board",
           tone: "danger",
+          contextClass: "multiplayer-confirm-modal",
           onConfirm: restartFreeplayBoard
         });
       });
@@ -2155,6 +2163,7 @@
         confirmLabel: "Leave match",
         cancelLabel: "Stay in match",
         tone: "danger",
+        contextClass: "multiplayer-confirm-modal",
         onConfirm: leaveMultiplayerMatch
       });
     });
@@ -2702,9 +2711,10 @@
 
     var canUndo = !!(window.multiplayerGame && window.multiplayerGame.freeplayUndoEntry);
     overlay.innerHTML = `
-      <div class="result-box">
-        <h1>Board Full</h1>
-        <p>Freeplay doesn't eliminate you. Undo the last move or start a fresh board while your opponent keeps playing.</p>
+      <div class="result-box multiplayer-popup multiplayer-freeplay-popup">
+        <span class="result-kicker">FREEPLAY DUEL</span>
+        <h1>Board full</h1>
+        <p>Your run can keep going. Undo the last move or restart your board while your opponent keeps playing.</p>
         <div class="result-actions">
           ${canUndo ? '<button class="primary-button" id="freeplay-over-undo">Undo Last Move</button>' : ""}
           <button class="secondary-button" id="freeplay-over-restart">Restart Board</button>
@@ -2802,9 +2812,10 @@
     overlay.id = "result-overlay";
     overlay.className = "result-overlay";
     overlay.innerHTML = `
-      <div class="result-box">
-        <div class="result-icon result-icon-graphic">${uiIcon(didWin ? "win" : "loss", "result-graphic")}</div>
-        <span class="result-kicker">${didWin ? "TARGET REACHED" : "MATCH ENDED"}</span><h1>${didWin ? "You Win" : "You Lost"}</h1>
+      <div class="result-box multiplayer-popup multiplayer-result-box ${didWin ? "is-win" : "is-loss"}">
+        <div class="result-icon">${uiIcon(didWin ? "win" : "loss", "result-graphic")}</div>
+        <span class="result-kicker">${didWin ? "TARGET REACHED" : "MATCH ENDED"}</span>
+        <h1>${didWin ? "You win" : "You lost"}</h1>
         <p>${escapeHtml(description)}</p>
         <div class="result-actions">
           <button class="primary-button" id="result-rematch">Rematch</button>
@@ -2841,9 +2852,10 @@
     overlay.id = "result-overlay";
     overlay.className = "result-overlay";
     overlay.innerHTML = `
-      <div class="result-box">
-        <div class="result-icon result-icon-graphic">${uiIcon("disconnect", "result-graphic")}</div>
-        <h1>Room Ended</h1>
+      <div class="result-box multiplayer-popup multiplayer-disconnect-popup">
+        <div class="result-icon">${uiIcon("disconnect", "result-graphic")}</div>
+        <span class="result-kicker">MATCH ENDED</span>
+        <h1>Opponent left</h1>
         <p>${escapeHtml(getOpponentNickname())} left the room.</p>
         <div class="result-actions"><button class="primary-button" id="opponent-left-back">Back to Multiplayer</button></div>
       </div>
@@ -2890,6 +2902,7 @@
 
     var sfxPercent = Math.round(Number(typeof window.rinasSettings.sfxVolume === "number" ? window.rinasSettings.sfxVolume : 0.75) * 100);
     var musicPercent = Math.round(Number(typeof window.rinasSettings.musicVolume === "number" ? window.rinasSettings.musicVolume : 0.42) * 100);
+    var themeLockedForMatch = !!window.multiplayerMatchActive;
 
     var overlay = document.createElement("div");
     overlay.id = "settings-overlay";
@@ -2934,10 +2947,14 @@
           </fieldset>
         </div>
 
-        <fieldset class="settings-group theme-group">
+        <fieldset class="settings-group theme-group ${themeLockedForMatch ? "is-locked" : ""}">
           <legend>Theme</legend>
           <p>Choose your visual theme. In multiplayer, your opponent sees your board theme.</p>
-          <div class="theme-options">${THEMES.map(function (theme) { return '<button class="theme-option ' + (theme === window.rinasSettings.theme ? 'is-selected' : '') + '" type="button" data-theme="' + theme + '"><strong>' + prettyThemeName(theme) + '</strong><span class="theme-swatches">' + themePreview(theme) + '</span></button>'; }).join("")}</div>
+          <div class="theme-options">${THEMES.map(function (theme) {
+            return '<button class="theme-option ' + (theme === window.rinasSettings.theme ? 'is-selected' : '') + '" type="button" data-theme="' + theme + '"' +
+              (themeLockedForMatch ? ' disabled aria-disabled="true"' : '') +
+              '><strong>' + prettyThemeName(theme) + '</strong><span class="theme-swatches">' + themePreview(theme) + '</span></button>';
+          }).join("")}</div>
         </fieldset>
       </div>
     `;
@@ -3007,15 +3024,12 @@
 
     Array.prototype.forEach.call(overlay.querySelectorAll(".theme-option"), function (button) {
       button.addEventListener("click", function () {
+        if (themeLockedForMatch || window.multiplayerMatchActive) return;
         var theme = button.getAttribute("data-theme");
         window.rinasSettings.theme = theme;
         saveSettings();
         applyTheme(theme);
         Array.prototype.forEach.call(overlay.querySelectorAll(".theme-option"), function (other) { other.classList.toggle("is-selected", other === button); });
-        if (window.multiplayerMatchActive) {
-          socket.emit("updateProfile", { nickname: window.rinasSettings.nickname, theme: theme });
-          updateOneProfile({ playerNumber: window.multiplayerPlayerNumber, nickname: window.rinasSettings.nickname, theme: theme });
-        }
       });
     });
 
