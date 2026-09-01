@@ -12,8 +12,7 @@
     rel="stylesheet"
   >
   <link href="style/main.css" rel="stylesheet" type="text/css">
-  <link href="style/rinas-ui-v72.css?v=72" rel="stylesheet" type="text/css">
-  <link href="style/rinas-audio-v63.css?v=63" rel="stylesheet" type="text/css">
+  <link href="style/rinas-production-v88.css?v=88" rel="stylesheet" type="text/css">
   <link rel="shortcut icon" href="favicon.ico">
   <link rel="apple-touch-icon" href="meta/apple-touch-icon.png">
 
@@ -135,23 +134,33 @@
   </div>
 
   <footer id="site-footer">
-    Original 2048 by
-    <a href="https://github.com/gabrielecirulli/2048" target="_blank" rel="noopener noreferrer">Gabriele Cirulli</a><span id="support-links" hidden></span>
+    Based on the original 2048 by
+    <a href="https://github.com/gabrielecirulli/2048" target="_blank" rel="noopener noreferrer">Gabriele Cirulli</a><span id="support-links" hidden></span>.
   </footer>
-  <script src="js/bind_polyfill.js"></script>
+  <script>
+    (function () {
+      window.__rinasBootWatchdog = window.setTimeout(function () {
+        if (document.body.classList.contains("rinas-app-ready")) return;
+        document.body.classList.add("rinas-app-ready");
+        var root = document.getElementById("app-root");
+        if (!root || root.children.length) return;
+        root.innerHTML = '<main style="min-height:100vh;display:grid;place-items:center;padding:24px;background:#f3efe6;color:#2c2825;font-family:system-ui,sans-serif"><section style="width:min(100%,520px);padding:28px;border:1px solid #cbbbab;border-radius:12px;background:#fffaf0;text-align:center"><h1 style="margin:0;font-size:28px">Rina\'s 2048</h1><p>The game could not finish loading. Check the browser console for the first error.</p><button onclick="location.reload()" style="min-height:44px;padding:9px 15px">Reload</button></section></main>';
+      }, 6000);
+    })();
+  </script>
+  <script src="js/bind_polyfill.js?v=88"></script>
   <script src="js/classlist_polyfill.js"></script>
   <script src="js/animframe_polyfill.js"></script>
-  <script src="js/keyboard_input_manager.js?v=37"></script>
-  <script src="js/html_actuator.js"></script>
-  <script src="js/grid.js"></script>
-  <script src="js/tile.js"></script>
-  <script src="js/local_storage_manager.js?v=37"></script>
-  <script src="js/game_manager.js?v=72"></script>
-  <script src="js/application.js?v=37"></script>
-  <script src="https://two048-battle-oc8k.onrender.com/socket.io/socket.io.js"></script>
-  <script src="js/rinas-audio-v64.js?v=64"></script>
-  <script src="js/multiplayer.js?v=72"></script>
-  <link href="style/rinas-gameplay-v72.css?v=72" rel="stylesheet" type="text/css">
-  <script src="js/rinas-ui-v72.js?v=72"></script>
+  <script src="js/keyboard_input_manager.js?v=88"></script>
+  <script src="js/html_actuator.js?v=88"></script>
+  <script src="js/grid.js?v=88"></script>
+  <script src="js/tile.js?v=88"></script>
+  <script src="js/local_storage_manager.js?v=88"></script>
+  <script src="js/game_manager.js?v=88"></script>
+  <script src="js/application.js?v=88"></script>
+  <script src="https://cdn.socket.io/4.8.1/socket.io.min.js" crossorigin="anonymous"></script>
+  <script src="js/rinas-audio-v64.js?v=88"></script>
+  <script src="js/multiplayer.js?v=88"></script>
+  <script src="js/rinas-previews-v88.js?v=88"></script>
 </body>
 </html>
