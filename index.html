@@ -1,11 +1,9 @@
 
-<!doctype html>
-<html lang="en">
+<html>
 <head>
   <meta charset="utf-8">
-  <meta name="theme-color" content="#f3efe6">
 
-  <title>Rina's 2048 — Tile Race</title>
+  <title>Rina's 2048</title>
 
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -14,8 +12,8 @@
     rel="stylesheet"
   >
   <link href="style/main.css" rel="stylesheet" type="text/css">
-  <link href="style/rinas-ui-v72.css?v=731" rel="stylesheet" type="text/css">
-  <link href="style/rinas-audio-v63.css?v=731" rel="stylesheet" type="text/css">
+  <link href="style/rinas-ui-v72.css?v=72" rel="stylesheet" type="text/css">
+  <link href="style/rinas-audio-v63.css?v=63" rel="stylesheet" type="text/css">
   <link rel="shortcut icon" href="favicon.ico">
   <link rel="apple-touch-icon" href="meta/apple-touch-icon.png">
 
@@ -36,7 +34,7 @@
   <meta name="MobileOptimized" content="320">
   <meta
     name="viewport"
-    content="width=device-width, initial-scale=1.0, viewport-fit=cover"
+    content="width=device-width, initial-scale=1.0, maximum-scale=1, user-scalable=no"
   >
   <style id="rinas-critical-boot-style">
     /* Prevent the original static footer/game markup from flashing before the designed UI boots. */
@@ -137,8 +135,8 @@
   </div>
 
   <footer id="site-footer">
-    Based on the original 2048 by
-    <a href="https://github.com/gabrielecirulli/2048" target="_blank" rel="noopener noreferrer">Gabriele Cirulli</a>.<span id="support-links" hidden></span>
+    Original 2048 by
+    <a href="https://github.com/gabrielecirulli/2048" target="_blank" rel="noopener noreferrer">Gabriele Cirulli</a><span id="support-links" hidden></span>
   </footer>
   <script src="js/bind_polyfill.js"></script>
   <script src="js/classlist_polyfill.js"></script>
@@ -148,106 +146,12 @@
   <script src="js/grid.js"></script>
   <script src="js/tile.js"></script>
   <script src="js/local_storage_manager.js?v=37"></script>
-  <script src="js/game_manager.js?v=731"></script>
+  <script src="js/game_manager.js?v=72"></script>
   <script src="js/application.js?v=37"></script>
-  <script src="https://cdn.socket.io/4.8.1/socket.io.min.js"></script>
-  <script src="js/rinas-audio-v64.js?v=731"></script>
-  <script src="js/multiplayer.js?v=731"></script>
-  <link href="style/rinas-gameplay-v72.css?v=731" rel="stylesheet" type="text/css">
-  <link href="style/rinas-refinement-v73.css?v=731" rel="stylesheet" type="text/css">
-  <script src="js/rinas-ui-v73.js?v=731"></script>
-
-  <script>
-    (function () {
-      "use strict";
-
-      window.__rinasBootErrors = [];
-
-      function rememberBootError(message) {
-        window.__rinasBootErrors.push(String(message || "Unknown boot error"));
-      }
-
-      window.addEventListener("error", function (event) {
-        if (event && event.message) rememberBootError(event.message);
-      });
-
-      window.addEventListener("unhandledrejection", function (event) {
-        var reason = event && event.reason;
-        rememberBootError(reason && reason.message ? reason.message : reason);
-      });
-
-      window.__rinasBootWatchdog = window.setTimeout(function () {
-        if (document.body.classList.contains("rinas-app-ready")) return;
-
-        document.body.classList.add("rinas-app-ready");
-
-        var root = document.getElementById("app-root");
-        if (!root || root.children.length) return;
-
-        var detail = window.__rinasBootErrors.length
-          ? window.__rinasBootErrors[0]
-          : "A required JavaScript file may be missing or uploaded to the wrong folder.";
-
-        var wrap = document.createElement("main");
-        wrap.style.cssText =
-          "min-height:100vh;display:grid;place-items:center;padding:24px;" +
-          "background:#f3efe6;color:#2c2825;font-family:'Nunito Sans',system-ui,sans-serif;" +
-          "box-sizing:border-box";
-
-        var box = document.createElement("section");
-        box.style.cssText =
-          "width:min(100%,560px);padding:30px;border:1px solid #cbbbab;border-radius:14px;" +
-          "background:#fffaf0;box-shadow:0 18px 46px rgba(72,53,37,.12);text-align:center;" +
-          "box-sizing:border-box";
-
-        var title = document.createElement("strong");
-        title.textContent = "Rina's 2048";
-        title.style.cssText =
-          "display:block;font-family:'Barlow Semi Condensed','Arial Narrow',sans-serif;" +
-          "font-size:34px;line-height:1;font-weight:700";
-
-        var subtitle = document.createElement("span");
-        subtitle.textContent = "Tile Race";
-        subtitle.style.cssText =
-          "display:block;margin-top:7px;color:#776e65;font-family:'Barlow Semi Condensed','Arial Narrow',sans-serif;" +
-          "font-size:12px;font-weight:700;letter-spacing:.12em;text-transform:uppercase";
-
-        var heading = document.createElement("p");
-        heading.textContent = "The game interface could not finish loading.";
-        heading.style.cssText = "margin:24px 0 8px;font-weight:800";
-
-        var message = document.createElement("p");
-        message.textContent =
-          "The page is no longer blank. Check that the original repository files are still in their js/ and style/ folders, then reload.";
-        message.style.cssText = "margin:0;color:#776e65;line-height:1.55";
-
-        var error = document.createElement("code");
-        error.textContent = detail;
-        error.style.cssText =
-          "display:block;margin:16px 0 0;padding:10px;border:1px solid rgba(93,76,62,.16);" +
-          "border-radius:8px;background:#f3efe6;color:#776e65;font-size:12px;line-height:1.4;" +
-          "overflow-wrap:anywhere;text-align:left";
-
-        var button = document.createElement("button");
-        button.type = "button";
-        button.textContent = "Reload game";
-        button.style.cssText =
-          "min-height:44px;margin-top:22px;padding:10px 18px;border:1px solid #e96f3d;border-radius:8px;" +
-          "background:#e96f3d;color:#fffaf4;font-family:'Barlow Semi Condensed','Arial Narrow',sans-serif;" +
-          "font-size:16px;font-weight:700;cursor:pointer";
-        button.addEventListener("click", function () { window.location.reload(); });
-
-        box.appendChild(title);
-        box.appendChild(subtitle);
-        box.appendChild(heading);
-        box.appendChild(message);
-        box.appendChild(error);
-        box.appendChild(button);
-        wrap.appendChild(box);
-        root.appendChild(wrap);
-      }, 5000);
-    })();
-  </script>
-
+  <script src="https://two048-battle-oc8k.onrender.com/socket.io/socket.io.js"></script>
+  <script src="js/rinas-audio-v64.js?v=64"></script>
+  <script src="js/multiplayer.js?v=72"></script>
+  <link href="style/rinas-gameplay-v72.css?v=72" rel="stylesheet" type="text/css">
+  <script src="js/rinas-ui-v72.js?v=72"></script>
 </body>
 </html>
