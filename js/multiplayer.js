@@ -2936,11 +2936,11 @@
             <legend>Sound</legend>
             <div class="audio-stack">
               <section class="audio-control">
-                <label class="switch-row"><span><strong>Sound Effects</strong><small>Moves, merges, Undo, milestones, and match results.</small></span><input id="sound-effects-toggle" type="checkbox" ${window.rinasSettings.soundEffects ? "checked" : ""}><i aria-hidden="true"></i></label>
+                <label class="switch-row"><span><strong>Sound Effects</strong></span><input id="sound-effects-toggle" type="checkbox" ${window.rinasSettings.soundEffects ? "checked" : ""}><i aria-hidden="true"></i></label>
                 <label class="volume-row"><span>SFX volume</span><input id="sfx-volume" type="range" min="0" max="100" step="1" value="${sfxPercent}" ${window.rinasSettings.soundEffects ? "" : "disabled"}><output id="sfx-volume-output">${sfxPercent}%</output></label>
               </section>
               <section class="audio-control">
-                <label class="switch-row"><span><strong>Background Music</strong><small>Lobby, Solo focus music, and the Multiplayer layer.</small></span><input id="background-music-toggle" type="checkbox" ${window.rinasSettings.musicEnabled ? "checked" : ""}><i aria-hidden="true"></i></label>
+                <label class="switch-row"><span><strong>Background Music</strong></span><input id="background-music-toggle" type="checkbox" ${window.rinasSettings.musicEnabled ? "checked" : ""}><i aria-hidden="true"></i></label>
                 <label class="volume-row"><span>Music volume</span><input id="music-volume" type="range" min="0" max="100" step="1" value="${musicPercent}" ${window.rinasSettings.musicEnabled ? "" : "disabled"}><output id="music-volume-output">${musicPercent}%</output></label>
               </section>
             </div>
