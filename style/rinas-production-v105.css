@@ -6093,3 +6093,280 @@ body.solo-active #site-footer { display:none!important; }
     border-top:1px solid var(--line-soft);
   }
 }
+
+
+/* ============================================================
+   v102 â€” lobby readiness + preview cleanup + short-window fit
+   ============================================================ */
+
+/* Custom Race roster columns: Target and Status should line up as real
+   columns, not look like two unrelated right-aligned values. */
+.waiting-roster-head,
+.waiting-roster-row {
+  grid-template-columns:52px minmax(140px,1fr) 96px 96px!important;
+  column-gap:12px!important;
+}
+
+.waiting-roster-head > span:nth-child(3),
+.waiting-roster-head > span:nth-child(4),
+.waiting-roster-target,
+.waiting-roster-state {
+  text-align:center!important;
+  justify-self:stretch;
+}
+
+.waiting-roster-state {
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
+  gap:6px;
+  min-height:18px;
+}
+
+/* Only a guest who actually clicked Ready gets the green indicator.
+   The word Ready remains visible as normal text. */
+.waiting-roster-state.is-ready-state::before {
+  content:"";
+  width:7px;
+  height:7px;
+  flex:0 0 7px;
+  border-radius:50%;
+  background:#4f8960;
+  box-shadow:0 0 0 2px color-mix(in srgb,#4f8960 12%,transparent);
+}
+
+/* The create-room preview already says the mode in its heading.
+   Footer is now only useful metadata. */
+.match-create-preview-summary {
+  justify-content:flex-end!important;
+  padding-top:12px!important;
+}
+
+.match-create-preview-summary > span:last-child {
+  width:100%;
+  justify-content:flex-end;
+}
+
+.match-create-flow {
+  display:none!important;
+}
+
+/* Removing the duplicate footer allows the visual preview to breathe. */
+.match-create-preview-arena {
+  margin-bottom:10px!important;
+}
+
+/* The previous centered short-window rule could position a tall menu partly
+   behind the app header. On laptop / non-maximized browser heights, anchor
+   the composition from the top of the available content area instead. */
+@media (min-width:881px) and (max-height:820px) {
+  .screen-multiplayer-menu #screen-content {
+    justify-content:flex-start!important;
+    padding-top:14px!important;
+    padding-bottom:34px!important;
+  }
+
+  .screen-multiplayer-menu .multiplayer-production-menu {
+    margin:0 auto!important;
+  }
+}
+
+/* Keep Option A intact at very short supported desktop heights by scaling
+   the whole composition uniformly rather than crushing individual controls. */
+@media (min-width:881px) and (max-height:740px) {
+  .screen-multiplayer-menu #screen-content {
+    padding-top:8px!important;
+  }
+
+  .screen-multiplayer-menu .multiplayer-production-menu {
+    transform:scale(.94);
+    transform-origin:top center;
+  }
+}
+
+@media (max-width:980px) and (min-width:881px) {
+  .waiting-roster-head,
+  .waiting-roster-row {
+    grid-template-columns:46px minmax(120px,1fr) 82px 88px!important;
+    column-gap:8px!important;
+  }
+}
+
+
+/* ============================================================
+   v103 â€” create-preview spacing + metadata composition
+   ============================================================ */
+
+/* One deliberately composed line instead of two adjacent text fragments:
+   "4 Players Â· Target 2048", "4 Players Â· No ranking", etc. */
+.match-create-preview-summary {
+  justify-content:center!important;
+  padding-top:11px!important;
+}
+
+.match-create-preview-summary > span:last-child,
+.match-create-preview-meta {
+  width:auto!important;
+  display:inline-flex!important;
+  align-items:baseline!important;
+  justify-content:center!important;
+  gap:8px!important;
+  white-space:nowrap;
+}
+
+.match-create-preview-meta > b {
+  font:800 .88rem/1 var(--font-display)!important;
+}
+
+.match-create-preview-meta > i {
+  color:color-mix(in srgb,var(--muted) 52%,transparent);
+  font-style:normal;
+  font-size:.8rem;
+}
+
+.match-create-preview-meta > small {
+  color:var(--muted);
+  font:600 .73rem/1 var(--font-body);
+}
+
+.match-create-preview-meta > small strong {
+  color:var(--ink);
+  font-weight:800;
+}
+
+/* The generic PVP preview has a 210px stage and v101 scaled that whole stage.
+   That preserved invisible height around the scaled content and made the
+   numberless boards look detached from the explanatory copy. For create-room
+   previews, size the boards directly and remove transform scaling. */
+.match-create-preview .match-create-preview-arena {
+  margin:10px auto 8px!important;
+  transform:none!important;
+  transform-origin:top center!important;
+}
+
+.match-create-preview .pvp-preview-arena[data-player-count="3"],
+.match-create-preview .pvp-preview-arena[data-player-count="4"] {
+  grid-template-columns:154px 102px!important;
+  column-gap:20px!important;
+  height:188px!important;
+  align-items:start!important;
+}
+
+.match-create-preview .pvp-preview-arena[data-player-count="3"] .pvp-preview-primary-large,
+.match-create-preview .pvp-preview-arena[data-player-count="4"] .pvp-preview-primary-large,
+.match-create-preview .pvp-preview-arena[data-player-count="3"] .pvp-preview-primary-large .pvp-motion-board,
+.match-create-preview .pvp-preview-arena[data-player-count="4"] .pvp-preview-primary-large .pvp-motion-board {
+  width:154px!important;
+  min-width:154px!important;
+  height:154px!important;
+}
+
+.match-create-preview .pvp-preview-arena[data-player-count="3"] .pvp-preview-opponent-rail,
+.match-create-preview .pvp-preview-arena[data-player-count="4"] .pvp-preview-opponent-rail {
+  height:154px!important;
+  margin-top:34px!important;
+  justify-content:space-between!important;
+  gap:0!important;
+}
+
+.match-create-preview .pvp-preview-arena[data-player-count="3"] .pvp-motion-board-mini {
+  width:64px!important;
+  height:64px!important;
+}
+
+.match-create-preview .pvp-preview-arena[data-player-count="4"] .pvp-motion-board-mini {
+  width:47px!important;
+  height:47px!important;
+}
+
+/* The header-to-preview relationship should read as one explanation followed
+   immediately by its visual example. */
+.match-create-preview-header > p {
+  margin-top:6px!important;
+  max-width:340px!important;
+}
+
+@media (min-width:881px) and (max-height:820px) {
+  .match-create-preview .match-create-preview-arena {
+    margin-top:8px!important;
+    margin-bottom:6px!important;
+    transform:none!important;
+  }
+
+  .match-create-preview .pvp-preview-arena[data-player-count="3"],
+  .match-create-preview .pvp-preview-arena[data-player-count="4"] {
+    grid-template-columns:142px 94px!important;
+    column-gap:18px!important;
+    height:174px!important;
+  }
+
+  .match-create-preview .pvp-preview-arena[data-player-count="3"] .pvp-preview-primary-large,
+  .match-create-preview .pvp-preview-arena[data-player-count="4"] .pvp-preview-primary-large,
+  .match-create-preview .pvp-preview-arena[data-player-count="3"] .pvp-preview-primary-large .pvp-motion-board,
+  .match-create-preview .pvp-preview-arena[data-player-count="4"] .pvp-preview-primary-large .pvp-motion-board {
+    width:142px!important;
+    min-width:142px!important;
+    height:142px!important;
+  }
+
+  .match-create-preview .pvp-preview-arena[data-player-count="3"] .pvp-preview-opponent-rail,
+  .match-create-preview .pvp-preview-arena[data-player-count="4"] .pvp-preview-opponent-rail {
+    height:142px!important;
+    margin-top:32px!important;
+  }
+
+  .match-create-preview .pvp-preview-arena[data-player-count="3"] .pvp-motion-board-mini {
+    width:59px!important;
+    height:59px!important;
+  }
+
+  .match-create-preview .pvp-preview-arena[data-player-count="4"] .pvp-motion-board-mini {
+    width:43px!important;
+    height:43px!important;
+  }
+}
+
+/* Keep 2-player create previews visually close to their explanatory text too. */
+.match-create-preview .pvp-preview-arena[data-player-count="2"] {
+  margin-top:0!important;
+}
+
+
+/* ============================================================
+   v104 â€” create-preview metadata divider spacing
+   ============================================================ */
+
+/* Give the divider above â€œ4 Players Â· â€¦â€ more breathing room so the
+   metadata does not feel pinned directly to the rule. */
+.match-create-preview-summary {
+  padding-top:18px!important;
+}
+
+
+/* ============================================================
+   v105 â€” create-preview divider breathing room
+   ============================================================ */
+
+/*
+  The issue was the divider itself sitting too close to the boards.
+  Move the divider down by separating the preview arena from the summary.
+  Keep a smaller, balanced gap from the divider to the metadata below.
+*/
+.match-create-preview .match-create-preview-arena {
+  margin-bottom:22px!important;
+}
+
+.match-create-preview-summary {
+  margin-top:0!important;
+  padding-top:14px!important;
+}
+
+@media (min-width:881px) and (max-height:820px) {
+  .match-create-preview .match-create-preview-arena {
+    margin-bottom:18px!important;
+  }
+
+  .match-create-preview-summary {
+    padding-top:12px!important;
+  }
+}
