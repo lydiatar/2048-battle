@@ -49,6 +49,7 @@
   var LAST_TARGET_KEY = "rinas2048.lastRaceTarget";
   var LAST_CUSTOM_HOST_TARGET_KEY = "rinas2048.lastCustomHostTarget";
   var LAST_CUSTOM_GUEST_TARGET_KEY = "rinas2048.lastCustomGuestTarget";
+  var LAST_PLAYER_COUNT_KEY = "rinas2048.lastMultiplayerPlayerCount";
   var THEMES = ["classic", "pastel", "ocean", "candy", "midnight"];
   var TARGETS = [2048, 4096, 8192];
   var CUSTOM_TARGETS = [1024, 2048, 4096, 8192, 16384];
@@ -79,6 +80,7 @@
   var selectedTarget = Number(safeStorageGet(LAST_TARGET_KEY, 2048));
   var selectedCustomHostTarget = Number(safeStorageGet(LAST_CUSTOM_HOST_TARGET_KEY, 2048));
   var selectedCustomGuestTarget = Number(safeStorageGet(LAST_CUSTOM_GUEST_TARGET_KEY, 4096));
+  var selectedPlayerCount = Number(safeStorageGet(LAST_PLAYER_COUNT_KEY, 2));
   var battleShell = null;
   var opponentGrid = null;
   var opponentHighest = null;
@@ -128,6 +130,129 @@
 
   if (CUSTOM_TARGETS.indexOf(selectedCustomGuestTarget) === -1) {
     selectedCustomGuestTarget = 4096;
+  }
+
+
+  function sanitizePlayerCount(value) {
+    var count = Number(value);
+    return count === 3 || count === 4 ? count : 2;
+  }
+
+  selectedPlayerCount = sanitizePlayerCount(selectedPlayerCount);
+  window.multiplayerSelectedPlayerCount = selectedPlayerCount;
+
+  function setSelectedPlayerCount(value) {
+    selectedPlayerCount = sanitizePlayerCount(value);
+    window.multiplayerSelectedPlayerCount = selectedPlayerCount;
+    safeStorageSet(LAST_PLAYER_COUNT_KEY, selectedPlayerCount);
+    return selectedPlayerCount;
+  }
+
+  function multiplayerPlayerCountLabel(value) {
+    var count = sanitizePlayerCount(value);
+    return count + (count === 1 ? " Player" : " Players");
+  }
+
+  function multiplayerEligibleDevice() {
+    var screenWidth = window.screen && Number(window.screen.width);
+    var screenHeight = window.screen && Number(window.screen.height);
+
+    if (screenWidth > 0 && screenHeight > 0) {
+      return Math.min(screenWidth, screenHeight) >= 600;
+    }
+
+    return Math.min(window.innerWidth || 0, window.innerHeight || 0) >= 600;
+  }
+
+  function requireMultiplayerEligibleDevice() {
+    if (multiplayerEligibleDevice()) return true;
+    window.multiplayerMode = false;
+    window.multiplayerMatchActive = false;
+    return false;
+  }
+
+  function multiplayerPreviewArenaMarkup(playerCount) {
+    var count = sanitizePlayerCount(playerCount);
+
+    if (count === 2) {
+      return '' +
+        '<div class="pvp-preview-player pvp-preview-primary">' +
+          '<span class="pvp-player-label"><i aria-hidden="true"></i>You</span>' +
+          '<div class="motion-board motion-board-small pvp-motion-board" data-preview="multi-a">' +
+            '<div class="motion-wells" aria-hidden="true"></div>' +
+            '<div class="motion-tiles" aria-hidden="true"></div>' +
+          '</div>' +
+        '</div>' +
+        '<span class="pvp-versus" aria-hidden="true">VS</span>' +
+        '<div class="pvp-preview-player pvp-preview-primary">' +
+          '<span class="pvp-player-label friend"><i aria-hidden="true"></i>Opponent</span>' +
+          '<div class="motion-board motion-board-small pvp-motion-board" data-preview="multi-b">' +
+            '<div class="motion-wells" aria-hidden="true"></div>' +
+            '<div class="motion-tiles" aria-hidden="true"></div>' +
+          '</div>' +
+        '</div>';
+    }
+
+    var previews = ["multi-b", "multi-c", "multi-d"];
+    var opponentMarkup = "";
+    for (var i = 0; i < count - 1; i += 1) {
+      opponentMarkup += '' +
+        '<div class="pvp-preview-opponent-mini">' +
+          '<span class="pvp-mini-label">P' + (i + 2) + '</span>' +
+          '<div class="motion-board motion-board-small pvp-motion-board pvp-motion-board-mini" data-preview="' + previews[i] + '">' +
+            '<div class="motion-wells" aria-hidden="true"></div>' +
+            '<div class="motion-tiles" aria-hidden="true"></div>' +
+          '</div>' +
+        '</div>';
+    }
+
+    return '' +
+      '<div class="pvp-preview-player pvp-preview-primary pvp-preview-primary-large">' +
+        '<span class="pvp-player-label"><i aria-hidden="true"></i>You</span>' +
+        '<div class="motion-board motion-board-small pvp-motion-board" data-preview="multi-a">' +
+          '<div class="motion-wells" aria-hidden="true"></div>' +
+          '<div class="motion-tiles" aria-hidden="true"></div>' +
+        '</div>' +
+      '</div>' +
+      '<div class="pvp-preview-opponent-rail" aria-label="' + (count - 1) + ' opponent previews">' +
+        opponentMarkup +
+      '</div>';
+  }
+
+  function playerCountSelectorMarkup() {
+    return '' +
+      '<div class="multiplayer-player-count" aria-labelledby="multiplayer-player-count-label">' +
+        '<span class="match-setup-kicker" id="multiplayer-player-count-label">PLAYERS</span>' +
+        '<div class="multiplayer-player-count-buttons" role="group" aria-label="Choose number of players">' +
+          [2, 3, 4].map(function (count) {
+            return '<button type="button" class="multiplayer-player-count-button ' +
+              (selectedPlayerCount === count ? 'is-selected' : '') +
+              '" data-player-count="' + count + '" aria-pressed="' +
+              (selectedPlayerCount === count ? 'true' : 'false') + '">' +
+              '<strong>' + count + '</strong><span>Players</span></button>';
+          }).join('') +
+        '</div>' +
+      '</div>';
+  }
+
+  function selectedPlayerCountSummaryMarkup() {
+    return '' +
+      '<div class="match-player-count-summary" aria-label="Selected multiplayer size">' +
+        '<span>Players</span>' +
+        '<strong>' + multiplayerPlayerCountLabel(selectedPlayerCount) + '</strong>' +
+      '</div>';
+  }
+
+  function phaseThreeCreationNoticeMarkup() {
+    if (selectedPlayerCount === 2) return "";
+    return '<p class="phase-checkpoint-note" role="note">Player-count selection is active. ' +
+      selectedPlayerCount + '-player room creation is enabled in the next multiplayer implementation phase.</p>';
+  }
+
+  function phaseThreeCreateButtonAttributes() {
+    return selectedPlayerCount === 2
+      ? ""
+      : ' disabled aria-disabled="true" title="Room creation for this player count is enabled in the next multiplayer phase."';
   }
 
   function sanitizeNickname(value) {
@@ -1012,7 +1137,8 @@
               <span class="eyebrow">Multiplayer</span>
               <h3>Race a friend</h3>
               <p>Share a room, watch both boards move, and see who reaches the target first.</p>
-              <button class="button button-primary" id="choose-multiplayer">Play multiplayer</button>
+              <button class="button button-primary" id="choose-multiplayer"${multiplayerEligibleDevice() ? "" : ' disabled aria-disabled="true"'}>Play multiplayer</button>
+              ${multiplayerEligibleDevice() ? "" : '<small class="multiplayer-device-note">Tablet or desktop</small>'}
             </div>
           </article>
         </div>
@@ -1023,11 +1149,14 @@
       animateCurrentScreenOut(1, showSoloMenu);
     });
     document.getElementById("choose-multiplayer").addEventListener("click", function () {
+      if (!requireMultiplayerEligibleDevice()) return;
       if (sanitizeNickname(window.rinasSettings.nickname)) {
         animateCurrentScreenOut(1, showMultiplayerMenu);
         return;
       }
-      openNicknamePrompt(function () { showMultiplayerMenu(); });
+      openNicknamePrompt(function () {
+        if (requireMultiplayerEligibleDevice()) showMultiplayerMenu();
+      });
     });
   }
 
@@ -1319,6 +1448,11 @@
   // =========================================================
 
   function showMultiplayerMenu() {
+    if (!requireMultiplayerEligibleDevice()) {
+      showMainMenu();
+      return;
+    }
+
     transitionMusic("LOBBY", 850);
     window.currentGameMode = "multiplayer-menu";
     window.multiplayerMode = false;
@@ -1333,13 +1467,15 @@
       `
         <div class="multiplayer-production-menu">
           <section class="multiplayer-mode-list">
-            <span class="eyebrow">Choose how to play</span>
-            <h2>Race a friend.</h2>
-            <p class="multiplayer-intro">Pick a mode, invite a friend, and make it a match.</p>
+            <span class="eyebrow">Multiplayer</span>
+            <h2>Choose your match.</h2>
+            <p class="multiplayer-intro">Pick the group size, then choose how you want to play.</p>
+
+            ${playerCountSelectorMarkup()}
 
             <div class="multiplayer-mode-buttons" id="multiplayer-mode-buttons">
               <button class="multiplayer-mode-button is-previewed" id="mode-tile-race" data-preview-mode="tile-race"><span>${uiIcon("tile-race", "mode-icon")}</span><span><strong>Tile Race</strong><small>Pure 2048 under pressure.</small></span><b>›</b></button>
-              <button class="multiplayer-mode-button" id="mode-freeplay" data-preview-mode="freeplay"><span>${uiIcon("freeplay", "mode-icon")}</span><span><strong>Freeplay Duel</strong><small>No finish line. Build side by side.</small></span><b>›</b></button>
+              <button class="multiplayer-mode-button" id="mode-freeplay" data-preview-mode="freeplay"><span>${uiIcon("freeplay", "mode-icon")}</span><span><strong id="freeplay-mode-label">${selectedPlayerCount === 2 ? "Freeplay Duel" : "Freeplay"}</strong><small>No finish line. Build side by side.</small></span><b>›</b></button>
               <button class="multiplayer-mode-button" id="mode-custom-race" data-preview-mode="custom-race"><span>${uiIcon("custom-race", "mode-icon")}</span><span><strong>Custom Race</strong><small>Choose a target for each player and race to yours.</small></span><b>›</b></button>
             </div>
 
@@ -1355,37 +1491,17 @@
             </div>
           </section>
 
-          <aside class="multiplayer-preview-panel pvp-preview-panel" id="pvp-preview-panel" data-mode="tile-race" aria-label="Animated head-to-head multiplayer preview">
+          <aside class="multiplayer-preview-panel pvp-preview-panel" id="pvp-preview-panel" data-mode="tile-race" data-player-count="${selectedPlayerCount}" aria-label="Animated ${selectedPlayerCount}-player multiplayer preview">
             <header class="pvp-preview-header">
-              <span class="eyebrow" id="pvp-preview-kicker">Head-to-head</span>
+              <span class="eyebrow" id="pvp-preview-kicker">${selectedPlayerCount === 2 ? "Head-to-head" : selectedPlayerCount === 3 ? "Three-player race" : "Four-player race"}</span>
               <strong id="pvp-preview-title">First to finish.</strong>
             </header>
 
-            <div class="pvp-preview-arena">
-              <div class="pvp-preview-player">
-                <span class="pvp-player-label"><i aria-hidden="true"></i>You</span>
-                <div class="motion-board motion-board-small pvp-motion-board" data-preview="multi-a">
-                  <div class="motion-wells" aria-hidden="true"></div>
-                  <div class="motion-tiles" aria-hidden="true"></div>
-                </div>
-              </div>
-
-              <span class="pvp-versus" aria-hidden="true">VS</span>
-
-              <div class="pvp-preview-player">
-                <span class="pvp-player-label friend"><i aria-hidden="true"></i>Friend</span>
-                <div class="motion-board motion-board-small pvp-motion-board" data-preview="multi-b">
-                  <div class="motion-wells" aria-hidden="true"></div>
-                  <div class="motion-tiles" aria-hidden="true"></div>
-                </div>
-              </div>
+            <div class="pvp-preview-arena" id="pvp-preview-arena" data-player-count="${selectedPlayerCount}">
+              ${multiplayerPreviewArenaMarkup(selectedPlayerCount)}
             </div>
 
-            <div class="pvp-mode-rule" id="pvp-mode-rule" data-mode-rule="tile-race" aria-live="polite">
-              <div class="pvp-shared-finish">
-                <span>You</span><i aria-hidden="true"></i><strong>2048</strong><i aria-hidden="true"></i><span>Friend</span>
-              </div>
-            </div>
+            <div class="pvp-mode-rule" id="pvp-mode-rule" data-mode-rule="tile-race" aria-live="polite"></div>
 
             <footer class="pvp-preview-footer">
               <strong id="pvp-preview-mode-name">Tile Race</strong>
@@ -1404,66 +1520,128 @@
     });
 
     var previewPanel = document.getElementById("pvp-preview-panel");
+    var previewArena = document.getElementById("pvp-preview-arena");
     var previewKicker = document.getElementById("pvp-preview-kicker");
     var previewTitle = document.getElementById("pvp-preview-title");
     var previewModeName = document.getElementById("pvp-preview-mode-name");
     var previewCopy = document.getElementById("pvp-preview-copy");
     var previewRule = document.getElementById("pvp-mode-rule");
+    var freeplayModeLabel = document.getElementById("freeplay-mode-label");
     var modeButtons = Array.prototype.slice.call(document.querySelectorAll(".multiplayer-mode-button[data-preview-mode]"));
+    var countButtons = Array.prototype.slice.call(document.querySelectorAll(".multiplayer-player-count-button"));
+    var currentPreviewMode = "tile-race";
 
-    var previewStates = {
-      "tile-race": {
-        kicker: "Head-to-head",
+    function previewKickerForCount() {
+      if (selectedPlayerCount === 2) return "Head-to-head";
+      if (selectedPlayerCount === 3) return "Three-player race";
+      return "Four-player race";
+    }
+
+    function tileRaceRule() {
+      var opponentCopy = selectedPlayerCount === 2 ? "Opponent" : (selectedPlayerCount - 1) + " opponents";
+      return '<div class="pvp-shared-finish">' +
+        '<span>You</span><i aria-hidden="true"></i><strong>2048</strong><i aria-hidden="true"></i><span>' + opponentCopy + '</span>' +
+      '</div>';
+    }
+
+    function freeplayRule() {
+      return '<div class="pvp-freeplay-rule">' +
+        '<span class="pvp-infinity" aria-hidden="true">∞</span>' +
+        '<span><b>No finish line</b><small>' + selectedPlayerCount + ' boards, one room</small></span>' +
+        '<span class="pvp-undo-visual"><kbd>Z</kbd><small>Undo</small></span>' +
+      '</div>';
+    }
+
+    function customRaceRule() {
+      if (selectedPlayerCount === 2) {
+        return '<div class="pvp-custom-finishes">' +
+          '<span><small>You</small><b>2048</b></span>' +
+          '<i aria-hidden="true">VS</i>' +
+          '<span><small>Opponent</small><b>4096</b></span>' +
+        '</div>';
+      }
+
+      return '<div class="pvp-custom-finishes pvp-custom-finishes-group">' +
+        '<span><small>You</small><b>2048</b></span>' +
+        '<i aria-hidden="true">+</i>' +
+        '<span><small>Opponents</small><b>Own targets</b></span>' +
+      '</div>';
+    }
+
+    function previewState(mode) {
+      if (mode === "freeplay") {
+        return {
+          title: "Build side by side.",
+          modeName: selectedPlayerCount === 2 ? "Freeplay Duel" : "Freeplay",
+          copy: "No finish line. Build side-by-side, use one-step Undo with Z, and restart your own board whenever you want.",
+          rule: freeplayRule()
+        };
+      }
+
+      if (mode === "custom-race") {
+        return {
+          title: "Set your targets.",
+          modeName: "Custom Race",
+          copy: "Choose a target for each player. The first player to reach their own target wins.",
+          rule: customRaceRule()
+        };
+      }
+
+      return {
         title: "First to finish.",
         modeName: "Tile Race",
         copy: "Pure 2048 under pressure. First player to reach the target wins; a stuck board loses.",
-        rule:
-          '<div class="pvp-shared-finish">' +
-            '<span>You</span><i aria-hidden="true"></i><strong>2048</strong><i aria-hidden="true"></i><span>Friend</span>' +
-          '</div>'
-      },
-      "freeplay": {
-        kicker: "Chill play",
-        title: "Build side by side.",
-        modeName: "Freeplay Duel",
-        copy: "No finish line. Build side-by-side, use one-step Undo with Z, and restart your own board whenever you want.",
-        rule:
-          '<div class="pvp-freeplay-rule">' +
-            '<span class="pvp-infinity" aria-hidden="true">∞</span>' +
-            '<span><b>No finish line</b><small>Build together at your own pace</small></span>' +
-            '<span class="pvp-undo-visual"><kbd>Z</kbd><small>Undo</small></span>' +
-          '</div>'
-      },
-      "custom-race": {
-        kicker: "Custom race",
-        title: "Set your targets.",
-        modeName: "Custom Race",
-        copy: "Choose a target for each player. The first player to reach their own target wins.",
-        rule:
-          '<div class="pvp-custom-finishes">' +
-            '<span><small>You</small><b>2048</b></span>' +
-            '<i aria-hidden="true">VS</i>' +
-            '<span><small>Friend</small><b>4096</b></span>' +
-          '</div>'
-      }
-    };
+        rule: tileRaceRule()
+      };
+    }
 
     function setMultiplayerPreview(mode) {
-      var state = previewStates[mode] || previewStates["tile-race"];
+      currentPreviewMode = mode || currentPreviewMode;
+      var state = previewState(currentPreviewMode);
       if (!previewPanel) return;
-      previewPanel.setAttribute("data-mode", mode);
-      if (previewKicker) previewKicker.textContent = state.kicker;
+      previewPanel.setAttribute("data-mode", currentPreviewMode);
+      previewPanel.setAttribute("data-player-count", selectedPlayerCount);
+      previewPanel.setAttribute("aria-label", "Animated " + selectedPlayerCount + "-player multiplayer preview");
+      if (previewKicker) previewKicker.textContent = previewKickerForCount();
       if (previewTitle) previewTitle.textContent = state.title;
       if (previewModeName) previewModeName.textContent = state.modeName;
       if (previewCopy) previewCopy.textContent = state.copy;
       if (previewRule) {
-        previewRule.setAttribute("data-mode-rule", mode);
+        previewRule.setAttribute("data-mode-rule", currentPreviewMode);
         previewRule.innerHTML = state.rule;
       }
+      if (freeplayModeLabel) {
+        freeplayModeLabel.textContent = selectedPlayerCount === 2 ? "Freeplay Duel" : "Freeplay";
+      }
       modeButtons.forEach(function (button) {
-        button.classList.toggle("is-previewed", button.getAttribute("data-preview-mode") === mode);
+        button.classList.toggle("is-previewed", button.getAttribute("data-preview-mode") === currentPreviewMode);
       });
     }
+
+    function applyPlayerCount(nextCount) {
+      setSelectedPlayerCount(nextCount);
+      countButtons.forEach(function (button) {
+        var selected = Number(button.getAttribute("data-player-count")) === selectedPlayerCount;
+        button.classList.toggle("is-selected", selected);
+        button.setAttribute("aria-pressed", selected ? "true" : "false");
+      });
+
+      if (previewArena) {
+        previewArena.setAttribute("data-player-count", selectedPlayerCount);
+        previewArena.innerHTML = multiplayerPreviewArenaMarkup(selectedPlayerCount);
+      }
+
+      setMultiplayerPreview(currentPreviewMode);
+      if (window.rinasPreviewSystem && window.rinasPreviewSystem.mount) {
+        window.rinasPreviewSystem.mount();
+      }
+    }
+
+    countButtons.forEach(function (button) {
+      button.addEventListener("click", function () {
+        applyPlayerCount(Number(button.getAttribute("data-player-count")));
+      });
+    });
 
     modeButtons.forEach(function (button) {
       var mode = button.getAttribute("data-preview-mode");
@@ -1520,6 +1698,10 @@
 
     joinButton.addEventListener("click", function () {
       var status = document.getElementById("lobby-status");
+      if (!requireMultiplayerEligibleDevice()) {
+        if (status) status.textContent = "Multiplayer is available on tablets and desktop.";
+        return;
+      }
       var code = normalizeRoomCode(input.value);
       input.value = code;
 
@@ -1562,10 +1744,10 @@
 
   function modeSetupSummary(mode) {
     if (mode === "freeplay") {
-      return { kicker: "Freeplay Duel", title: "Build side by side.", copy: "No finish line. Build side-by-side, use one-step Undo with Z, and restart your own board whenever you want.", facts: [] };
+      return { kicker: selectedPlayerCount === 2 ? "Freeplay Duel" : "Freeplay", title: "Build side by side.", copy: "No finish line. Build side-by-side, use one-step Undo with Z, and restart your own board whenever you want.", facts: [] };
     }
     if (mode === "custom-race") {
-      return { kicker: "Custom Race", title: "Choose your targets.", copy: "Set a target for you and your friend. The first player to reach their own target wins.", facts: [] };
+      return { kicker: "Custom Race", title: "Choose your targets.", copy: "Set a target for each player. The first player to reach their own target wins.", facts: [] };
     }
     return { kicker: "Tile Race", title: "Race to 2048.", copy: "Pure 2048 under pressure. First player to reach the target wins; a stuck board loses.", facts: [] };
   }
@@ -1578,6 +1760,7 @@
   }
 
   function showTileRaceLobby() {
+    if (!requireMultiplayerEligibleDevice()) { showMainMenu(); return; }
     window.currentGameMode = "tile-race-lobby";
     window.multiplayerMode = false;
     window.multiplayerMatchActive = false;
@@ -1593,12 +1776,14 @@
             <span class="match-setup-kicker">${info.kicker}</span>
             <h2>${info.title}</h2>
             <p>${info.copy}</p>
+            ${selectedPlayerCountSummaryMarkup()}
             ${setupFactsMarkup(info.facts)}
             <div class="match-target-section">
               <span class="match-setup-kicker">SHARED TARGET</span>
               <div class="target-picker match-target-picker" id="target-picker">${targetButtons(TARGETS, selectedTarget, "shared-target")}</div>
             </div>
-            <button class="primary-button match-create-button" id="create-room">Create Race</button>
+            <button class="primary-button match-create-button" id="create-room"${phaseThreeCreateButtonAttributes()}>Create Race</button>
+            ${phaseThreeCreationNoticeMarkup()}
           </section>
           ${roomJoinMarkup()}
         </div>
@@ -1616,6 +1801,7 @@
       this.disabled = true;
       socket.emit("createRoom", {
         mode: "tile-race",
+        requiredPlayers: selectedPlayerCount,
         targetTile: selectedTarget,
         nickname: sanitizeNickname(window.rinasSettings.nickname),
         theme: window.rinasSettings.theme
@@ -1626,6 +1812,7 @@
   }
 
   function showFreeplayLobby() {
+    if (!requireMultiplayerEligibleDevice()) { showMainMenu(); return; }
     window.currentGameMode = "freeplay-lobby";
     window.multiplayerMode = false;
     window.multiplayerMatchActive = false;
@@ -1633,7 +1820,7 @@
     var info = modeSetupSummary("freeplay");
 
     showScreen(
-      "Freeplay Duel",
+      selectedPlayerCount === 2 ? "Freeplay Duel" : "Freeplay",
       function () { leaveRoomSilently(); showMultiplayerMenu(); },
       `
         <div class="match-setup-screen">
@@ -1641,12 +1828,14 @@
             <span class="match-setup-kicker">${info.kicker}</span>
             <h2>${info.title}</h2>
             <p>${info.copy}</p>
+            ${selectedPlayerCountSummaryMarkup()}
             ${setupFactsMarkup(info.facts)}
             <div class="freeplay-setup-controls">
               ${movementKeysMarkup(true)}
               <div class="control-key-row compact"><span class="control-label">Undo</span><span class="key-cluster action-key"><span class="key-row"><kbd>Z</kbd></span></span></div>
             </div>
-            <button class="primary-button match-create-button" id="create-room">Create Freeplay</button>
+            <button class="primary-button match-create-button" id="create-room"${phaseThreeCreateButtonAttributes()}>Create Freeplay</button>
+            ${phaseThreeCreationNoticeMarkup()}
           </section>
           ${roomJoinMarkup()}
         </div>
@@ -1659,6 +1848,7 @@
       this.disabled = true;
       socket.emit("createRoom", {
         mode: "freeplay",
+        requiredPlayers: selectedPlayerCount,
         nickname: sanitizeNickname(window.rinasSettings.nickname),
         theme: window.rinasSettings.theme
       });
@@ -1668,6 +1858,7 @@
   }
 
   function showCustomRaceLobby() {
+    if (!requireMultiplayerEligibleDevice()) { showMainMenu(); return; }
     window.currentGameMode = "custom-race-lobby";
     window.multiplayerMode = false;
     window.multiplayerMatchActive = false;
@@ -1683,6 +1874,7 @@
             <span class="match-setup-kicker">${info.kicker}</span>
             <h2>${info.title}</h2>
             <p>${info.copy}</p>
+            ${selectedPlayerCountSummaryMarkup()}
             ${setupFactsMarkup(info.facts)}
             <div class="custom-target-grid match-custom-targets">
               <div class="custom-target-panel">
@@ -1694,7 +1886,8 @@
                 <div class="target-picker">${targetButtons(CUSTOM_TARGETS, selectedCustomGuestTarget, "guest-target")}</div>
               </div>
             </div>
-            <button class="primary-button match-create-button" id="create-room">Create Custom Race</button>
+            <button class="primary-button match-create-button" id="create-room"${phaseThreeCreateButtonAttributes()}>Create Custom Race</button>
+            ${phaseThreeCreationNoticeMarkup()}
           </section>
           ${roomJoinMarkup()}
         </div>
@@ -1716,6 +1909,7 @@
       this.disabled = true;
       socket.emit("createRoom", {
         mode: "custom-race",
+        requiredPlayers: selectedPlayerCount,
         hostTarget: selectedCustomHostTarget,
         guestTarget: selectedCustomGuestTarget,
         nickname: sanitizeNickname(window.rinasSettings.nickname),
