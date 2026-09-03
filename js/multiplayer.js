@@ -1820,11 +1820,17 @@
         ? "Targets are chosen in the lobby before players ready up."
         : "Everyone races toward the same target.";
 
-    var summary = mode === "freeplay"
-      ? '<span><b>' + count + ' Players</b><small>No ranking</small></span>'
+    var summaryDetail = mode === "freeplay"
+      ? 'No ranking'
       : mode === "custom-race"
-        ? '<span><b>' + count + ' Players</b><small>Own targets</small></span>'
-        : '<span><b>' + count + ' Players</b><small>Target <strong id="create-preview-target">' + formatTile(selectedTarget) + '</strong></small></span>';
+        ? 'Own targets'
+        : 'Target <strong id="create-preview-target">' + formatTile(selectedTarget) + '</strong>';
+
+    var summary = '<span class="match-create-preview-meta">' +
+      '<b>' + count + ' Players</b>' +
+      '<i aria-hidden="true">·</i>' +
+      '<small>' + summaryDetail + '</small>' +
+    '</span>';
 
     return '' +
       '<aside class="match-create-preview" aria-label="' + escapeHtml(modeName + ' room preview') + '">' +
@@ -1837,11 +1843,7 @@
           multiplayerPreviewArenaMarkup(count) +
         '</div>' +
         '<div class="match-create-preview-summary">' +
-          '<span class="eyebrow">' + escapeHtml(modeName) + '</span>' +
           summary +
-        '</div>' +
-        '<div class="match-create-flow" aria-label="Room flow">' +
-          '<span>Create</span><i aria-hidden="true">→</i><span>Share code</span><i aria-hidden="true">→</i><span>Ready</span><i aria-hidden="true">→</i><span>Start</span>' +
         '</div>' +
       '</aside>';
   }
@@ -2079,11 +2081,12 @@
       var target = data.mode === "custom-race"
         ? (player.targetTile ? formatTile(player.targetTile) : "Choosing…")
         : "";
+      var readyStateClass = !player.isHost && player.ready ? " is-ready-state" : "";
       rows += '<div class="waiting-roster-row ' + (player.ready || player.isHost ? 'is-ready' : '') + '">' +
         '<span class="waiting-roster-slot">' + (isOwn ? 'YOU' : 'P' + player.playerNumber) + '</span>' +
         '<strong>' + escapeHtml(player.nickname) + '</strong>' +
         '<span class="waiting-roster-target">' + escapeHtml(target) + '</span>' +
-        '<span class="waiting-roster-state">' + escapeHtml(role) + '</span>' +
+        '<span class="waiting-roster-state' + readyStateClass + '">' + escapeHtml(role) + '</span>' +
       '</div>';
     }
 
@@ -2360,7 +2363,7 @@
 
                 <section class="lobby-chat" aria-labelledby="lobby-chat-title">
                   <div class="lobby-chat-heading">
-                    <span class="match-setup-kicker" id="lobby-chat-title">CHAT</span>
+                    <span class="match-setup-kicker" id="lobby-chat-title">LOBBY CHAT</span>
                   </div>
                   <div class="lobby-chat-history rina-scrollbar" id="lobby-chat-history" role="log" aria-live="polite" aria-relevant="additions"></div>
                   <form class="lobby-chat-form" id="lobby-chat-form">
