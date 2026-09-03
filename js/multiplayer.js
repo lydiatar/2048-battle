@@ -119,6 +119,7 @@
   var opponentAnimationTimer = null;
   var preMatchCountdownTimers = [];
   var pendingGameStartData = null;
+  var currentLobbyState = null;
 
   if (TARGETS.indexOf(selectedTarget) === -1) {
     selectedTarget = 2048;
@@ -229,7 +230,7 @@
               (selectedPlayerCount === count ? 'is-selected' : '') +
               '" data-player-count="' + count + '" aria-pressed="' +
               (selectedPlayerCount === count ? 'true' : 'false') + '">' +
-              '<strong>' + count + '</strong><span>Players</span></button>';
+              count + ' Players</button>';
           }).join('') +
         '</div>' +
       '</div>';
@@ -243,17 +244,6 @@
       '</div>';
   }
 
-  function phaseThreeCreationNoticeMarkup() {
-    if (selectedPlayerCount === 2) return "";
-    return '<p class="phase-checkpoint-note" role="note">Player-count selection is active. ' +
-      selectedPlayerCount + '-player room creation is enabled in the next multiplayer implementation phase.</p>';
-  }
-
-  function phaseThreeCreateButtonAttributes() {
-    return selectedPlayerCount === 2
-      ? ""
-      : ' disabled aria-disabled="true" title="Room creation for this player count is enabled in the next multiplayer phase."';
-  }
 
   function sanitizeNickname(value) {
     return String(value || "")
@@ -970,15 +960,18 @@
   }
 
   function updateProfiles(profiles) {
-    if (!Array.isArray(profiles)) {
-      return;
-    }
+    if (!Array.isArray(profiles)) return;
 
     window.multiplayerProfiles = profiles.map(function (profile) {
       return {
+        playerId: profile.playerId || null,
         playerNumber: Number(profile.playerNumber),
         nickname: sanitizeNickname(profile.nickname) || ("Player " + profile.playerNumber),
-        theme: THEMES.indexOf(profile.theme) !== -1 ? profile.theme : "classic"
+        theme: THEMES.indexOf(profile.theme) !== -1 ? profile.theme : "classic",
+        ready: !!profile.ready,
+        targetTile: profile.targetTile ? Number(profile.targetTile) : null,
+        isHost: !!profile.isHost,
+        status: profile.status || "waiting"
       };
     });
   }
@@ -1102,8 +1095,8 @@
       `
         <header class="mode-choice-heading">
           <span class="eyebrow">Choose how to play</span>
-          <h2>A quiet run or a friendly race?</h2>
-          <p>Both modes use the same board. Play at your own pace or share a room with a friend.</p>
+          <h2>A quiet run or a room with friends?</h2>
+          <p>Both modes use the same board. Play at your own pace or share a room with friends.</p>
         </header>
 
         <div class="production-mode-grid">
@@ -1135,8 +1128,8 @@
             </div>
             <div class="production-mode-copy">
               <span class="eyebrow">Multiplayer</span>
-              <h3>Race a friend</h3>
-              <p>Share a room, watch both boards move, and see who reaches the target first.</p>
+              <h3>Play with friends</h3>
+              <p>Share a room and play 2048 together.</p>
               <button class="button button-primary" id="choose-multiplayer"${multiplayerEligibleDevice() ? "" : ' disabled aria-disabled="true"'}>Play multiplayer</button>
               ${multiplayerEligibleDevice() ? "" : '<small class="multiplayer-device-note">Tablet or desktop</small>'}
             </div>
@@ -1476,7 +1469,7 @@
             <div class="multiplayer-mode-buttons" id="multiplayer-mode-buttons">
               <button class="multiplayer-mode-button is-previewed" id="mode-tile-race" data-preview-mode="tile-race"><span>${uiIcon("tile-race", "mode-icon")}</span><span><strong>Tile Race</strong><small>Pure 2048 under pressure.</small></span><b>›</b></button>
               <button class="multiplayer-mode-button" id="mode-freeplay" data-preview-mode="freeplay"><span>${uiIcon("freeplay", "mode-icon")}</span><span><strong id="freeplay-mode-label">${selectedPlayerCount === 2 ? "Freeplay Duel" : "Freeplay"}</strong><small>No finish line. Build side by side.</small></span><b>›</b></button>
-              <button class="multiplayer-mode-button" id="mode-custom-race" data-preview-mode="custom-race"><span>${uiIcon("custom-race", "mode-icon")}</span><span><strong>Custom Race</strong><small>Choose a target for each player and race to yours.</small></span><b>›</b></button>
+              <button class="multiplayer-mode-button" id="mode-custom-race" data-preview-mode="custom-race"><span>${uiIcon("custom-race", "mode-icon")}</span><span><strong>Custom Race</strong><small>Everyone chooses their own target.</small></span><b>›</b></button>
             </div>
 
             <div class="multiplayer-profile-row">
@@ -1582,7 +1575,7 @@
         return {
           title: "Set your targets.",
           modeName: "Custom Race",
-          copy: "Choose a target for each player. The first player to reach their own target wins.",
+          copy: "Everyone chooses their own target. The first player to reach theirs wins.",
           rule: customRaceRule()
         };
       }
@@ -1670,7 +1663,7 @@
         <h2>Enter a room code.</h2>
         <p>Paste the six-character code your friend sent you.</p>
         <input id="room-code" class="match-room-input" maxlength="6" placeholder="ENTER CODE" autocomplete="off" autocapitalize="characters" spellcheck="false" aria-label="Six-character room code">
-        <button class="primary-button" id="join-room">Join Match</button>
+        <button class="primary-button" id="join-room">Join Room</button>
       </section>
     `;
   }
@@ -1747,7 +1740,7 @@
       return { kicker: selectedPlayerCount === 2 ? "Freeplay Duel" : "Freeplay", title: "Build side by side.", copy: "No finish line. Build side-by-side, use one-step Undo with Z, and restart your own board whenever you want.", facts: [] };
     }
     if (mode === "custom-race") {
-      return { kicker: "Custom Race", title: "Choose your targets.", copy: "Set a target for each player. The first player to reach their own target wins.", facts: [] };
+      return { kicker: "Custom Race", title: "Race your own target.", copy: "Create the room, then each player chooses their own target before readying up.", facts: [] };
     }
     return { kicker: "Tile Race", title: "Race to 2048.", copy: "Pure 2048 under pressure. First player to reach the target wins; a stuck board loses.", facts: [] };
   }
@@ -1782,8 +1775,7 @@
               <span class="match-setup-kicker">SHARED TARGET</span>
               <div class="target-picker match-target-picker" id="target-picker">${targetButtons(TARGETS, selectedTarget, "shared-target")}</div>
             </div>
-            <button class="primary-button match-create-button" id="create-room"${phaseThreeCreateButtonAttributes()}>Create Race</button>
-            ${phaseThreeCreationNoticeMarkup()}
+            <button class="primary-button match-create-button" id="create-room">Create Race</button>
           </section>
           ${roomJoinMarkup()}
         </div>
@@ -1834,8 +1826,7 @@
               ${movementKeysMarkup(true)}
               <div class="control-key-row compact"><span class="control-label">Undo</span><span class="key-cluster action-key"><span class="key-row"><kbd>Z</kbd></span></span></div>
             </div>
-            <button class="primary-button match-create-button" id="create-room"${phaseThreeCreateButtonAttributes()}>Create Freeplay</button>
-            ${phaseThreeCreationNoticeMarkup()}
+            <button class="primary-button match-create-button" id="create-room">Create Freeplay</button>
           </section>
           ${roomJoinMarkup()}
         </div>
@@ -1875,19 +1866,11 @@
             <h2>${info.title}</h2>
             <p>${info.copy}</p>
             ${selectedPlayerCountSummaryMarkup()}
-            ${setupFactsMarkup(info.facts)}
-            <div class="custom-target-grid match-custom-targets">
-              <div class="custom-target-panel">
-                <span class="match-setup-kicker">YOUR TARGET</span>
-                <div class="target-picker">${targetButtons(CUSTOM_TARGETS, selectedCustomHostTarget, "host-target")}</div>
-              </div>
-              <div class="custom-target-panel">
-                <span class="match-setup-kicker">FRIEND TARGET</span>
-                <div class="target-picker">${targetButtons(CUSTOM_TARGETS, selectedCustomGuestTarget, "guest-target")}</div>
-              </div>
+            <div class="custom-race-explainer" aria-label="Custom Race setup">
+              <strong>Your target belongs to you.</strong>
+              <span>Choose it after the room opens. Your friends choose theirs when they join.</span>
             </div>
-            <button class="primary-button match-create-button" id="create-room"${phaseThreeCreateButtonAttributes()}>Create Custom Race</button>
-            ${phaseThreeCreationNoticeMarkup()}
+            <button class="primary-button match-create-button" id="create-room">Create Custom Race</button>
           </section>
           ${roomJoinMarkup()}
         </div>
@@ -1895,23 +1878,12 @@
       `
     );
 
-    bindTargetGroup(".host-target", function (value) {
-      selectedCustomHostTarget = value;
-      safeStorageSet(LAST_CUSTOM_HOST_TARGET_KEY, value);
-    });
-    bindTargetGroup(".guest-target", function (value) {
-      selectedCustomGuestTarget = value;
-      safeStorageSet(LAST_CUSTOM_GUEST_TARGET_KEY, value);
-    });
-
     document.getElementById("create-room").addEventListener("click", function () {
       document.getElementById("lobby-status").textContent = "Creating room...";
       this.disabled = true;
       socket.emit("createRoom", {
         mode: "custom-race",
         requiredPlayers: selectedPlayerCount,
-        hostTarget: selectedCustomHostTarget,
-        guestTarget: selectedCustomGuestTarget,
         nickname: sanitizeNickname(window.rinasSettings.nickname),
         theme: window.rinasSettings.theme
       });
@@ -1920,8 +1892,8 @@
     bindJoinRoom();
   }
 
-  function modeTitle(mode) {
-    if (mode === "freeplay") return "Freeplay Duel";
+  function modeTitle(mode, playerCount) {
+    if (mode === "freeplay") return sanitizePlayerCount(playerCount || window.multiplayerRequiredPlayers || selectedPlayerCount) === 2 ? "Freeplay Duel" : "Freeplay";
     if (mode === "custom-race") return "Custom Race";
     return "Tile Race";
   }
@@ -1932,74 +1904,255 @@
     else showTileRaceLobby();
   }
 
-  function showWaitingRoom(data) {
-    transitionMusic("LOBBY", 700);
-    currentRoomCode = data.roomCode;
-    window.multiplayerRoomCode = data.roomCode;
-    var mode = data.mode || "tile-race";
-    var info = modeSetupSummary(mode);
-    var code = normalizeRoomCode(data.roomCode);
-    var ownName = sanitizeNickname(window.rinasSettings.nickname) || "Player 1";
-    var targetCopy = mode === "tile-race"
-      ? '<span>Target ' + formatTile(data.targetTile || 2048) + '</span>'
-      : mode === "custom-race"
-        ? '<span>Your target ' + formatTile(data.ownTarget || 2048) + '</span><span>Friend target ' + formatTile(data.opponentTarget || 2048) + '</span>'
-        : '<span>No finish line</span>';
+  function lobbyPlayerByNumber(data, playerNumber) {
+    var players = data && Array.isArray(data.players) ? data.players : [];
+    for (var i = 0; i < players.length; i++) {
+      if (Number(players[i].playerNumber) === Number(playerNumber)) return players[i];
+    }
+    return null;
+  }
 
-    showScreen(
-      modeTitle(mode),
-      function () { leaveRoomSilently(); backToLobbyForMode(mode); },
-      `
-        <div class="match-staging-screen waiting-room-screen">
-          <section class="waiting-room-sheet">
-            <header class="waiting-room-header">
-              <span class="match-setup-kicker">Room ready</span>
-              <h2>Waiting for your friend.</h2>
-              <p>Share the code below. The match starts automatically when they join.</p>
-            </header>
+  function lobbyLocalPlayer(data) {
+    return lobbyPlayerByNumber(data, data && data.playerNumber);
+  }
 
-            <div class="waiting-room-body">
-              <div class="waiting-room-invite">
-                <span class="match-setup-kicker">Room code</span>
-                <div class="match-room-code-row waiting-code-row">
-                  <span class="match-room-code" id="match-room-code" role="button" tabindex="0" aria-label="Copy room code ${escapeHtml(code)}">${escapeHtml(code)}</span>
-                  <button class="match-copy-code" id="match-copy-code" type="button"><span>Copy</span></button>
-                </div>
-                <p class="match-copy-status" id="match-copy-status">Send ${escapeHtml(code)} to your friend.</p>
+  function lobbyOccupancyCopy(data) {
+    var joined = Number(data && data.joinedPlayers || 0);
+    var required = sanitizePlayerCount(data && data.requiredPlayers);
+    return joined + " / " + required + " players";
+  }
 
-                <div class="waiting-mode-summary">
-                  <span>${escapeHtml(modeTitle(mode))}</span>
-                  <strong>${mode === "freeplay" ? "No finish line." : mode === "custom-race" ? "Individual targets." : "Shared target."}</strong>
-                  <div class="waiting-target-copy">${targetCopy}</div>
-                </div>
-              </div>
+  function waitingRosterMarkup(data) {
+    var required = sanitizePlayerCount(data.requiredPlayers);
+    var players = Array.isArray(data.players) ? data.players : [];
+    var ownNumber = Number(data.playerNumber);
 
-              <div class="waiting-duel" aria-label="Players in room">
-                <article class="waiting-player-card ready">
-                  <span>You</span>
-                  <strong>${escapeHtml(ownName)}</strong>
-                  <small><i aria-hidden="true"></i>Ready</small>
-                </article>
+    function playerCard(slot) {
+      var player = lobbyPlayerByNumber(data, slot);
+      if (!player) {
+        return '<article class="waiting-player-card waiting"><span>Player ' + slot + '</span><strong>Waiting…</strong><small><i aria-hidden="true"></i>Open slot</small></article>';
+      }
+      var isOwn = Number(player.playerNumber) === ownNumber;
+      var status = player.isHost ? "Host" : player.ready ? "Ready" : "Not ready";
+      var cls = player.ready || player.isHost ? "ready" : "waiting";
+      return '<article class="waiting-player-card ' + cls + '">' +
+        '<span>' + (isOwn ? "You" : "Player " + player.playerNumber) + '</span>' +
+        '<strong>' + escapeHtml(player.nickname) + '</strong>' +
+        '<small><i aria-hidden="true"></i>' + escapeHtml(status) + '</small>' +
+      '</article>';
+    }
 
-                <div class="waiting-vs" aria-hidden="true">VS</div>
+    if (required === 2) {
+      return '<div class="waiting-duel" aria-label="Players in room">' +
+        playerCard(1) +
+        '<div class="waiting-vs" aria-hidden="true">VS</div>' +
+        playerCard(2) +
+      '</div>';
+    }
 
-                <article class="waiting-player-card waiting">
-                  <span>Friend</span>
-                  <strong>Waiting…</strong>
-                  <small><i aria-hidden="true"></i>Joining</small>
-                </article>
-              </div>
-            </div>
+    var rows = '';
+    for (var slot = 1; slot <= required; slot += 1) {
+      var player = lobbyPlayerByNumber(data, slot);
+      if (!player) {
+        rows += '<div class="waiting-roster-row is-empty">' +
+          '<span class="waiting-roster-slot">P' + slot + '</span>' +
+          '<strong>Waiting…</strong>' +
+          '<span class="waiting-roster-target">—</span>' +
+          '<span class="waiting-roster-state">Open slot</span>' +
+        '</div>';
+        continue;
+      }
 
-            <footer class="waiting-room-footer">
-              <span class="waiting-room-open"><i aria-hidden="true"></i>Room is open</span>
-              <p>Keep this tab open. The match starts automatically when your friend joins.</p>
-            </footer>
-          </section>
-        </div>
-      `
-    );
+      var isOwn = Number(player.playerNumber) === ownNumber;
+      var role = player.isHost ? "Host" : player.ready ? "Ready" : "Not ready";
+      var target = data.mode === "custom-race"
+        ? (player.targetTile ? formatTile(player.targetTile) : "Choosing…")
+        : "";
+      rows += '<div class="waiting-roster-row ' + (player.ready || player.isHost ? 'is-ready' : '') + '">' +
+        '<span class="waiting-roster-slot">' + (isOwn ? 'YOU' : 'P' + player.playerNumber) + '</span>' +
+        '<strong>' + escapeHtml(player.nickname) + '</strong>' +
+        '<span class="waiting-roster-target">' + escapeHtml(target) + '</span>' +
+        '<span class="waiting-roster-state">' + escapeHtml(role) + '</span>' +
+      '</div>';
+    }
 
+    return '<div class="waiting-roster" aria-label="Players in room">' +
+      (data.mode === "custom-race" ? '<div class="waiting-roster-head"><span></span><span>Player</span><span>Target</span><span>Status</span></div>' : '') +
+      rows +
+    '</div>';
+  }
+
+  function lobbyTargetPickerMarkup(data) {
+    if (!data || data.mode !== "custom-race") return "";
+    var player = lobbyLocalPlayer(data);
+    if (!player) return "";
+    var selected = Number(player.targetTile || 0);
+    var locked = !player.isHost && !!player.ready;
+
+    return '<section class="lobby-personal-target" aria-label="Your Custom Race target">' +
+      '<div><span class="match-setup-kicker">YOUR TARGET</span>' +
+      '<strong>' + (selected ? formatTile(selected) : 'Choose a target') + '</strong></div>' +
+      '<div class="target-picker lobby-target-picker">' + CUSTOM_TARGETS.map(function (target) {
+        return '<button type="button" class="target-button lobby-own-target ' + (target === selected ? 'selected' : '') + '" data-target="' + target + '"' + (locked ? ' disabled aria-disabled="true"' : '') + '>' + target + '</button>';
+      }).join('') + '</div>' +
+      (locked ? '<small>Unready to change your target.</small>' : '<small>Every player chooses their own.</small>') +
+    '</section>';
+  }
+
+  function lobbyActionMarkup(data) {
+    var player = lobbyLocalPlayer(data);
+    if (!player) return "";
+
+    if (player.isHost) {
+      var playable = data.gameplaySupported !== false;
+      var enabled = !!data.canStart && playable;
+      var status = data.startStatus || "Waiting for players.";
+      if (data.canStart && !playable) status = "The room is ready. 3- and 4-player gameplay is enabled in the next build.";
+      return '<div class="lobby-host-action">' +
+        '<p class="lobby-action-status" id="lobby-action-status">' + escapeHtml(status) + '</p>' +
+        '<button type="button" class="primary-button lobby-start-button" id="lobby-start-button"' + (enabled ? '' : ' disabled aria-disabled="true"') + '>Start Match</button>' +
+      '</div>';
+    }
+
+    var needsTarget = data.mode === "custom-race" && !player.targetTile;
+    var statusCopy = needsTarget
+      ? "Choose your target, then ready up."
+      : player.ready
+        ? "You're ready. Waiting for the host."
+        : "Ready up when you're set.";
+
+    return '<div class="lobby-guest-action">' +
+      '<p class="lobby-action-status" id="lobby-action-status">' + escapeHtml(statusCopy) + '</p>' +
+      '<button type="button" class="primary-button lobby-ready-button ' + (player.ready ? 'is-ready' : '') + '" id="lobby-ready-button"' + (needsTarget ? ' disabled aria-disabled="true"' : '') + '>' +
+        (player.ready ? '✓ Ready' : 'Ready') +
+      '</button>' +
+    '</div>';
+  }
+
+  function lobbyChatMessageMarkup(message, ownNumber) {
+    if (!message) return "";
+    var own = Number(message.playerNumber) === Number(ownNumber);
+    return '<div class="lobby-chat-message ' + (own ? 'is-own' : '') + '" data-message-id="' + escapeHtml(message.id || '') + '">' +
+      '<strong>' + escapeHtml(own ? 'You' : sanitizeNickname(message.nickname) || ('Player ' + message.playerNumber)) + '</strong>' +
+      '<span>' + escapeHtml(message.text || '') + '</span>' +
+    '</div>';
+  }
+
+  function renderLobbyChatHistory(data) {
+    var list = document.getElementById("lobby-chat-history");
+    if (!list) return;
+    var messages = Array.isArray(data.chatMessages) ? data.chatMessages : [];
+    list.innerHTML = messages.length
+      ? messages.map(function (message) { return lobbyChatMessageMarkup(message, data.playerNumber); }).join("")
+      : '<p class="lobby-chat-empty">No messages yet.</p>';
+    list.scrollTop = list.scrollHeight;
+  }
+
+  function appendLobbyMessage(message) {
+    var list = document.getElementById("lobby-chat-history");
+    if (!list || !message) return;
+    var empty = list.querySelector(".lobby-chat-empty");
+    if (empty) empty.remove();
+    if (message.id && list.querySelector('[data-message-id="' + String(message.id).replace(/"/g, '') + '"]')) return;
+    list.insertAdjacentHTML("beforeend", lobbyChatMessageMarkup(message, currentLobbyState && currentLobbyState.playerNumber));
+    list.scrollTop = list.scrollHeight;
+  }
+
+  function bindLobbyTargetButtons() {
+    Array.prototype.forEach.call(document.querySelectorAll(".lobby-own-target"), function (button) {
+      button.addEventListener("click", function () {
+        if (button.disabled) return;
+        socket.emit("setPlayerTarget", { targetTile: Number(button.getAttribute("data-target")) });
+      });
+    });
+  }
+
+  function renderWaitingRoomState(data) {
+    if (!data) return;
+    currentLobbyState = data;
+    currentRoomCode = data.roomCode || currentRoomCode;
+    window.multiplayerRoomCode = currentRoomCode;
+    window.multiplayerPlayerNumber = Number(data.playerNumber);
+    window.multiplayerRequiredPlayers = sanitizePlayerCount(data.requiredPlayers);
+    updateProfiles(data.players || []);
+
+    var occupancy = document.getElementById("waiting-room-occupancy");
+    if (occupancy) occupancy.textContent = lobbyOccupancyCopy(data);
+
+    var title = document.getElementById("waiting-room-title");
+    if (title) {
+      title.textContent = Number(data.joinedPlayers) >= sanitizePlayerCount(data.requiredPlayers)
+        ? "Everyone's here."
+        : "Room is open.";
+    }
+
+    var intro = document.getElementById("waiting-room-intro");
+    if (intro) {
+      intro.textContent = Number(data.joinedPlayers) >= sanitizePlayerCount(data.requiredPlayers)
+        ? (data.isHost ? "Start when everyone is ready." : "Ready up when you're set.")
+        : "Share the room code with your friends.";
+    }
+
+    var modeSummary = document.getElementById("waiting-mode-summary");
+    if (modeSummary) {
+      var mode = data.mode || "tile-race";
+      modeSummary.innerHTML = '<span>' + escapeHtml(modeTitle(mode, data.requiredPlayers)) + '</span>' +
+        '<strong>' + (mode === "freeplay" ? 'No finish line.' : mode === "custom-race" ? 'Individual targets.' : 'Shared target.') + '</strong>' +
+        '<div class="waiting-target-copy">' +
+          (mode === "tile-race" ? '<span>Target ' + formatTile(data.targetTile || 2048) + '</span>' : mode === "freeplay" ? '<span>Play together</span>' : '<span>Choose your own target</span>') +
+        '</div>';
+    }
+
+    var roster = document.getElementById("waiting-roster-slot");
+    if (roster) roster.innerHTML = waitingRosterMarkup(data);
+
+    var personal = document.getElementById("waiting-personal-config");
+    if (personal) personal.innerHTML = lobbyTargetPickerMarkup(data);
+
+    var actions = document.getElementById("waiting-room-actions");
+    if (actions) actions.innerHTML = lobbyActionMarkup(data);
+
+    bindLobbyTargetButtons();
+
+    var readyButton = document.getElementById("lobby-ready-button");
+    if (readyButton) {
+      readyButton.addEventListener("click", function () {
+        var local = lobbyLocalPlayer(currentLobbyState);
+        if (!local) return;
+        socket.emit("setReady", { ready: !local.ready });
+      });
+    }
+
+    var startButton = document.getElementById("lobby-start-button");
+    if (startButton) {
+      startButton.addEventListener("click", function () {
+        if (startButton.disabled) return;
+        startButton.disabled = true;
+        var status = document.getElementById("lobby-action-status");
+        if (status) status.textContent = "Starting match…";
+        socket.emit("startMatch");
+      });
+    }
+  }
+
+  function bindLobbyChat() {
+    var form = document.getElementById("lobby-chat-form");
+    var input = document.getElementById("lobby-chat-input");
+    var status = document.getElementById("lobby-chat-status");
+    if (!form || !input) return;
+
+    form.addEventListener("submit", function (event) {
+      event.preventDefault();
+      var text = String(input.value || "").replace(/\s+/g, " ").trim().slice(0, 160);
+      if (!text) return;
+      socket.emit("sendLobbyMessage", { text: text });
+      input.value = "";
+      if (status) status.textContent = "";
+      input.focus();
+    });
+  }
+
+  function bindRoomCodeCopy(code) {
     function copyRoomCode() {
       var status = document.getElementById("match-copy-status");
       var button = document.getElementById("match-copy-code");
@@ -2008,7 +2161,7 @@
         if (status) status.textContent = "Copied " + code;
         window.setTimeout(function () {
           if (button) button.textContent = "Copy";
-          if (status) status.textContent = "Send " + code + " to your friend.";
+          if (status) status.textContent = "Share " + code + " with your friends.";
         }, 1300);
       };
 
@@ -2032,14 +2185,88 @@
     }
 
     var roomCodeNode = document.getElementById("match-room-code");
-    roomCodeNode.addEventListener("click", copyRoomCode);
-    roomCodeNode.addEventListener("keydown", function (event) {
-      if (event.key === "Enter" || event.key === " ") {
-        event.preventDefault();
-        copyRoomCode();
-      }
-    });
-    document.getElementById("match-copy-code").addEventListener("click", copyRoomCode);
+    var copyButton = document.getElementById("match-copy-code");
+    if (roomCodeNode) {
+      roomCodeNode.addEventListener("click", copyRoomCode);
+      roomCodeNode.addEventListener("keydown", function (event) {
+        if (event.key === "Enter" || event.key === " ") {
+          event.preventDefault();
+          copyRoomCode();
+        }
+      });
+    }
+    if (copyButton) copyButton.addEventListener("click", copyRoomCode);
+  }
+
+  function showWaitingRoom(data) {
+    transitionMusic("LOBBY", 700);
+    currentLobbyState = data;
+    currentRoomCode = data.roomCode;
+    window.multiplayerRoomCode = data.roomCode;
+    window.multiplayerPlayerNumber = Number(data.playerNumber);
+    window.multiplayerRequiredPlayers = sanitizePlayerCount(data.requiredPlayers);
+    window.currentGameMode = "multiplayer-waiting";
+    updateProfiles(data.players || []);
+
+    var mode = data.mode || "tile-race";
+    var code = normalizeRoomCode(data.roomCode);
+
+    showScreen(
+      modeTitle(mode, data.requiredPlayers),
+      function () { leaveRoomSilently(); backToLobbyForMode(mode); },
+      `
+        <div class="match-staging-screen waiting-room-screen">
+          <section class="waiting-room-sheet" data-player-count="${sanitizePlayerCount(data.requiredPlayers)}">
+            <header class="waiting-room-header">
+              <div class="waiting-room-heading-line">
+                <span class="match-setup-kicker">${escapeHtml(modeTitle(mode, data.requiredPlayers))} · ${sanitizePlayerCount(data.requiredPlayers)} PLAYERS</span>
+                <strong id="waiting-room-occupancy">${escapeHtml(lobbyOccupancyCopy(data))}</strong>
+              </div>
+              <h2 id="waiting-room-title">Room is open.</h2>
+              <p id="waiting-room-intro">Share the room code with your friends.</p>
+            </header>
+
+            <div class="waiting-room-body">
+              <aside class="waiting-room-invite">
+                <span class="match-setup-kicker">ROOM CODE</span>
+                <div class="match-room-code-row waiting-code-row">
+                  <span class="match-room-code" id="match-room-code" role="button" tabindex="0" aria-label="Copy room code ${escapeHtml(code)}">${escapeHtml(code)}</span>
+                  <button class="match-copy-code" id="match-copy-code" type="button"><span>Copy</span></button>
+                </div>
+                <p class="match-copy-status" id="match-copy-status">Share ${escapeHtml(code)} with your friends.</p>
+
+                <div class="waiting-mode-summary" id="waiting-mode-summary"></div>
+                <div id="waiting-personal-config"></div>
+              </aside>
+
+              <section class="waiting-room-main-column">
+                <div id="waiting-roster-slot"></div>
+
+                <section class="lobby-chat" aria-labelledby="lobby-chat-title">
+                  <div class="lobby-chat-heading">
+                    <span class="match-setup-kicker" id="lobby-chat-title">CHAT</span>
+                    <small>Lobby only</small>
+                  </div>
+                  <div class="lobby-chat-history rina-scrollbar" id="lobby-chat-history" role="log" aria-live="polite" aria-relevant="additions"></div>
+                  <form class="lobby-chat-form" id="lobby-chat-form">
+                    <input id="lobby-chat-input" maxlength="160" autocomplete="off" placeholder="Message your friends…" aria-label="Lobby chat message">
+                    <button type="submit" class="button button-secondary">Send</button>
+                  </form>
+                  <p class="lobby-chat-status" id="lobby-chat-status" aria-live="polite"></p>
+                </section>
+              </section>
+            </div>
+
+            <footer class="waiting-room-footer" id="waiting-room-actions"></footer>
+          </section>
+        </div>
+      `
+    );
+
+    bindRoomCodeCopy(code);
+    bindLobbyChat();
+    renderLobbyChatHistory(data);
+    renderWaitingRoomState(data);
   }
 
   function clearPreMatchCountdown() {
@@ -2053,8 +2280,7 @@
     var mode = data.mode || "tile-race";
     if (mode === "freeplay") return "No finish line · One-step Undo · Restart anytime";
     if (mode === "custom-race") {
-      return "You: " + formatTile(data.ownTarget || data.targetTile || 2048) +
-        " · Friend: " + formatTile(data.opponentTarget || data.targetTile || 2048);
+      return "Your target: " + formatTile(data.ownTarget || data.targetTile || 2048);
     }
     return "First to " + formatTile(data.targetTile || 2048) + " · No Undo · A stuck board loses";
   }
@@ -2066,6 +2292,7 @@
     currentRoomCode = data.roomCode || currentRoomCode;
     window.multiplayerRoomCode = currentRoomCode;
     window.multiplayerPlayerNumber = Number(data.playerNumber);
+    window.multiplayerRequiredPlayers = sanitizePlayerCount(data.requiredPlayers || 2);
     updateProfiles(data.players || []);
 
     var mode = data.mode || "tile-race";
@@ -2084,8 +2311,8 @@
       `
         <div class="match-countdown-screen" aria-live="polite">
           <section class="match-countdown-copy">
-            <span class="match-setup-kicker">MATCH FOUND</span>
-            <h2>Your opponent joined.</h2>
+            <span class="match-setup-kicker">MATCH STARTING</span>
+            <h2>Everyone is ready.</h2>
             <p>${escapeHtml(countdownModeSummary(data))}</p>
             <div class="match-countdown-number" id="match-countdown-number"><span>GET READY</span></div>
           </section>
@@ -2098,7 +2325,7 @@
             <div class="match-staging-player ready connected">
               <div><strong>${escapeHtml(opponentName)}</strong><span><i></i>Connected</span></div><b>OPPONENT</b>
             </div>
-            <p class="match-countdown-status" id="match-countdown-status">Both players are connected.</p>
+            <p class="match-countdown-status" id="match-countdown-status">Everyone is connected.</p>
           </section>
         </div>
       `
@@ -2153,6 +2380,7 @@
     window.multiplayerGameOver = false;
     window.multiplayerModeName = mode;
     window.multiplayerPlayerNumber = Number(data.playerNumber);
+    window.multiplayerRequiredPlayers = sanitizePlayerCount(data.requiredPlayers || 2);
     window.multiplayerRoomCode = currentRoomCode;
     window.multiplayerTargetTile = Number(data.targetTile || 0);
     window.multiplayerOwnTarget = Number(data.ownTarget || data.targetTile || 0);
@@ -2420,6 +2648,7 @@
     clearPreMatchCountdown();
     if (currentRoomCode) socket.emit("leaveRoom");
     currentRoomCode = null;
+    currentLobbyState = null;
     window.multiplayerRoomCode = null;
   }
 
@@ -3223,6 +3452,9 @@
         window.rinasSettings.theme = theme;
         saveSettings();
         applyTheme(theme);
+        if (currentRoomCode && !window.multiplayerMatchActive) {
+          socket.emit("updateProfile", { nickname: window.rinasSettings.nickname, theme: window.rinasSettings.theme });
+        }
         Array.prototype.forEach.call(overlay.querySelectorAll(".theme-option"), function (other) { other.classList.toggle("is-selected", other === button); });
       });
     });
@@ -3266,6 +3498,39 @@
     showWaitingRoom(data);
   });
 
+  socket.on("roomJoined", function (data) {
+    updateProfiles(data.players || []);
+    showWaitingRoom(data);
+  });
+
+  socket.on("roomState", function (data) {
+    updateProfiles(data.players || []);
+    if (window.currentGameMode === "multiplayer-waiting" && currentRoomCode === data.roomCode) {
+      renderWaitingRoomState(data);
+    }
+  });
+
+  socket.on("lobbyMessage", function (message) {
+    appendLobbyMessage(message);
+  });
+
+  socket.on("lobbyError", function (message) {
+    var actionStatus = document.getElementById("lobby-action-status");
+    if (actionStatus) actionStatus.textContent = message;
+  });
+
+  socket.on("lobbyChatError", function (message) {
+    var chatStatus = document.getElementById("lobby-chat-status");
+    if (chatStatus) chatStatus.textContent = message;
+  });
+
+  socket.on("startError", function (message) {
+    var status = document.getElementById("lobby-action-status");
+    var button = document.getElementById("lobby-start-button");
+    if (status) status.textContent = message;
+    if (button && currentLobbyState && currentLobbyState.canStart && currentLobbyState.gameplaySupported !== false) button.disabled = false;
+  });
+
   socket.on("joinError", function (message) {
     var status = document.getElementById("lobby-status");
     var joinButton = document.getElementById("join-room");
@@ -3277,6 +3542,7 @@
 
   socket.on("gameStart", function (data) {
     currentRoomCode = data.roomCode || currentRoomCode;
+    currentLobbyState = null;
     showPreMatchCountdown(data);
   });
 
