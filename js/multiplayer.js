@@ -1514,10 +1514,10 @@
           <section class="multiplayer-mode-list">
             <span class="eyebrow">Multiplayer</span>
             <h2>Choose your match.</h2>
-            <p class="multiplayer-intro">Create a match, or join one with a room code.</p>
+            <p class="multiplayer-intro">Start a match or join your friends.</p>
 
             <section class="multiplayer-direct-join" aria-label="Join a multiplayer room">
-              <span class="match-setup-kicker">JOIN A ROOM</span>
+              <span class="multiplayer-direct-join-label">Have a room code?</span>
               <div class="multiplayer-direct-join-row">
                 <input id="room-code" class="match-room-input" maxlength="6" placeholder="ROOM CODE" autocomplete="off" autocapitalize="characters" spellcheck="false" aria-label="Six-character room code">
                 <button class="button button-secondary" id="join-room">Join</button>
@@ -1540,10 +1540,6 @@
               <button class="text-button" id="change-nickname">Change</button>
             </div>
 
-            <div class="future-modes-mini" aria-label="Coming soon">
-              <span>Coming soon</span>
-              <b>Score Sprint</b><i>·</i><b>Blitz</b><i>·</i><b>Survival</b>
-            </div>
           </section>
 
           <aside class="multiplayer-preview-panel pvp-preview-panel" id="pvp-preview-panel" data-mode="tile-race" data-player-count="${selectedPlayerCount}" aria-label="Animated ${selectedPlayerCount}-player multiplayer preview">
@@ -1719,18 +1715,6 @@
     document.getElementById("mode-custom-race").addEventListener("click", function () { animateCurrentScreenOut(1, showCustomRaceLobby); });
   }
 
-  function roomJoinMarkup() {
-    return `
-      <section class="match-setup-join" aria-label="Join a room">
-        <span class="match-setup-kicker">JOIN A ROOM</span>
-        <h2>Enter a room code.</h2>
-        <p>Paste the six-character code your friend sent you.</p>
-        <input id="room-code" class="match-room-input" maxlength="6" placeholder="ENTER CODE" autocomplete="off" autocapitalize="characters" spellcheck="false" aria-label="Six-character room code">
-        <button class="primary-button" id="join-room">Join Room</button>
-      </section>
-    `;
-  }
-
   function normalizeRoomCode(value) {
     return String(value || "").toUpperCase().replace(/[^A-Z0-9]/g, "").slice(0, 6);
   }
@@ -1815,6 +1799,59 @@
     }).join("") + '</div>';
   }
 
+
+  function createRoomPreviewMarkup(mode) {
+    var count = sanitizePlayerCount(selectedPlayerCount);
+    var modeName = mode === "freeplay"
+      ? (count === 2 ? "Freeplay Duel" : "Freeplay")
+      : mode === "custom-race"
+        ? "Custom Race"
+        : "Tile Race";
+
+    var title = mode === "freeplay"
+      ? "Build together."
+      : mode === "custom-race"
+        ? "Everyone gets a target."
+        : "First to finish.";
+
+    var detail = mode === "freeplay"
+      ? "No finish line. Everyone keeps their own board moving."
+      : mode === "custom-race"
+        ? "Targets are chosen in the lobby before players ready up."
+        : "Everyone races toward the same target.";
+
+    var summary = mode === "freeplay"
+      ? '<span><b>' + count + ' Players</b><small>No ranking</small></span>'
+      : mode === "custom-race"
+        ? '<span><b>' + count + ' Players</b><small>Own targets</small></span>'
+        : '<span><b>' + count + ' Players</b><small>Target <strong id="create-preview-target">' + formatTile(selectedTarget) + '</strong></small></span>';
+
+    return '' +
+      '<aside class="match-create-preview" aria-label="' + escapeHtml(modeName + ' room preview') + '">' +
+        '<header class="match-create-preview-header">' +
+          '<span class="eyebrow">Your table</span>' +
+          '<strong>' + escapeHtml(title) + '</strong>' +
+          '<p>' + escapeHtml(detail) + '</p>' +
+        '</header>' +
+        '<div class="match-create-preview-arena pvp-preview-arena" data-player-count="' + count + '">' +
+          multiplayerPreviewArenaMarkup(count) +
+        '</div>' +
+        '<div class="match-create-preview-summary">' +
+          '<span class="eyebrow">' + escapeHtml(modeName) + '</span>' +
+          summary +
+        '</div>' +
+        '<div class="match-create-flow" aria-label="Room flow">' +
+          '<span>Create</span><i aria-hidden="true">→</i><span>Share code</span><i aria-hidden="true">→</i><span>Ready</span><i aria-hidden="true">→</i><span>Start</span>' +
+        '</div>' +
+      '</aside>';
+  }
+
+  function mountCreateRoomPreview() {
+    if (window.rinasPreviewSystem && window.rinasPreviewSystem.mount) {
+      window.rinasPreviewSystem.mount();
+    }
+  }
+
   function showTileRaceLobby() {
     if (!requireMultiplayerEligibleDevice()) { showMainMenu(); return; }
     window.currentGameMode = "tile-race-lobby";
@@ -1827,29 +1864,35 @@
       "Tile Race",
       function () { leaveRoomSilently(); showMultiplayerMenu(); },
       `
-        <div class="match-setup-screen">
-          <section class="match-setup-create">
-            <span class="match-setup-kicker">${info.kicker}</span>
-            <h2>${info.title}</h2>
-            <p>${info.copy}</p>
-            ${selectedPlayerCountSummaryMarkup()}
-            ${setupFactsMarkup(info.facts)}
-            <div class="match-target-section">
-              <span class="match-setup-kicker">SHARED TARGET</span>
-              <div class="target-picker match-target-picker" id="target-picker">${targetButtons(TARGETS, selectedTarget, "shared-target")}</div>
+        <div class="match-setup-screen option-a-create-screen">
+          <section class="match-setup-tabletop">
+            <div class="match-setup-create">
+              <span class="match-setup-kicker">${info.kicker}</span>
+              <h2>${info.title}</h2>
+              <p>${info.copy}</p>
+              ${selectedPlayerCountSummaryMarkup()}
+              ${setupFactsMarkup(info.facts)}
+              <div class="match-target-section">
+                <span class="match-setup-kicker">SHARED TARGET</span>
+                <div class="target-picker match-target-picker" id="target-picker">${targetButtons(TARGETS, selectedTarget, "shared-target")}</div>
+              </div>
+              <button class="primary-button match-create-button" id="create-room">Create Race</button>
             </div>
-            <button class="primary-button match-create-button" id="create-room">Create Race</button>
+            ${createRoomPreviewMarkup("tile-race")}
           </section>
-          ${roomJoinMarkup()}
         </div>
-        <p class="status-text match-setup-status" id="lobby-status"></p>
+        <p class="status-text match-setup-status create-only-status" id="lobby-status"></p>
       `
     );
 
     bindTargetGroup(".shared-target", function (value) {
       selectedTarget = value;
       safeStorageSet(LAST_TARGET_KEY, selectedTarget);
+      var previewTarget = document.getElementById("create-preview-target");
+      if (previewTarget) previewTarget.textContent = formatTile(selectedTarget);
     });
+
+    mountCreateRoomPreview();
 
     document.getElementById("create-room").addEventListener("click", function () {
       document.getElementById("lobby-status").textContent = "Creating room...";
@@ -1863,7 +1906,6 @@
       });
     });
 
-    bindJoinRoom();
   }
 
   function showFreeplayLobby() {
@@ -1878,24 +1920,28 @@
       selectedPlayerCount === 2 ? "Freeplay Duel" : "Freeplay",
       function () { leaveRoomSilently(); showMultiplayerMenu(); },
       `
-        <div class="match-setup-screen">
-          <section class="match-setup-create">
-            <span class="match-setup-kicker">${info.kicker}</span>
-            <h2>${info.title}</h2>
-            <p>${info.copy}</p>
-            ${selectedPlayerCountSummaryMarkup()}
-            ${setupFactsMarkup(info.facts)}
-            <div class="freeplay-setup-controls">
-              ${movementKeysMarkup(true)}
-              <div class="control-key-row compact"><span class="control-label">Undo</span><span class="key-cluster action-key"><span class="key-row"><kbd>Z</kbd></span></span></div>
+        <div class="match-setup-screen option-a-create-screen">
+          <section class="match-setup-tabletop">
+            <div class="match-setup-create">
+              <span class="match-setup-kicker">${info.kicker}</span>
+              <h2>${info.title}</h2>
+              <p>${info.copy}</p>
+              ${selectedPlayerCountSummaryMarkup()}
+              ${setupFactsMarkup(info.facts)}
+              <div class="freeplay-setup-controls">
+                ${movementKeysMarkup(true)}
+                <div class="control-key-row compact"><span class="control-label">Undo</span><span class="key-cluster action-key"><span class="key-row"><kbd>Z</kbd></span></span></div>
+              </div>
+              <button class="primary-button match-create-button" id="create-room">Create Freeplay</button>
             </div>
-            <button class="primary-button match-create-button" id="create-room">Create Freeplay</button>
+            ${createRoomPreviewMarkup("freeplay")}
           </section>
-          ${roomJoinMarkup()}
         </div>
-        <p class="status-text match-setup-status" id="lobby-status"></p>
+        <p class="status-text match-setup-status create-only-status" id="lobby-status"></p>
       `
     );
+
+    mountCreateRoomPreview();
 
     document.getElementById("create-room").addEventListener("click", function () {
       document.getElementById("lobby-status").textContent = "Creating room...";
@@ -1908,7 +1954,6 @@
       });
     });
 
-    bindJoinRoom();
   }
 
   function showCustomRaceLobby() {
@@ -1923,23 +1968,27 @@
       "Custom Race",
       function () { leaveRoomSilently(); showMultiplayerMenu(); },
       `
-        <div class="match-setup-screen custom">
-          <section class="match-setup-create">
-            <span class="match-setup-kicker">${info.kicker}</span>
-            <h2>${info.title}</h2>
-            <p>${info.copy}</p>
-            ${selectedPlayerCountSummaryMarkup()}
-            <div class="custom-race-explainer" aria-label="Custom Race setup">
-              <strong>Your target belongs to you.</strong>
-              <span>Choose it after the room opens. Your friends choose theirs when they join.</span>
+        <div class="match-setup-screen custom option-a-create-screen">
+          <section class="match-setup-tabletop">
+            <div class="match-setup-create">
+              <span class="match-setup-kicker">${info.kicker}</span>
+              <h2>${info.title}</h2>
+              <p>${info.copy}</p>
+              ${selectedPlayerCountSummaryMarkup()}
+              <div class="custom-race-explainer" aria-label="Custom Race setup">
+                <strong>Your target belongs to you.</strong>
+                <span>Choose it after the room opens. Your friends choose theirs when they join.</span>
+              </div>
+              <button class="primary-button match-create-button" id="create-room">Create Custom Race</button>
             </div>
-            <button class="primary-button match-create-button" id="create-room">Create Custom Race</button>
+            ${createRoomPreviewMarkup("custom-race")}
           </section>
-          ${roomJoinMarkup()}
         </div>
-        <p class="status-text match-setup-status" id="lobby-status"></p>
+        <p class="status-text match-setup-status create-only-status" id="lobby-status"></p>
       `
     );
+
+    mountCreateRoomPreview();
 
     document.getElementById("create-room").addEventListener("click", function () {
       document.getElementById("lobby-status").textContent = "Creating room...";
@@ -1952,7 +2001,6 @@
       });
     });
 
-    bindJoinRoom();
   }
 
   function modeTitle(mode, playerCount) {
