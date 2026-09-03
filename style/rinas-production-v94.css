@@ -4053,3 +4053,435 @@ body.solo-active #site-footer { display:none!important; }
     transition:none!important;
   }
 }
+
+
+/* ============================================================
+   v94 / Phase 4 â€” scalable lobby, Ready/Start, chat + scroll
+   ============================================================ */
+
+/* Player-count controls behave as one centered label, preventing number/text
+   baseline drift at all widths. */
+.multiplayer-player-count-button {
+  display:grid!important;
+  place-items:center!important;
+  min-height:52px!important;
+  padding:8px 10px!important;
+  font:700 .92rem/1 var(--font-display)!important;
+  letter-spacing:.01em!important;
+  text-align:center!important;
+  white-space:nowrap;
+}
+
+.multiplayer-player-count-button strong,
+.multiplayer-player-count-button span {
+  font:inherit!important;
+  color:inherit!important;
+  letter-spacing:inherit!important;
+  text-transform:none!important;
+}
+
+.custom-race-explainer {
+  display:grid;
+  gap:4px;
+  margin:18px 0 20px;
+  padding:12px 14px;
+  border-top:1px solid var(--line-soft);
+  border-bottom:1px solid var(--line-soft);
+}
+
+.custom-race-explainer strong {
+  font:700 .92rem/1.2 var(--font-display);
+}
+
+.custom-race-explainer span {
+  color:var(--muted);
+  font-size:.8rem;
+  line-height:1.45;
+}
+
+/* Waiting room */
+.waiting-room-sheet {
+  width:min(100%, 920px)!important;
+}
+
+.waiting-room-heading-line {
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:16px;
+}
+
+.waiting-room-heading-line > strong {
+  color:var(--muted);
+  font:700 .76rem/1 var(--font-display);
+  letter-spacing:.05em;
+  text-transform:uppercase;
+  white-space:nowrap;
+}
+
+.waiting-room-body {
+  align-items:start!important;
+  grid-template-columns:minmax(235px, .78fr) minmax(0, 1.42fr)!important;
+  gap:28px!important;
+}
+
+.waiting-room-main-column {
+  min-width:0;
+  display:grid;
+  gap:18px;
+}
+
+.waiting-mode-summary {
+  margin-top:18px;
+}
+
+.lobby-personal-target {
+  display:grid;
+  gap:10px;
+  margin-top:18px;
+  padding-top:16px;
+  border-top:1px solid var(--line-soft);
+}
+
+.lobby-personal-target > div:first-child {
+  display:flex;
+  align-items:end;
+  justify-content:space-between;
+  gap:12px;
+}
+
+.lobby-personal-target > div:first-child strong {
+  font:700 1rem/1 var(--font-display);
+  text-align:right;
+}
+
+.lobby-personal-target > small {
+  color:var(--muted);
+  font-size:.72rem;
+}
+
+.lobby-target-picker {
+  grid-template-columns:repeat(3,minmax(0,1fr))!important;
+  gap:5px!important;
+}
+
+.lobby-target-picker .target-button {
+  min-height:38px!important;
+  padding:5px 4px!important;
+  font-size:.78rem!important;
+}
+
+.lobby-target-picker .target-button[disabled] {
+  cursor:not-allowed;
+  opacity:.54;
+}
+
+/* Group roster avoids giant player cards. */
+.waiting-roster {
+  width:100%;
+  border-top:1px solid var(--line-soft);
+  border-bottom:1px solid var(--line-soft);
+}
+
+.waiting-roster-head,
+.waiting-roster-row {
+  display:grid;
+  grid-template-columns:52px minmax(0,1fr) 92px 86px;
+  align-items:center;
+  gap:10px;
+  min-width:0;
+}
+
+.waiting-roster-head {
+  min-height:28px;
+  color:var(--muted);
+  font:700 .62rem/1 var(--font-display);
+  letter-spacing:.055em;
+  text-transform:uppercase;
+}
+
+.waiting-roster-row {
+  min-height:52px;
+  border-top:1px solid var(--line-soft);
+}
+
+.waiting-roster-head + .waiting-roster-row {
+  border-top:0;
+}
+
+.waiting-roster-row strong {
+  min-width:0;
+  overflow:hidden;
+  text-overflow:ellipsis;
+  white-space:nowrap;
+  font:700 .94rem/1 var(--font-display);
+}
+
+.waiting-roster-slot,
+.waiting-roster-state,
+.waiting-roster-target {
+  font:700 .7rem/1.2 var(--font-display);
+}
+
+.waiting-roster-slot {
+  color:var(--muted);
+  letter-spacing:.045em;
+}
+
+.waiting-roster-target {
+  color:var(--ink);
+  text-align:right;
+}
+
+.waiting-roster-state {
+  color:var(--muted);
+  text-align:right;
+}
+
+.waiting-roster-row.is-ready .waiting-roster-state {
+  color:var(--ink);
+}
+
+.waiting-roster-row.is-empty {
+  opacity:.62;
+}
+
+/* Lobby chat is intentionally plain text rather than messenger bubbles. */
+.lobby-chat {
+  min-width:0;
+  padding-top:14px;
+  border-top:1px solid var(--line-soft);
+}
+
+.lobby-chat-heading {
+  display:flex;
+  align-items:baseline;
+  justify-content:space-between;
+  gap:12px;
+  margin-bottom:8px;
+}
+
+.lobby-chat-heading small {
+  color:var(--muted);
+  font:700 .65rem/1 var(--font-display);
+  letter-spacing:.04em;
+  text-transform:uppercase;
+}
+
+.lobby-chat-history {
+  height:132px;
+  overflow-y:auto;
+  overscroll-behavior:contain;
+  padding:4px 9px 4px 2px;
+  scroll-behavior:smooth;
+}
+
+.lobby-chat-message {
+  display:grid;
+  grid-template-columns:minmax(54px,84px) minmax(0,1fr);
+  gap:8px;
+  padding:5px 0;
+  font-size:.78rem;
+  line-height:1.38;
+}
+
+.lobby-chat-message strong {
+  min-width:0;
+  overflow:hidden;
+  text-overflow:ellipsis;
+  color:var(--muted);
+  font:700 .72rem/1.4 var(--font-display);
+  white-space:nowrap;
+}
+
+.lobby-chat-message.is-own strong {
+  color:var(--ink);
+}
+
+.lobby-chat-message span {
+  overflow-wrap:anywhere;
+}
+
+.lobby-chat-empty {
+  margin:8px 0!important;
+  color:var(--muted)!important;
+  font-size:.76rem!important;
+}
+
+.lobby-chat-form {
+  display:grid;
+  grid-template-columns:minmax(0,1fr) auto;
+  gap:7px;
+  margin-top:8px;
+}
+
+.lobby-chat-form input {
+  min-width:0;
+  min-height:44px;
+  padding:8px 11px;
+  border:1px solid var(--line);
+  border-radius:9px;
+  background:var(--paper);
+  color:var(--ink);
+  font:600 .82rem/1.2 var(--font-body);
+}
+
+.lobby-chat-form input:focus {
+  outline:2px solid var(--focus);
+  outline-offset:2px;
+}
+
+.lobby-chat-form .button {
+  min-height:44px;
+  min-width:70px;
+}
+
+.lobby-chat-status {
+  min-height:1em;
+  margin:5px 0 0!important;
+  color:var(--muted)!important;
+  font-size:.7rem!important;
+}
+
+.waiting-room-footer {
+  display:block!important;
+  padding-top:16px!important;
+}
+
+.lobby-host-action,
+.lobby-guest-action {
+  display:flex;
+  align-items:center;
+  justify-content:flex-end;
+  gap:14px;
+}
+
+.lobby-action-status {
+  flex:1 1 auto;
+  margin:0!important;
+  color:var(--muted)!important;
+  font-size:.78rem!important;
+  text-align:right;
+}
+
+.lobby-start-button,
+.lobby-ready-button {
+  min-width:142px;
+  min-height:44px;
+}
+
+.lobby-ready-button.is-ready {
+  background:transparent!important;
+  color:var(--ink)!important;
+  border:1px solid var(--line)!important;
+  box-shadow:none!important;
+}
+
+.lobby-start-button[disabled],
+.lobby-ready-button[disabled] {
+  opacity:.48;
+  cursor:not-allowed;
+  transform:none!important;
+  box-shadow:none!important;
+}
+
+/* macOS-like native scrollbar treatment. Keep native mechanics. */
+.rina-scrollbar {
+  scrollbar-width:thin;
+  scrollbar-color:color-mix(in srgb,var(--ink) 28%,transparent) transparent;
+  scrollbar-gutter:stable;
+}
+
+.rina-scrollbar::-webkit-scrollbar {
+  width:8px;
+  height:8px;
+}
+
+.rina-scrollbar::-webkit-scrollbar-track {
+  background:transparent;
+}
+
+.rina-scrollbar::-webkit-scrollbar-thumb {
+  min-height:28px;
+  border:2px solid transparent;
+  border-radius:999px;
+  background:color-mix(in srgb,var(--ink) 24%,transparent);
+  background-clip:padding-box;
+}
+
+.rina-scrollbar:hover::-webkit-scrollbar-thumb {
+  background:color-mix(in srgb,var(--ink) 38%,transparent);
+  background-clip:padding-box;
+}
+
+@media (max-width: 880px) {
+  .waiting-room-body {
+    grid-template-columns:1fr!important;
+    gap:20px!important;
+  }
+
+  .waiting-room-invite {
+    display:grid;
+    grid-template-columns:minmax(0,1fr) minmax(240px,.9fr);
+    column-gap:20px;
+  }
+
+  .waiting-room-invite > .match-setup-kicker,
+  .waiting-room-invite > .waiting-code-row,
+  .waiting-room-invite > .match-copy-status {
+    grid-column:1;
+  }
+
+  .waiting-mode-summary,
+  #waiting-personal-config {
+    grid-column:2;
+  }
+
+  .waiting-mode-summary {
+    grid-row:1 / span 3;
+    margin-top:0;
+  }
+}
+
+@media (max-width: 700px) {
+  .waiting-room-invite {
+    display:block;
+  }
+
+  .waiting-mode-summary {
+    margin-top:18px;
+  }
+
+  .waiting-room-heading-line {
+    align-items:flex-start;
+    flex-direction:column;
+    gap:6px;
+  }
+
+  .waiting-roster-head,
+  .waiting-roster-row {
+    grid-template-columns:44px minmax(0,1fr) 82px 72px;
+    gap:7px;
+  }
+
+  .lobby-host-action,
+  .lobby-guest-action {
+    align-items:stretch;
+    flex-direction:column;
+  }
+
+  .lobby-action-status {
+    text-align:left;
+  }
+
+  .lobby-start-button,
+  .lobby-ready-button {
+    width:100%;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .lobby-chat-history {
+    scroll-behavior:auto;
+  }
+}
