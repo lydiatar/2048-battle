@@ -5378,3 +5378,718 @@ body.solo-active #site-footer { display:none!important; }
 @media (max-width:1040px) and (min-width:641px) {
   .multiplayer-direct-join { max-width:500px; margin-inline:auto; }
 }
+
+
+/* ============================================================
+   v100 â€” multiplayer flow simplification + no-scroll setup fit
+   ============================================================ */
+
+/* One compact join utility on the Multiplayer landing screen. */
+.multiplayer-direct-join {
+  display:grid!important;
+  grid-template-columns:auto minmax(0,1fr)!important;
+  align-items:center!important;
+  gap:8px 12px!important;
+  margin:12px 0 13px!important;
+  padding:10px 0 11px!important;
+  border-top:1px solid var(--line-soft)!important;
+  border-bottom:1px solid var(--line-soft)!important;
+}
+
+.multiplayer-direct-join-label {
+  color:var(--muted);
+  font:700 .73rem/1 var(--font-display);
+  white-space:nowrap;
+}
+
+.multiplayer-direct-join-row {
+  min-width:0;
+  display:grid!important;
+  grid-template-columns:minmax(0,1fr) 70px!important;
+  gap:7px!important;
+  margin:0!important;
+}
+
+.multiplayer-direct-join-row .match-room-input,
+.multiplayer-direct-join-row .button {
+  min-height:42px!important;
+  height:42px!important;
+}
+
+.multiplayer-direct-join-row .match-room-input {
+  padding-inline:12px!important;
+  font-size:.86rem!important;
+}
+
+.multiplayer-direct-join-status {
+  grid-column:2;
+  min-height:0!important;
+  margin:0!important;
+  font-size:.68rem!important;
+  line-height:1.2!important;
+}
+
+.multiplayer-create-separator {
+  margin:1px 0 7px!important;
+}
+
+/* Coming Soon was removed; close the page cleanly after player identity. */
+.multiplayer-profile-row {
+  margin-bottom:0!important;
+}
+
+/* Mode setup screens are now explicitly CREATE-only.
+   The join path lives exclusively on Multiplayer home. */
+.match-setup-screen {
+  grid-template-columns:minmax(0,560px)!important;
+  justify-content:center!important;
+  gap:0!important;
+  width:min(100%,620px)!important;
+}
+
+.match-setup-create {
+  width:100%;
+}
+
+.create-only-status {
+  width:min(100%,560px)!important;
+  margin:10px auto 0!important;
+  text-align:center;
+}
+
+/* Desktop/laptop product screens should not require document scrolling.
+   Reserve room for the fixed attribution and scale spacing before scrolling. */
+@media (min-width:881px) {
+  .screen-multiplayer-menu,
+  .screen-tile-race-lobby,
+  .screen-freeplay-lobby,
+  .screen-custom-race-lobby {
+    height:100vh!important;
+    height:100svh!important;
+    min-height:0!important;
+    overflow:hidden!important;
+  }
+
+  .screen-multiplayer-menu .app-screen-inner,
+  .screen-tile-race-lobby .app-screen-inner,
+  .screen-freeplay-lobby .app-screen-inner,
+  .screen-custom-race-lobby .app-screen-inner {
+    height:100%!important;
+    min-height:0!important;
+    display:flex!important;
+    flex-direction:column!important;
+  }
+
+  .screen-multiplayer-menu .app-header,
+  .screen-tile-race-lobby .app-header,
+  .screen-freeplay-lobby .app-header,
+  .screen-custom-race-lobby .app-header {
+    flex:0 0 auto!important;
+    min-height:68px!important;
+    margin-bottom:0!important;
+    padding:9px 0!important;
+  }
+
+  .screen-multiplayer-menu #screen-content,
+  .screen-tile-race-lobby #screen-content,
+  .screen-freeplay-lobby #screen-content,
+  .screen-custom-race-lobby #screen-content {
+    flex:1 1 auto!important;
+    min-height:0!important;
+    display:flex!important;
+    flex-direction:column!important;
+    justify-content:center!important;
+    padding:6px 0 40px!important;
+    overflow:hidden!important;
+  }
+
+  .screen-multiplayer-menu .multiplayer-production-menu {
+    width:min(100%,1000px)!important;
+    margin:0 auto!important;
+    gap:clamp(34px,5vw,58px)!important;
+    grid-template-columns:minmax(320px,.82fr) minmax(410px,1.18fr)!important;
+  }
+
+  .screen-multiplayer-menu .multiplayer-mode-list > .eyebrow {
+    margin-bottom:6px!important;
+  }
+
+  .screen-multiplayer-menu .multiplayer-mode-list h2 {
+    margin-bottom:8px!important;
+    font-size:clamp(2.8rem,4.6vw,3.5rem)!important;
+  }
+
+  .screen-multiplayer-menu .multiplayer-intro {
+    min-height:0!important;
+    margin:0!important;
+    max-width:330px;
+    line-height:1.4!important;
+  }
+
+  .screen-multiplayer-menu .multiplayer-player-count {
+    margin:10px 0 10px!important;
+  }
+
+  .screen-multiplayer-menu .multiplayer-player-count > .match-setup-kicker {
+    margin-bottom:6px!important;
+  }
+
+  .screen-multiplayer-menu .multiplayer-player-count-button {
+    min-height:48px!important;
+  }
+
+  .screen-multiplayer-menu .multiplayer-mode-button {
+    min-height:64px!important;
+    padding-block:8px!important;
+  }
+
+  .screen-multiplayer-menu .multiplayer-profile-row {
+    margin-top:11px!important;
+    padding-top:10px!important;
+  }
+
+  .screen-multiplayer-menu .pvp-preview-panel {
+    align-self:center!important;
+  }
+
+  .screen-tile-race-lobby .match-setup-screen,
+  .screen-freeplay-lobby .match-setup-screen,
+  .screen-custom-race-lobby .match-setup-screen {
+    margin:0 auto!important;
+    align-items:center!important;
+  }
+
+  .screen-tile-race-lobby .match-setup-create,
+  .screen-freeplay-lobby .match-setup-create,
+  .screen-custom-race-lobby .match-setup-create {
+    padding-left:20px!important;
+  }
+
+  .screen-tile-race-lobby .match-setup-create h2,
+  .screen-freeplay-lobby .match-setup-create h2,
+  .screen-custom-race-lobby .match-setup-create h2 {
+    margin-block:7px 9px!important;
+  }
+
+  .screen-tile-race-lobby .match-player-count-summary,
+  .screen-freeplay-lobby .match-player-count-summary,
+  .screen-custom-race-lobby .match-player-count-summary {
+    margin-top:12px!important;
+  }
+
+  .screen-tile-race-lobby .match-target-section,
+  .screen-freeplay-lobby .freeplay-setup-controls,
+  .screen-custom-race-lobby .custom-race-explainer {
+    margin-top:17px!important;
+  }
+
+  .screen-tile-race-lobby .match-create-button,
+  .screen-freeplay-lobby .match-create-button,
+  .screen-custom-race-lobby .match-create-button {
+    margin-top:16px!important;
+  }
+}
+
+/* Standard non-maximized laptop windows: compress vertical rhythm, not type hierarchy. */
+@media (min-width:881px) and (max-height:820px) {
+  .screen-multiplayer-menu .app-header,
+  .screen-tile-race-lobby .app-header,
+  .screen-freeplay-lobby .app-header,
+  .screen-custom-race-lobby .app-header {
+    min-height:62px!important;
+    padding:6px 0!important;
+  }
+
+  .screen-multiplayer-menu #screen-content,
+  .screen-tile-race-lobby #screen-content,
+  .screen-freeplay-lobby #screen-content,
+  .screen-custom-race-lobby #screen-content {
+    padding-top:3px!important;
+    padding-bottom:34px!important;
+  }
+
+  .screen-multiplayer-menu .multiplayer-production-menu {
+    width:min(100%,950px)!important;
+    gap:30px!important;
+  }
+
+  .screen-multiplayer-menu .multiplayer-mode-list h2 {
+    font-size:2.8rem!important;
+  }
+
+  .screen-multiplayer-menu .multiplayer-direct-join {
+    margin-block:9px 10px!important;
+    padding-block:8px 9px!important;
+  }
+
+  .screen-multiplayer-menu .multiplayer-player-count {
+    margin-block:8px!important;
+  }
+
+  .screen-multiplayer-menu .multiplayer-player-count-button {
+    min-height:44px!important;
+  }
+
+  .screen-multiplayer-menu .multiplayer-mode-button {
+    min-height:57px!important;
+    padding-block:6px!important;
+  }
+
+  .screen-multiplayer-menu .multiplayer-mode-button small {
+    margin-top:2px!important;
+  }
+
+  .screen-multiplayer-menu .multiplayer-profile-row {
+    margin-top:8px!important;
+    padding-top:8px!important;
+  }
+
+  .screen-multiplayer-menu .pvp-preview-panel {
+    transform:scale(.93);
+    transform-origin:center;
+  }
+
+  .screen-tile-race-lobby .match-setup-screen,
+  .screen-freeplay-lobby .match-setup-screen,
+  .screen-custom-race-lobby .match-setup-screen {
+    transform:translateY(-6px);
+  }
+}
+
+/* Very short supported desktop windows still favor one-screen setup.
+   The preview scales before the interface introduces page scroll. */
+@media (min-width:881px) and (max-height:720px) {
+  .screen-multiplayer-menu .multiplayer-production-menu {
+    width:min(100%,900px)!important;
+  }
+
+  .screen-multiplayer-menu .multiplayer-mode-list h2 {
+    font-size:2.45rem!important;
+  }
+
+  .screen-multiplayer-menu .multiplayer-mode-button {
+    min-height:52px!important;
+  }
+
+  .screen-multiplayer-menu .pvp-preview-panel {
+    transform:scale(.85);
+  }
+
+  .screen-multiplayer-menu .multiplayer-profile-row {
+    font-size:.77rem!important;
+  }
+
+  .screen-tile-race-lobby .match-setup-create h2,
+  .screen-freeplay-lobby .match-setup-create h2,
+  .screen-custom-race-lobby .match-setup-create h2 {
+    font-size:2.2rem!important;
+  }
+}
+
+/* Stacked tablet layouts may scroll naturally if needed. */
+@media (max-width:880px) {
+  .match-setup-screen {
+    width:100%!important;
+    grid-template-columns:1fr!important;
+  }
+}
+
+
+/* ============================================================
+   v101 â€” Option A: Balanced Table
+   ============================================================ */
+
+/* Multiplayer landing: restore breathing room and make the preview a true
+   visual counterpart to the whole creation stack. */
+@media (min-width: 881px) {
+  .screen-multiplayer-menu #screen-content {
+    padding:12px 0 42px!important;
+  }
+
+  .screen-multiplayer-menu .multiplayer-production-menu {
+    width:min(100%,1080px)!important;
+    grid-template-columns:minmax(360px,.88fr) minmax(460px,1.12fr)!important;
+    gap:clamp(54px,6vw,78px)!important;
+    align-items:center!important;
+  }
+
+  .screen-multiplayer-menu .multiplayer-mode-list {
+    max-width:420px;
+  }
+
+  .screen-multiplayer-menu .multiplayer-mode-list > .eyebrow {
+    margin-bottom:8px!important;
+  }
+
+  .screen-multiplayer-menu .multiplayer-mode-list h2 {
+    max-width:390px;
+    margin:0 0 10px!important;
+    font-size:clamp(3.2rem,4.8vw,4rem)!important;
+    line-height:.93!important;
+  }
+
+  .screen-multiplayer-menu .multiplayer-intro {
+    max-width:360px!important;
+    font-size:.96rem!important;
+    line-height:1.45!important;
+  }
+
+  .screen-multiplayer-menu .multiplayer-direct-join {
+    grid-template-columns:1fr!important;
+    gap:7px!important;
+    margin:16px 0 17px!important;
+    padding:12px 0 13px!important;
+  }
+
+  .screen-multiplayer-menu .multiplayer-direct-join-label {
+    font-size:.76rem!important;
+  }
+
+  .screen-multiplayer-menu .multiplayer-direct-join-row {
+    grid-template-columns:minmax(0,1fr) 76px!important;
+    gap:9px!important;
+  }
+
+  .screen-multiplayer-menu .multiplayer-direct-join-row .match-room-input,
+  .screen-multiplayer-menu .multiplayer-direct-join-row .button {
+    min-height:44px!important;
+    height:44px!important;
+  }
+
+  .screen-multiplayer-menu .multiplayer-direct-join-status {
+    grid-column:1/-1!important;
+  }
+
+  .screen-multiplayer-menu .multiplayer-create-separator {
+    margin:0 0 10px!important;
+  }
+
+  .screen-multiplayer-menu .multiplayer-player-count {
+    margin:0 0 11px!important;
+  }
+
+  .screen-multiplayer-menu .multiplayer-player-count > .match-setup-kicker {
+    margin-bottom:7px!important;
+  }
+
+  .screen-multiplayer-menu .multiplayer-player-count-buttons {
+    gap:8px!important;
+  }
+
+  .screen-multiplayer-menu .multiplayer-player-count-button {
+    min-height:50px!important;
+  }
+
+  .screen-multiplayer-menu .multiplayer-mode-buttons {
+    margin-top:4px!important;
+  }
+
+  .screen-multiplayer-menu .multiplayer-mode-button {
+    min-height:63px!important;
+    padding:9px 12px!important;
+  }
+
+  .screen-multiplayer-menu .multiplayer-mode-button + .multiplayer-mode-button {
+    margin-top:2px!important;
+  }
+
+  .screen-multiplayer-menu .multiplayer-profile-row {
+    margin-top:14px!important;
+    padding-top:12px!important;
+  }
+
+  .screen-multiplayer-menu .pvp-preview-panel {
+    width:min(100%,520px)!important;
+    min-height:0!important;
+    padding:30px 34px!important;
+    transform:none!important;
+    align-self:center!important;
+  }
+
+  .screen-multiplayer-menu .pvp-preview-header {
+    margin-bottom:4px!important;
+  }
+
+  .screen-multiplayer-menu .pvp-preview-header strong {
+    font-size:2.15rem!important;
+  }
+
+  .screen-multiplayer-menu .pvp-preview-footer {
+    margin-top:14px!important;
+    padding-top:14px!important;
+  }
+}
+
+/* Laptop-height version keeps Option A proportions instead of turning the
+   left column into a compressed control stack. */
+@media (min-width:881px) and (max-height:820px) {
+  .screen-multiplayer-menu #screen-content {
+    padding:8px 0 36px!important;
+  }
+
+  .screen-multiplayer-menu .multiplayer-production-menu {
+    width:min(100%,1010px)!important;
+    grid-template-columns:minmax(340px,.9fr) minmax(430px,1.1fr)!important;
+    gap:44px!important;
+  }
+
+  .screen-multiplayer-menu .multiplayer-mode-list h2 {
+    font-size:3.05rem!important;
+  }
+
+  .screen-multiplayer-menu .multiplayer-direct-join {
+    margin-block:12px 13px!important;
+    padding-block:10px 11px!important;
+  }
+
+  .screen-multiplayer-menu .multiplayer-player-count-button {
+    min-height:46px!important;
+  }
+
+  .screen-multiplayer-menu .multiplayer-mode-button {
+    min-height:57px!important;
+  }
+
+  .screen-multiplayer-menu .multiplayer-profile-row {
+    margin-top:10px!important;
+    padding-top:9px!important;
+  }
+
+  .screen-multiplayer-menu .pvp-preview-panel {
+    width:min(100%,475px)!important;
+    padding:24px 28px!important;
+  }
+
+  .screen-multiplayer-menu .pvp-preview-header strong {
+    font-size:1.95rem!important;
+  }
+}
+
+@media (min-width:881px) and (max-height:720px) {
+  .screen-multiplayer-menu .multiplayer-production-menu {
+    width:min(100%,940px)!important;
+    gap:34px!important;
+  }
+
+  .screen-multiplayer-menu .multiplayer-mode-list h2 {
+    font-size:2.65rem!important;
+  }
+
+  .screen-multiplayer-menu .multiplayer-mode-button {
+    min-height:52px!important;
+  }
+
+  .screen-multiplayer-menu .pvp-preview-panel {
+    width:min(100%,430px)!important;
+    padding:20px 24px!important;
+  }
+}
+
+/* Create-room screens become a real tabletop setup rather than a lonely
+   form floating in the center of a large page. */
+.match-setup-screen.option-a-create-screen {
+  width:min(100%,980px)!important;
+  grid-template-columns:1fr!important;
+  gap:0!important;
+  margin:0 auto!important;
+}
+
+.match-setup-tabletop {
+  width:100%;
+  display:grid;
+  grid-template-columns:minmax(0,1.04fr) minmax(320px,.96fr);
+  gap:0;
+  overflow:hidden;
+  border:1px solid var(--line);
+  border-radius:16px;
+  background:var(--paper);
+  box-shadow:0 18px 48px rgba(74,52,34,.08);
+}
+
+.match-setup-tabletop > .match-setup-create {
+  min-width:0;
+  padding:34px 36px!important;
+}
+
+.match-setup-tabletop > .match-create-preview {
+  min-width:0;
+  display:flex;
+  flex-direction:column;
+  justify-content:center;
+  padding:30px 32px;
+  border-left:1px solid var(--line-soft);
+  background:color-mix(in srgb,var(--paper) 82%,var(--surface));
+}
+
+.match-setup-tabletop .match-setup-create h2 {
+  max-width:430px;
+  margin:8px 0 10px!important;
+  font-size:clamp(2.45rem,4vw,3.1rem)!important;
+  line-height:.96!important;
+}
+
+.match-setup-tabletop .match-setup-create > p {
+  max-width:470px;
+  font-size:.94rem;
+  line-height:1.5;
+}
+
+.match-setup-tabletop .match-player-count-summary {
+  margin-top:18px!important;
+}
+
+.match-setup-tabletop .match-target-section,
+.match-setup-tabletop .freeplay-setup-controls,
+.match-setup-tabletop .custom-race-explainer {
+  margin-top:24px!important;
+  padding-top:20px!important;
+  border-top:1px solid var(--line-soft);
+}
+
+.match-setup-tabletop .match-create-button {
+  margin-top:22px!important;
+  min-height:46px!important;
+}
+
+.match-create-preview-header > .eyebrow {
+  display:block;
+  margin-bottom:6px;
+}
+
+.match-create-preview-header > strong {
+  display:block;
+  font:800 1.75rem/.98 var(--font-display);
+}
+
+.match-create-preview-header > p {
+  max-width:330px;
+  margin-top:7px;
+  color:var(--muted);
+  font-size:.82rem;
+  line-height:1.45;
+}
+
+.match-create-preview-arena {
+  width:100%;
+  height:210px!important;
+  margin:18px auto 14px!important;
+  transform:scale(.9);
+  transform-origin:center;
+}
+
+.match-create-preview-summary {
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:16px;
+  padding-top:14px;
+  border-top:1px solid var(--line-soft);
+}
+
+.match-create-preview-summary > span:last-child {
+  display:flex;
+  align-items:baseline;
+  gap:8px;
+}
+
+.match-create-preview-summary b {
+  font:800 .95rem/1 var(--font-display);
+}
+
+.match-create-preview-summary small {
+  color:var(--muted);
+  font-size:.72rem;
+}
+
+.match-create-preview-summary small strong {
+  color:var(--ink);
+}
+
+.match-create-flow {
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  gap:6px;
+  margin-top:18px;
+  color:var(--muted);
+  font:700 .66rem/1 var(--font-display);
+  letter-spacing:.025em;
+  text-transform:uppercase;
+  white-space:nowrap;
+}
+
+.match-create-flow i {
+  color:color-mix(in srgb,var(--muted) 55%,transparent);
+  font-style:normal;
+}
+
+.create-only-status {
+  width:min(100%,980px)!important;
+  margin:10px auto 0!important;
+}
+
+/* Keep the rich split within a single viewport at laptop height. */
+@media (min-width:881px) and (max-height:820px) {
+  .screen-tile-race-lobby #screen-content,
+  .screen-freeplay-lobby #screen-content,
+  .screen-custom-race-lobby #screen-content {
+    padding:8px 0 36px!important;
+  }
+
+  .match-setup-screen.option-a-create-screen {
+    width:min(100%,900px)!important;
+    transform:none!important;
+  }
+
+  .match-setup-tabletop {
+    grid-template-columns:minmax(0,1.05fr) minmax(300px,.95fr);
+  }
+
+  .match-setup-tabletop > .match-setup-create {
+    padding:26px 30px!important;
+  }
+
+  .match-setup-tabletop > .match-create-preview {
+    padding:24px 26px;
+  }
+
+  .match-setup-tabletop .match-setup-create h2 {
+    font-size:2.55rem!important;
+  }
+
+  .match-setup-tabletop .match-player-count-summary {
+    margin-top:14px!important;
+  }
+
+  .match-setup-tabletop .match-target-section,
+  .match-setup-tabletop .freeplay-setup-controls,
+  .match-setup-tabletop .custom-race-explainer {
+    margin-top:18px!important;
+    padding-top:16px!important;
+  }
+
+  .match-create-preview-arena {
+    height:185px!important;
+    margin-block:12px 10px!important;
+    transform:scale(.82);
+  }
+
+  .match-create-flow {
+    margin-top:13px;
+  }
+}
+
+@media (max-width:880px) {
+  .match-setup-screen.option-a-create-screen {
+    width:100%!important;
+  }
+
+  .match-setup-tabletop {
+    grid-template-columns:1fr;
+  }
+
+  .match-setup-tabletop > .match-create-preview {
+    border-left:0;
+    border-top:1px solid var(--line-soft);
+  }
+}
