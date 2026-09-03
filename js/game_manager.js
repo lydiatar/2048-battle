@@ -520,6 +520,7 @@ GameManager.prototype.move = function (direction) {
   var largestMergedValue = 0;
   var mergedPositions = [];
   var freeplayBoardEnded = false;
+  var competitiveBoardEnded = false;
 
   if (
     window.multiplayerGameOver ||
@@ -734,12 +735,7 @@ GameManager.prototype.move = function (direction) {
           window.multiplayerGameOver = true;
         }
 
-        if (
-          window.multiplayerSocket &&
-          window.multiplayerMatchActive
-        ) {
-          window.multiplayerSocket.emit("playerEliminated");
-        }
+        competitiveBoardEnded = true;
       }
     } else if (!soloShow2048Prompt) {
       this.over = true;
@@ -751,6 +747,18 @@ GameManager.prototype.move = function (direction) {
   }
 
   this.actuate();
+
+  if (
+    competitiveBoardEnded &&
+    window.multiplayerSocket &&
+    window.multiplayerMatchActive
+  ) {
+    window.multiplayerSocket.emit("playerEliminated", {
+      grid: this.grid.serialize(),
+      score: this.score,
+      highestTile: this.getHighestTileValue()
+    });
+  }
 
   if (window.rinasPlaySound && !(this.over && !window.multiplayerMode) && !soloShow2048Prompt) {
     if (mergedAny) {
