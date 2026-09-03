@@ -120,6 +120,11 @@
   var preMatchCountdownTimers = [];
   var pendingGameStartData = null;
   var currentLobbyState = null;
+  var groupOpponentViews = Object.create(null);
+  var latestPlayerStates = Object.create(null);
+  var latestGroupRaceState = null;
+  var groupRaceSpineElement = null;
+  var localSpectatorNotice = null;
 
   if (TARGETS.indexOf(selectedTarget) === -1) {
     selectedTarget = 2048;
@@ -289,6 +294,38 @@
     return profile && sanitizeNickname(profile.nickname)
       ? sanitizeNickname(profile.nickname)
       : "Opponent";
+  }
+
+
+  function getOtherProfiles() {
+    var ownNumber = Number(window.multiplayerPlayerNumber);
+    return (window.multiplayerProfiles || [])
+      .filter(function (profile) { return Number(profile.playerNumber) !== ownNumber; })
+      .sort(function (a, b) { return Number(a.playerNumber) - Number(b.playerNumber); });
+  }
+
+  function targetForProfile(profile) {
+    if (!profile) return Number(window.multiplayerTargetTile || 2048);
+    if (window.multiplayerModeName === "custom-race") {
+      return Number(profile.targetTile || (window.multiplayerTargets && window.multiplayerTargets[profile.playerNumber]) || 2048);
+    }
+    return Number(window.multiplayerTargetTile || 2048);
+  }
+
+  function resetGroupState() {
+    Object.keys(groupOpponentViews).forEach(function (key) {
+      var view = groupOpponentViews[key];
+      if (view && view.timer) window.clearTimeout(view.timer);
+    });
+    groupOpponentViews = Object.create(null);
+    latestPlayerStates = Object.create(null);
+    latestGroupRaceState = null;
+    groupRaceSpineElement = null;
+    localSpectatorNotice = null;
+  }
+
+  function groupMatchEnabled() {
+    return Number(window.multiplayerRequiredPlayers || 2) > 2;
   }
 
   function loadSettings() {
@@ -986,11 +1023,15 @@
 
     for (var i = 0; i < profiles.length; i++) {
       if (Number(profiles[i].playerNumber) === Number(profile.playerNumber)) {
-        profiles[i] = {
+        profiles[i] = Object.assign({}, profiles[i], {
+          playerId: profile.playerId || profiles[i].playerId || null,
           playerNumber: Number(profile.playerNumber),
           nickname: sanitizeNickname(profile.nickname) || ("Player " + profile.playerNumber),
-          theme: THEMES.indexOf(profile.theme) !== -1 ? profile.theme : "classic"
-        };
+          theme: THEMES.indexOf(profile.theme) !== -1 ? profile.theme : "classic",
+          status: profile.status || profiles[i].status || "active",
+          targetTile: profile.targetTile ? Number(profile.targetTile) : profiles[i].targetTile || null,
+          placement: profile.placement || profiles[i].placement || null
+        });
         found = true;
         break;
       }
@@ -1919,7 +1960,7 @@
   function lobbyOccupancyCopy(data) {
     var joined = Number(data && data.joinedPlayers || 0);
     var required = sanitizePlayerCount(data && data.requiredPlayers);
-    return joined + " / " + required + " players";
+    return joined + " of " + required + " joined";
   }
 
   function waitingRosterMarkup(data) {
@@ -2220,7 +2261,6 @@
             <header class="waiting-room-header">
               <div class="waiting-room-heading-line">
                 <span class="match-setup-kicker">${escapeHtml(modeTitle(mode, data.requiredPlayers))} · ${sanitizePlayerCount(data.requiredPlayers)} PLAYERS</span>
-                <strong id="waiting-room-occupancy">${escapeHtml(lobbyOccupancyCopy(data))}</strong>
               </div>
               <h2 id="waiting-room-title">Room is open.</h2>
               <p id="waiting-room-intro">Share the room code with your friends.</p>
@@ -2240,12 +2280,17 @@
               </aside>
 
               <section class="waiting-room-main-column">
-                <div id="waiting-roster-slot"></div>
+                <section class="waiting-roster-section" aria-label="Players in room">
+                  <div class="waiting-roster-meta">
+                    <span class="match-setup-kicker">PLAYERS</span>
+                    <strong id="waiting-room-occupancy">${escapeHtml(lobbyOccupancyCopy(data))}</strong>
+                  </div>
+                  <div id="waiting-roster-slot"></div>
+                </section>
 
                 <section class="lobby-chat" aria-labelledby="lobby-chat-title">
                   <div class="lobby-chat-heading">
                     <span class="match-setup-kicker" id="lobby-chat-title">CHAT</span>
-                    <small>Lobby only</small>
                   </div>
                   <div class="lobby-chat-history rina-scrollbar" id="lobby-chat-history" role="log" aria-live="polite" aria-relevant="additions"></div>
                   <form class="lobby-chat-form" id="lobby-chat-form">
@@ -2296,13 +2341,21 @@
     updateProfiles(data.players || []);
 
     var mode = data.mode || "tile-race";
-    var ownName = getOwnNickname();
-    var opponentName = getOpponentNickname();
+    var profiles = (window.multiplayerProfiles || []).slice().sort(function (a, b) {
+      return Number(a.playerNumber) - Number(b.playerNumber);
+    });
+    var roster = profiles.map(function (profile) {
+      var isYou = Number(profile.playerNumber) === Number(window.multiplayerPlayerNumber);
+      return '<div class="match-staging-player ready connected">' +
+        '<div><strong>' + escapeHtml(profile.nickname) + '</strong><span><i></i>Ready</span></div>' +
+        '<b>' + (isYou ? 'YOU' : 'P' + profile.playerNumber) + '</b>' +
+      '</div>';
+    }).join("");
 
     window.currentGameMode = "multiplayer-countdown";
 
     showScreen(
-      modeTitle(mode),
+      modeTitle(mode, data.requiredPlayers),
       function () {
         clearPreMatchCountdown();
         leaveRoomSilently();
@@ -2319,12 +2372,7 @@
 
           <section class="match-countdown-players" aria-label="Players ready">
             <span class="match-setup-kicker">PLAYERS</span>
-            <div class="match-staging-player ready connected">
-              <div><strong>${escapeHtml(ownName)}</strong><span><i></i>Ready</span></div><b>YOU</b>
-            </div>
-            <div class="match-staging-player ready connected">
-              <div><strong>${escapeHtml(opponentName)}</strong><span><i></i>Connected</span></div><b>OPPONENT</b>
-            </div>
+            ${roster}
             <p class="match-countdown-status" id="match-countdown-status">Everyone is connected.</p>
           </section>
         </div>
@@ -2333,6 +2381,11 @@
 
     var numberNode = document.getElementById("match-countdown-number");
     var statusNode = document.getElementById("match-countdown-status");
+    var startAt = Number(data.startAt || (Date.now() + 3050));
+
+    function scheduleAt(timestamp, callback) {
+      preMatchCountdownTimers.push(window.setTimeout(callback, Math.max(0, timestamp - Date.now())));
+    }
 
     function showCount(value, statusText) {
       if (!numberNode) return;
@@ -2344,24 +2397,14 @@
       playSound("ui");
     }
 
-    // Give the host and joiner a visible connected state before counting.
-    preMatchCountdownTimers.push(window.setTimeout(function () {
-      showCount("3", "Match starts in 3…");
-    }, 850));
-
-    preMatchCountdownTimers.push(window.setTimeout(function () {
-      showCount("2", "Match starts in 2…");
-    }, 1550));
-
-    preMatchCountdownTimers.push(window.setTimeout(function () {
-      showCount("1", "Match starts in 1…");
-    }, 2250));
-
-    preMatchCountdownTimers.push(window.setTimeout(function () {
+    scheduleAt(startAt - 2400, function () { showCount("3", "Match starts in 3…"); });
+    scheduleAt(startAt - 1600, function () { showCount("2", "Match starts in 2…"); });
+    scheduleAt(startAt - 800, function () { showCount("1", "Match starts in 1…"); });
+    scheduleAt(startAt, function () {
       var startData = pendingGameStartData;
       clearPreMatchCountdown();
       if (startData) startMultiplayerMatch(startData);
-    }, 3050));
+    });
   }
 
   // =========================================================
@@ -2385,6 +2428,10 @@
     window.multiplayerTargetTile = Number(data.targetTile || 0);
     window.multiplayerOwnTarget = Number(data.ownTarget || data.targetTile || 0);
     window.multiplayerOpponentTarget = Number(data.opponentTarget || data.targetTile || 0);
+    window.multiplayerTargets = data.targets || {};
+    window.multiplayerCanPlay = true;
+    window.multiplayerLocalStatus = "active";
+    resetGroupState();
 
     appRoot.innerHTML = "";
     gameHost.style.display = "none";
@@ -2485,8 +2532,390 @@
     }
   }
 
+
+  function groupOpponentPanelMarkup(profile) {
+    var theme = THEMES.indexOf(profile.theme) !== -1 ? profile.theme : "classic";
+    return '<section class="group-opponent-station" id="group-opponent-' + profile.playerNumber + '" data-player-number="' + profile.playerNumber + '">' +
+      '<header class="group-opponent-heading">' +
+        '<div><span class="eyebrow">P' + profile.playerNumber + '</span><strong>' + escapeHtml(profile.nickname) + '</strong></div>' +
+        '<span class="group-rank-badge" id="group-rank-' + profile.playerNumber + '">—</span>' +
+      '</header>' +
+      '<div class="opponent-grid group-opponent-grid" id="group-grid-' + profile.playerNumber + '" data-theme="' + escapeHtml(theme) + '"></div>' +
+      '<footer><span>Highest</span><strong id="group-highest-' + profile.playerNumber + '">0</strong><small id="group-status-' + profile.playerNumber + '">Playing</small></footer>' +
+    '</section>';
+  }
+
+  function createGroupRaceSpineHtml(mode) {
+    if (mode === "freeplay") return "";
+    var profiles = (window.multiplayerProfiles || []).slice().sort(function (a, b) {
+      return Number(a.playerNumber) - Number(b.playerNumber);
+    });
+    var maxTarget = profiles.reduce(function (max, profile) {
+      return Math.max(max, targetForProfile(profile));
+    }, Number(window.multiplayerTargetTile || 2048));
+
+    var runners = profiles.map(function (profile, index) {
+      var isYou = Number(profile.playerNumber) === Number(window.multiplayerPlayerNumber);
+      return '<span class="race-runner group-race-runner ' + (isYou ? 'race-runner-you' : 'race-runner-opponent') + '" id="group-race-' + profile.playerNumber + '" data-lane="' + (index % 2) + '" style="left:0%">' +
+        '<span><b>' + escapeHtml(isYou ? 'YOU' : profile.nickname) + '</b><small>2</small></span><i></i></span>';
+    }).join("");
+
+    return '<section class="race-strip group-race-strip" id="group-race-spine" data-max-target="' + maxTarget + '">' +
+      '<header class="race-strip-header"><div><span class="eyebrow">Live race</span><strong id="race-leader-summary">The race is even</strong></div><div class="race-target-copy">' +
+      (mode === "custom-race" ? 'Own targets' : 'Target <strong>' + formatTile(window.multiplayerTargetTile || 2048) + '</strong>') +
+      '</div></header><div class="race-track"><span class="race-track-fill" id="group-race-fill"></span>' + runners + '</div></section>';
+  }
+
+  function createGroupBattleView() {
+    var mode = window.multiplayerModeName || "tile-race";
+    var isFreeplay = mode === "freeplay";
+    var ownTarget = Number(window.multiplayerOwnTarget || window.multiplayerTargetTile || 2048);
+    var others = getOtherProfiles();
+
+    battleShell = document.createElement("div");
+    battleShell.className = "battle-shell direction-a-battle prototype-battle group-battle " + (isFreeplay ? "freeplay-battle" : "race-battle");
+
+    var ruleLine = isFreeplay
+      ? "Build together with no finish line. Use Z for one-step Undo."
+      : mode === "custom-race"
+        ? "Reach your own target first. A locked board is eliminated while the race continues."
+        : "Reach " + formatTile(ownTarget) + " first. A locked board is eliminated while the race continues.";
+
+    battleShell.innerHTML = `
+      <header class="match-bar page-width">
+        <div><button class="button button-danger" id="leave-match">${uiIcon("exit", "button-icon")}<span>Leave match</span></button></div>
+        <div class="production-wordmark"><strong>Rina's 2048</strong><span>${escapeHtml(modeTitle(mode, window.multiplayerRequiredPlayers))}</span></div>
+        <div class="match-bar-right"><button class="button button-secondary" id="battle-settings">${uiIcon("settings", "button-icon")}<span>Settings</span></button></div>
+      </header>
+      <main class="match-main page-width group-match-main">
+        <p class="match-rule">${escapeHtml(ruleLine)}</p>
+        <div class="group-match-layout" data-player-count="${window.multiplayerRequiredPlayers}">
+          <section class="player-station own-panel group-own-panel" id="own-panel" aria-label="Your board">
+            <header class="player-heading"><div><span class="eyebrow">You</span><h2 id="own-nickname">${escapeHtml(getOwnNickname())}</h2><span class="group-own-rank" id="own-rank-inline">—</span></div><span class="connection" id="group-own-status"><i></i>Playing</span></header>
+            <dl class="stats-line" aria-label="Your live statistics"><div><dt>Score</dt><dd id="own-score">0</dd></div><div><dt>Highest</dt><dd id="own-highest">${Number(lastOwnHighest || 0)}</dd></div></dl>
+            <div class="board-frame own-board-slot" id="own-board-slot"></div>
+            <p class="group-spectator-notice" id="group-spectator-notice" hidden>You’re out — watch the race finish.</p>
+            ${controlHintMarkup("input-hint active-game-control-hint", "battle-control-hint")}
+            ${isFreeplay ? '<div class="freeplay-actions"><button class="button button-secondary" id="freeplay-restart">Restart board</button><span>Undo: Z</span></div>' : ''}
+          </section>
+          <aside class="group-opponent-rail" aria-label="Opponent boards">
+            ${others.map(groupOpponentPanelMarkup).join("")}
+          </aside>
+        </div>
+        ${isFreeplay ? '<section class="freeplay-shared-note"><span class="eyebrow">Freeplay</span><strong>No finish line.</strong><p>Build together, use one-step Undo with Z, and restart your own board whenever you want.</p></section>' : createGroupRaceSpineHtml(mode)}
+        <footer class="in-game-attribution battle-attribution">Based on the original 2048 by <a href="https://github.com/gabrielecirulli/2048" target="_blank" rel="noopener noreferrer">Gabriele Cirulli</a>.</footer>
+      </main>
+    `;
+
+    document.body.appendChild(battleShell);
+    document.getElementById("own-board-slot").appendChild(gameContainer);
+
+    ownHighestDisplay = document.getElementById("own-highest");
+    ownScoreDisplay = document.getElementById("own-score");
+    ownNicknameDisplay = document.getElementById("own-nickname");
+    ownRankBadge = document.getElementById("own-rank-inline");
+    localSpectatorNotice = document.getElementById("group-spectator-notice");
+    groupRaceSpineElement = document.getElementById("group-race-spine");
+
+    others.forEach(function (profile) {
+      var grid = document.getElementById("group-grid-" + profile.playerNumber);
+      for (var i = 0; i < 16; i++) {
+        var cell = document.createElement("div");
+        cell.className = "opponent-cell";
+        grid.appendChild(cell);
+      }
+      groupOpponentViews[profile.playerNumber] = {
+        playerNumber: Number(profile.playerNumber),
+        grid: grid,
+        panel: document.getElementById("group-opponent-" + profile.playerNumber),
+        highest: document.getElementById("group-highest-" + profile.playerNumber),
+        status: document.getElementById("group-status-" + profile.playerNumber),
+        rank: document.getElementById("group-rank-" + profile.playerNumber),
+        queue: [],
+        animating: false,
+        lastState: null,
+        timer: null
+      };
+    });
+
+    if (isFreeplay) {
+      document.getElementById("freeplay-restart").addEventListener("click", function () {
+        openGameConfirm({
+          title: "Restart your board?",
+          message: "Your Freeplay board will restart. Everyone else keeps playing.",
+          confirmLabel: "Restart board",
+          tone: "danger",
+          contextClass: "multiplayer-confirm-modal",
+          onConfirm: restartFreeplayBoard
+        });
+      });
+    }
+
+    document.getElementById("leave-match").addEventListener("click", function () {
+      openGameConfirm({
+        title: "Leave this match?",
+        message: isFreeplay ? "You’ll leave this Freeplay room." : "Leaving forfeits your place. The remaining players continue.",
+        confirmLabel: "Leave match",
+        cancelLabel: "Stay in match",
+        tone: "danger",
+        contextClass: "multiplayer-confirm-modal",
+        onConfirm: leaveMultiplayerMatch
+      });
+    });
+
+    document.getElementById("battle-settings").addEventListener("click", openSettings);
+
+    if (latestGroupRaceState) updateGroupRaceState(latestGroupRaceState);
+    Object.keys(latestPlayerStates).forEach(function (key) {
+      renderGroupOpponentState(Number(key), latestPlayerStates[key]);
+    });
+  }
+
+  function groupCellAt(view, x, y) {
+    if (!view || !view.grid) return null;
+    return view.grid.children[(Number(y) * 4) + Number(x)] || null;
+  }
+
+  function clearGroupMotion(view) {
+    if (!view || !view.grid) return;
+    Array.prototype.forEach.call(view.grid.querySelectorAll(".opponent-motion-tile"), function (node) {
+      node.remove();
+    });
+  }
+
+  function paintGroupGrid(view, state, motion) {
+    if (!view || !view.grid || !state || !state.grid) return;
+    var cells = view.grid.children;
+    var index = 0;
+    for (var y = 0; y < 4; y++) {
+      for (var x = 0; x < 4; x++) {
+        var cell = cells[index++];
+        var tile = state.grid.cells[x][y];
+        cell.className = "opponent-cell";
+        cell.textContent = "";
+        if (tile) {
+          cell.textContent = tile.value;
+          cell.className = "opponent-cell has-tile tile-" + tile.value;
+        }
+      }
+    }
+    if (!motion) return;
+    (motion.merges || []).forEach(function (merge) {
+      var cell = groupCellAt(view, merge.x, merge.y);
+      if (cell) {
+        cell.classList.remove("opponent-cell-pop");
+        void cell.offsetWidth;
+        cell.classList.add("opponent-cell-pop");
+      }
+    });
+  }
+
+  function commitGroupOpponentState(view, state, motion) {
+    clearGroupMotion(view);
+    var profile = getProfile(view.playerNumber);
+    var theme = profile && THEMES.indexOf(profile.theme) !== -1 ? profile.theme : "classic";
+    view.grid.setAttribute("data-theme", theme);
+    if (view.highest) view.highest.textContent = formatTile(state.highestTile || 0);
+    if (view.status) view.status.textContent = profile && (profile.status === "eliminated" || profile.status === "forfeited") ? "Eliminated" : "Playing";
+    paintGroupGrid(view, state, motion || null);
+    view.lastState = state;
+  }
+
+  function groupMotionUsable(state) {
+    if (!state || !state.motion || !Array.isArray(state.motion.transitions)) return false;
+    if (window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches) return false;
+    return state.motion.transitions.some(function (transition) {
+      return transition && transition.from && transition.to &&
+        (Number(transition.from.x) !== Number(transition.to.x) || Number(transition.from.y) !== Number(transition.to.y));
+    });
+  }
+
+  function animateGroupOpponentState(view, state, done) {
+    if (!view.lastState || !groupMotionUsable(state)) {
+      commitGroupOpponentState(view, state, state && state.motion);
+      done();
+      return;
+    }
+
+    var motion = state.motion;
+    var duration = Math.max(90, Math.min(140, Number(motion.duration || 105)));
+    clearGroupMotion(view);
+    var overlays = [];
+    var cleared = {};
+
+    (motion.transitions || []).forEach(function (transition) {
+      if (!transition || !transition.from || !transition.to) return;
+      var fx = Number(transition.from.x), fy = Number(transition.from.y);
+      var tx = Number(transition.to.x), ty = Number(transition.to.y);
+      if (fx === tx && fy === ty) return;
+      var from = groupCellAt(view, fx, fy);
+      var to = groupCellAt(view, tx, ty);
+      if (!from || !to) return;
+
+      var key = fx + ":" + fy;
+      if (!cleared[key]) {
+        from.className = "opponent-cell";
+        from.textContent = "";
+        cleared[key] = true;
+      }
+
+      var overlay = document.createElement("div");
+      overlay.className = "opponent-cell opponent-motion-tile has-tile tile-" + Number(transition.value || 2);
+      overlay.textContent = Number(transition.value || 2);
+      overlay.style.left = from.offsetLeft + "px";
+      overlay.style.top = from.offsetTop + "px";
+      overlay.style.width = from.offsetWidth + "px";
+      overlay.style.height = from.offsetHeight + "px";
+      overlay.style.transitionDuration = duration + "ms";
+      view.grid.appendChild(overlay);
+      overlays.push({ element: overlay, dx: to.offsetLeft - from.offsetLeft, dy: to.offsetTop - from.offsetTop });
+    });
+
+    if (!overlays.length) {
+      commitGroupOpponentState(view, state, motion);
+      done();
+      return;
+    }
+
+    window.requestAnimationFrame(function () {
+      window.requestAnimationFrame(function () {
+        overlays.forEach(function (item) {
+          item.element.style.transform = "translate3d(" + item.dx + "px," + item.dy + "px,0)";
+        });
+      });
+    });
+
+    view.timer = window.setTimeout(function () {
+      view.timer = null;
+      commitGroupOpponentState(view, state, motion);
+      done();
+    }, duration + 22);
+  }
+
+  function processGroupQueue(view) {
+    if (!view || view.animating || !view.queue.length) return;
+    view.animating = true;
+    var state = view.queue.shift();
+    animateGroupOpponentState(view, state, function () {
+      view.animating = false;
+      processGroupQueue(view);
+    });
+  }
+
+  function renderGroupOpponentState(playerNumber, state) {
+    var view = groupOpponentViews[Number(playerNumber)];
+    if (!view || !state || !state.grid) return;
+    if (!view.lastState && !view.animating) {
+      commitGroupOpponentState(view, state, null);
+      return;
+    }
+    view.queue.push(state);
+    if (view.queue.length > 4) view.queue = [view.queue[0], view.queue[view.queue.length - 1]];
+    processGroupQueue(view);
+  }
+
+  function updateGroupRaceState(state) {
+    latestGroupRaceState = state || latestGroupRaceState;
+    if (!latestGroupRaceState) return;
+
+    (latestGroupRaceState.players || []).forEach(function (player) {
+      var marker = document.getElementById("group-race-" + player.playerNumber);
+      if (marker) {
+        marker.style.left = Math.round(Math.max(0, Math.min(1, Number(player.progress || 0))) * 1000) / 10 + "%";
+        var small = marker.querySelector("small");
+        if (small) small.textContent = formatTile(player.highestTile || 2);
+        marker.classList.toggle("is-eliminated", player.status === "eliminated" || player.status === "forfeited");
+      }
+
+      if (Number(player.playerNumber) === Number(window.multiplayerPlayerNumber)) {
+        if (ownRankBadge) ownRankBadge.textContent = player.rank ? ordinal(player.rank) : "—";
+      } else {
+        var view = groupOpponentViews[Number(player.playerNumber)];
+        if (view && view.rank) view.rank.textContent = player.rank ? ordinal(player.rank) : "—";
+        if (view && view.panel) view.panel.classList.toggle("is-eliminated", player.status === "eliminated" || player.status === "forfeited");
+        if (view && view.status && (player.status === "eliminated" || player.status === "forfeited")) view.status.textContent = "Eliminated";
+      }
+    });
+
+    var summary = document.getElementById("race-leader-summary");
+    var leader = (latestGroupRaceState.players || []).find(function (player) {
+      return player.playerId === latestGroupRaceState.leaderPlayerId;
+    });
+    if (summary) summary.textContent = leader ? ((Number(leader.playerNumber) === Number(window.multiplayerPlayerNumber) ? "You" : leader.nickname) + " lead" + (Number(leader.playerNumber) === Number(window.multiplayerPlayerNumber) ? "" : "s")) : "The race is even";
+
+    var fill = document.getElementById("group-race-fill");
+    if (fill) {
+      var max = (latestGroupRaceState.players || []).reduce(function (value, player) {
+        return Math.max(value, Number(player.progress || 0));
+      }, 0);
+      fill.style.width = Math.round(max * 1000) / 10 + "%";
+    }
+  }
+
+  function ordinal(value) {
+    var n = Number(value || 0);
+    if (n === 1) return "1ST";
+    if (n === 2) return "2ND";
+    if (n === 3) return "3RD";
+    if (n === 4) return "4TH";
+    return "—";
+  }
+
+  function enterLocalSpectatorMode(reason) {
+    window.multiplayerCanPlay = false;
+    window.multiplayerLocalStatus = "eliminated";
+    var panel = document.getElementById("own-panel");
+    if (panel) panel.classList.add("is-eliminated");
+    var status = document.getElementById("group-own-status");
+    if (status) status.innerHTML = "<i></i>Eliminated";
+    if (localSpectatorNotice) localSpectatorNotice.hidden = false;
+    var hints = document.querySelectorAll(".group-battle .active-game-control-hint,.group-battle .freeplay-actions");
+    Array.prototype.forEach.call(hints, function (node) { node.setAttribute("aria-hidden", "true"); node.style.visibility = "hidden"; });
+    if (reason) showBattleToast("You’re out — watch the race finish.");
+  }
+
+  function showGroupMatchResult(data) {
+    removeResultOverlay();
+    window.multiplayerGameOver = true;
+    window.multiplayerMatchActive = false;
+    window.multiplayerCanPlay = false;
+
+    var placements = Array.isArray(data.placements) ? data.placements : [];
+    var mine = placements.find(function (entry) {
+      return Number(entry.playerNumber) === Number(window.multiplayerPlayerNumber);
+    });
+    var winner = placements.find(function (entry) { return Number(entry.placement) === 1; });
+    var rows = placements.map(function (entry) {
+      return '<div class="group-result-row ' + (Number(entry.playerNumber) === Number(window.multiplayerPlayerNumber) ? 'is-you' : '') + '">' +
+        '<b>' + ordinal(entry.placement) + '</b><strong>' + escapeHtml(entry.nickname) + '</strong>' +
+        '<span>' + formatScore(entry.score) + '</span><span>' + formatTile(entry.highestTile) + '</span></div>';
+    }).join("");
+
+    var overlay = document.createElement("div");
+    overlay.id = "result-overlay";
+    overlay.className = "result-overlay";
+    overlay.innerHTML = '<div class="result-box multiplayer-popup group-result-box">' +
+      '<span class="result-kicker">MATCH ENDED</span>' +
+      '<h1>' + (mine ? 'You placed ' + ordinal(mine.placement).toLowerCase() : 'Match complete') + '</h1>' +
+      '<p>' + escapeHtml(winner ? winner.nickname + " wins the race." : "The race is complete.") + '</p>' +
+      '<div class="group-result-table"><div class="group-result-head"><span>Place</span><span>Player</span><span>Score</span><span>Highest</span></div>' + rows + '</div>' +
+      '<div class="result-actions"><button class="primary-button" id="group-result-back">Back to Multiplayer</button></div></div>';
+    document.body.appendChild(overlay);
+    duckCompetitiveMusic();
+    playSound(mine && mine.placement === 1 ? "win" : "lose");
+    document.getElementById("group-result-back").addEventListener("click", function () {
+      removeResultOverlay();
+      leaveMultiplayerMatch();
+    });
+  }
+
   function createBattleView() {
     removeBattleShell();
+
+    if (groupMatchEnabled()) {
+      createGroupBattleView();
+      return;
+    }
 
     var mode = window.multiplayerModeName || "tile-race";
     var isFreeplay = mode === "freeplay";
@@ -2615,6 +3044,7 @@
     opponentStateAnimating = false;
     lastRenderedOpponentState = null;
     clearOpponentMotionTiles();
+    resetGroupState();
 
     if (battleShell && battleShell.parentNode) battleShell.remove();
     battleShell = null;
@@ -2664,6 +3094,10 @@
     window.multiplayerPlayerNumber = null;
     window.multiplayerProfiles = [];
     window.multiplayerModeName = null;
+    window.multiplayerCanPlay = true;
+    window.multiplayerLocalStatus = null;
+    window.multiplayerTargets = {};
+    resetGroupState();
     restoreGameContainer();
     showMultiplayerMenu();
   }
@@ -2700,6 +3134,16 @@
 
     if (ownHighestDisplay) ownHighestDisplay.textContent = lastOwnHighest;
     if (ownScoreDisplay) ownScoreDisplay.textContent = formatScore(lastOwnScore);
+
+    if (groupMatchEnabled()) {
+      latestPlayerStates[Number(window.multiplayerPlayerNumber)] = {
+        highestTile: lastOwnHighest,
+        score: lastOwnScore
+      };
+      if (latestGroupRaceState) updateGroupRaceState(latestGroupRaceState);
+      updateCompetitiveMusicIntensity();
+      return;
+    }
 
     var mode = window.multiplayerModeName || "tile-race";
     if (mode === "freeplay") {
@@ -3135,9 +3579,9 @@
     var canUndo = !!(window.multiplayerGame && window.multiplayerGame.freeplayUndoEntry);
     overlay.innerHTML = `
       <div class="result-box multiplayer-popup multiplayer-freeplay-popup">
-        <span class="result-kicker">FREEPLAY DUEL</span>
+        <span class="result-kicker">${groupMatchEnabled() ? "FREEPLAY" : "FREEPLAY DUEL"}</span>
         <h1>Board full</h1>
-        <p>Your run can keep going. Undo the last move or restart your board while your opponent keeps playing.</p>
+        <p>Your run can keep going. Undo the last move or restart your board while ${groupMatchEnabled() ? "everyone else keeps" : "your opponent keeps"} playing.</p>
         <div class="result-actions">
           ${canUndo ? '<button class="primary-button" id="freeplay-over-undo">Undo Last Move</button>' : ""}
           <button class="secondary-button" id="freeplay-over-restart">Restart Board</button>
@@ -3546,9 +3990,48 @@
     showPreMatchCountdown(data);
   });
 
+  socket.on("matchStart", function (data) {
+    if (data && data.raceState) latestGroupRaceState = data.raceState;
+  });
+
   socket.on("opponentState", function (data) {
+    if (groupMatchEnabled()) return;
     latestOpponentState = data.state;
     renderOpponentState(data.state);
+  });
+
+  socket.on("playerStateUpdate", function (data) {
+    if (!data || Number(data.playerNumber) === Number(window.multiplayerPlayerNumber)) return;
+    latestPlayerStates[Number(data.playerNumber)] = data.state;
+    if (groupMatchEnabled()) renderGroupOpponentState(Number(data.playerNumber), data.state);
+  });
+
+  socket.on("raceState", function (data) {
+    if (groupMatchEnabled()) updateGroupRaceState(data);
+  });
+
+  socket.on("playerEliminated", function (data) {
+    if (!data) return;
+    var profile = getProfile(data.playerNumber);
+    if (profile) profile.status = data.reason === "forfeit" || data.reason === "disconnect" ? "forfeited" : "eliminated";
+
+    if (Number(data.playerNumber) === Number(window.multiplayerPlayerNumber)) {
+      enterLocalSpectatorMode(data.reason);
+    } else {
+      var view = groupOpponentViews[Number(data.playerNumber)];
+      if (view && view.panel) view.panel.classList.add("is-eliminated");
+      if (view && view.status) view.status.textContent = "Eliminated";
+      showBattleToast((data.nickname || ("Player " + data.playerNumber)) + " is eliminated.");
+    }
+
+    if (data.raceState && groupMatchEnabled()) updateGroupRaceState(data.raceState);
+  });
+
+  socket.on("playerLeftMatch", function (data) {
+    if (!data || !groupMatchEnabled()) return;
+    var view = groupOpponentViews[Number(data.playerNumber)];
+    if (view && view.panel) view.panel.classList.add("is-eliminated");
+    if (view && view.status) view.status.textContent = "Left";
   });
 
   socket.on("playerProfileUpdated", function (profile) {
@@ -3556,6 +4039,11 @@
 
     if (Number(profile.playerNumber) === Number(window.multiplayerPlayerNumber)) {
       if (ownNicknameDisplay) ownNicknameDisplay.textContent = getOwnNickname();
+    } else if (groupMatchEnabled()) {
+      var groupView = groupOpponentViews[Number(profile.playerNumber)];
+      if (groupView && groupView.grid && THEMES.indexOf(profile.theme) !== -1) {
+        groupView.grid.setAttribute("data-theme", profile.theme);
+      }
     } else {
       if (opponentNicknameDisplay) opponentNicknameDisplay.textContent = getOpponentNickname();
       if (opponentGrid && THEMES.indexOf(profile.theme) !== -1) opponentGrid.setAttribute("data-theme", profile.theme);
@@ -3564,6 +4052,9 @@
   });
 
   socket.on("gameWinner", function (data) { showMatchResult(data); });
+  socket.on("matchFinished", function (data) {
+    if (groupMatchEnabled()) showGroupMatchResult(data);
+  });
 
   socket.on("rematchWaiting", function () {
     var button = document.getElementById("result-rematch");
