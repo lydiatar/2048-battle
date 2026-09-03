@@ -521,7 +521,15 @@ GameManager.prototype.move = function (direction) {
   var mergedPositions = [];
   var freeplayBoardEnded = false;
 
-  if (window.multiplayerGameOver || this.undoAnimating) {
+  if (
+    window.multiplayerGameOver ||
+    this.undoAnimating ||
+    (
+      window.multiplayerMode &&
+      window.multiplayerMatchActive &&
+      window.multiplayerCanPlay === false
+    )
+  ) {
     return;
   }
 
@@ -718,7 +726,13 @@ GameManager.prototype.move = function (direction) {
         // Competitive race modes are intentionally simple. If your board
         // has no legal moves before the target, you lose the race.
         this.over = true;
-        window.multiplayerGameOver = true;
+
+        if (Number(window.multiplayerRequiredPlayers || 2) > 2) {
+          window.multiplayerCanPlay = false;
+          window.multiplayerLocalStatus = "eliminated";
+        } else {
+          window.multiplayerGameOver = true;
+        }
 
         if (
           window.multiplayerSocket &&
