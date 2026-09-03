@@ -324,8 +324,16 @@
     localSpectatorNotice = null;
   }
 
+  function effectiveMultiplayerPlayerCount(data) {
+    var required = sanitizePlayerCount(data && data.requiredPlayers || window.multiplayerRequiredPlayers || 2);
+    var dataProfiles = data && Array.isArray(data.players) ? data.players.length : 0;
+    var knownProfiles = Array.isArray(window.multiplayerProfiles) ? window.multiplayerProfiles.length : 0;
+    var count = Math.max(required, dataProfiles, knownProfiles);
+    return Math.max(2, Math.min(4, count));
+  }
+
   function groupMatchEnabled() {
-    return Number(window.multiplayerRequiredPlayers || 2) > 2;
+    return effectiveMultiplayerPlayerCount() > 2;
   }
 
   function loadSettings() {
@@ -1008,7 +1016,10 @@
         ready: !!profile.ready,
         targetTile: profile.targetTile ? Number(profile.targetTile) : null,
         isHost: !!profile.isHost,
-        status: profile.status || "waiting"
+        status: profile.status || "waiting",
+        score: Number(profile.score || 0),
+        highestTile: Number(profile.highestTile || 0),
+        placement: profile.placement || null
       };
     });
   }
@@ -1503,8 +1514,18 @@
           <section class="multiplayer-mode-list">
             <span class="eyebrow">Multiplayer</span>
             <h2>Choose your match.</h2>
-            <p class="multiplayer-intro">Pick the group size, then choose how you want to play.</p>
+            <p class="multiplayer-intro">Create a match, or join one with a room code.</p>
 
+            <section class="multiplayer-direct-join" aria-label="Join a multiplayer room">
+              <span class="match-setup-kicker">JOIN A ROOM</span>
+              <div class="multiplayer-direct-join-row">
+                <input id="room-code" class="match-room-input" maxlength="6" placeholder="ROOM CODE" autocomplete="off" autocapitalize="characters" spellcheck="false" aria-label="Six-character room code">
+                <button class="button button-secondary" id="join-room">Join</button>
+              </div>
+              <p class="multiplayer-direct-join-status" id="lobby-status" aria-live="polite"></p>
+            </section>
+
+            <div class="multiplayer-create-separator"><span>Create a match</span></div>
             ${playerCountSelectorMarkup()}
 
             <div class="multiplayer-mode-buttons" id="multiplayer-mode-buttons">
@@ -1691,6 +1712,7 @@
     }
 
     setMultiplayerPreview("tile-race");
+    bindJoinRoom();
 
     document.getElementById("mode-tile-race").addEventListener("click", function () { animateCurrentScreenOut(1, showTileRaceLobby); });
     document.getElementById("mode-freeplay").addEventListener("click", function () { animateCurrentScreenOut(1, showFreeplayLobby); });
@@ -2337,7 +2359,7 @@
     currentRoomCode = data.roomCode || currentRoomCode;
     window.multiplayerRoomCode = currentRoomCode;
     window.multiplayerPlayerNumber = Number(data.playerNumber);
-    window.multiplayerRequiredPlayers = sanitizePlayerCount(data.requiredPlayers || 2);
+    window.multiplayerRequiredPlayers = effectiveMultiplayerPlayerCount(data);
     updateProfiles(data.players || []);
 
     var mode = data.mode || "tile-race";
@@ -2423,7 +2445,7 @@
     window.multiplayerGameOver = false;
     window.multiplayerModeName = mode;
     window.multiplayerPlayerNumber = Number(data.playerNumber);
-    window.multiplayerRequiredPlayers = sanitizePlayerCount(data.requiredPlayers || 2);
+    window.multiplayerRequiredPlayers = effectiveMultiplayerPlayerCount(data);
     window.multiplayerRoomCode = currentRoomCode;
     window.multiplayerTargetTile = Number(data.targetTile || 0);
     window.multiplayerOwnTarget = Number(data.ownTarget || data.targetTile || 0);
@@ -2537,7 +2559,7 @@
     var theme = THEMES.indexOf(profile.theme) !== -1 ? profile.theme : "classic";
     return '<section class="group-opponent-station" id="group-opponent-' + profile.playerNumber + '" data-player-number="' + profile.playerNumber + '">' +
       '<header class="group-opponent-heading">' +
-        '<div><span class="eyebrow">P' + profile.playerNumber + '</span><strong>' + escapeHtml(profile.nickname) + '</strong></div>' +
+        '<div><span class="eyebrow">P' + profile.playerNumber + '</span><strong id="group-nickname-' + profile.playerNumber + '">' + escapeHtml(profile.nickname) + '</strong></div>' +
         '<span class="group-rank-badge" id="group-rank-' + profile.playerNumber + '">—</span>' +
       '</header>' +
       '<div class="opponent-grid group-opponent-grid" id="group-grid-' + profile.playerNumber + '" data-theme="' + escapeHtml(theme) + '"></div>' +
@@ -2818,10 +2840,43 @@
     latestGroupRaceState = state || latestGroupRaceState;
     if (!latestGroupRaceState) return;
 
-    (latestGroupRaceState.players || []).forEach(function (player) {
+    var racePlayers = (latestGroupRaceState.players || []).slice();
+    var positioned = racePlayers.map(function (player) {
+      return {
+        player: player,
+        percent: Math.max(2.5, Math.min(97.5, Number(player.progress || 0) * 100))
+      };
+    }).sort(function (a, b) {
+      if (a.percent !== b.percent) return a.percent - b.percent;
+      return Number(a.player.playerNumber) - Number(b.player.playerNumber);
+    });
+
+    // Assign extra label lanes only when runners are visually clustered.
+    // Marker x-position remains the real tile progress; lanes only prevent
+    // labels/dots from drawing over each other.
+    var clusterStart = 0;
+    while (clusterStart < positioned.length) {
+      var clusterEnd = clusterStart + 1;
+      while (
+        clusterEnd < positioned.length &&
+        positioned[clusterEnd].percent - positioned[clusterEnd - 1].percent < 8
+      ) {
+        clusterEnd += 1;
+      }
+      for (var laneIndex = clusterStart; laneIndex < clusterEnd; laneIndex += 1) {
+        positioned[laneIndex].lane = (laneIndex - clusterStart) % 4;
+      }
+      clusterStart = clusterEnd;
+    }
+
+    positioned.forEach(function (entry) {
+      var player = entry.player;
       var marker = document.getElementById("group-race-" + player.playerNumber);
       if (marker) {
-        marker.style.left = Math.round(Math.max(0, Math.min(1, Number(player.progress || 0))) * 1000) / 10 + "%";
+        marker.style.left = (Math.round(entry.percent * 10) / 10) + "%";
+        marker.setAttribute("data-lane", String(entry.lane || 0));
+        marker.classList.toggle("near-start", entry.percent < 10);
+        marker.classList.toggle("near-end", entry.percent > 90);
         var small = marker.querySelector("small");
         if (small) small.textContent = formatTile(player.highestTile || 2);
         marker.classList.toggle("is-eliminated", player.status === "eliminated" || player.status === "forfeited");
@@ -2838,14 +2893,14 @@
     });
 
     var summary = document.getElementById("race-leader-summary");
-    var leader = (latestGroupRaceState.players || []).find(function (player) {
+    var leader = racePlayers.find(function (player) {
       return player.playerId === latestGroupRaceState.leaderPlayerId;
     });
     if (summary) summary.textContent = leader ? ((Number(leader.playerNumber) === Number(window.multiplayerPlayerNumber) ? "You" : leader.nickname) + " lead" + (Number(leader.playerNumber) === Number(window.multiplayerPlayerNumber) ? "" : "s")) : "The race is even";
 
     var fill = document.getElementById("group-race-fill");
     if (fill) {
-      var max = (latestGroupRaceState.players || []).reduce(function (value, player) {
+      var max = racePlayers.reduce(function (value, player) {
         return Math.max(value, Number(player.progress || 0));
       }, 0);
       fill.style.width = Math.round(max * 1000) / 10 + "%";
@@ -3833,7 +3888,7 @@
       window.rinasSettings.nickname = sanitizeNickname(nicknameInput.value);
       nicknameInput.value = window.rinasSettings.nickname;
       saveSettings();
-      if (window.multiplayerMatchActive) {
+      if (currentRoomCode) {
         socket.emit("updateProfile", { nickname: window.rinasSettings.nickname, theme: window.rinasSettings.theme });
         updateOneProfile({ playerNumber: window.multiplayerPlayerNumber, nickname: window.rinasSettings.nickname, theme: window.rinasSettings.theme });
         if (ownNicknameDisplay) ownNicknameDisplay.textContent = getOwnNickname();
@@ -4041,6 +4096,8 @@
       if (ownNicknameDisplay) ownNicknameDisplay.textContent = getOwnNickname();
     } else if (groupMatchEnabled()) {
       var groupView = groupOpponentViews[Number(profile.playerNumber)];
+      var groupName = document.getElementById("group-nickname-" + Number(profile.playerNumber));
+      if (groupName) groupName.textContent = sanitizeNickname(profile.nickname) || ("Player " + profile.playerNumber);
       if (groupView && groupView.grid && THEMES.indexOf(profile.theme) !== -1) {
         groupView.grid.setAttribute("data-theme", profile.theme);
       }
