@@ -116,7 +116,15 @@ function makePlayer(socketId, slot, raw, isHost) {
     ready: false,
     targetTile: null,
     isHost: !!isHost,
-    status: "waiting"
+    status: "waiting",
+    state: {
+      grid: null,
+      score: 0,
+      highestTile: 0,
+      boardValue: 0
+    },
+    eliminationSequence: null,
+    placement: null
   };
 }
 
@@ -130,12 +138,231 @@ function publicPlayer(player) {
     ready: !!player.ready,
     targetTile: player.targetTile,
     isHost: !!player.isHost,
-    status: player.status
+    status: player.status,
+    score: Number(player.state && player.state.score || 0),
+    highestTile: Number(player.state && player.state.highestTile || 0),
+    placement: player.placement || null
   };
 }
 
 function roomProfiles(room) {
   return sortedPlayers(room).map(publicPlayer);
+}
+
+
+function isPowerOfTwo(value) {
+  const n = Number(value);
+  return Number.isInteger(n) && n >= 2 && (n & (n - 1)) === 0;
+}
+
+function sanitizeGridSnapshot(rawGrid) {
+  if (!rawGrid || Number(rawGrid.size) !== 4 || !Array.isArray(rawGrid.cells) || rawGrid.cells.length !== 4) {
+    return null;
+  }
+
+  const cells = [];
+  let highestTile = 0;
+  let boardValue = 0;
+
+  for (let x = 0; x < 4; x++) {
+    if (!Array.isArray(rawGrid.cells[x]) || rawGrid.cells[x].length !== 4) return null;
+    cells[x] = [];
+
+    for (let y = 0; y < 4; y++) {
+      const tile = rawGrid.cells[x][y];
+      if (!tile) {
+        cells[x][y] = null;
+        continue;
+      }
+
+      const value = Number(tile.value);
+      if (!isPowerOfTwo(value) || value > 1073741824) return null;
+
+      highestTile = Math.max(highestTile, value);
+      boardValue += value;
+      cells[x][y] = {
+        position: { x, y },
+        value
+      };
+    }
+  }
+
+  return {
+    grid: { size: 4, cells },
+    highestTile,
+    boardValue
+  };
+}
+
+function gridHasLegalMove(grid) {
+  if (!grid || !grid.cells) return true;
+
+  for (let x = 0; x < 4; x++) {
+    for (let y = 0; y < 4; y++) {
+      const tile = grid.cells[x][y];
+      if (!tile) return true;
+
+      const right = x < 3 ? grid.cells[x + 1][y] : null;
+      const down = y < 3 ? grid.cells[x][y + 1] : null;
+      if ((right && right.value === tile.value) || (down && down.value === tile.value)) return true;
+    }
+  }
+
+  return false;
+}
+
+function playerProgress(room, player) {
+  const target = targetForPlayer(room, player.slot);
+  if (!target) return 0;
+  const highest = Math.max(2, Number(player.state && player.state.highestTile || 2));
+  const currentStep = Math.max(0, Math.log2(highest) - 1);
+  const totalSteps = Math.max(1, Math.log2(Math.max(4, target)) - 1);
+  return Math.max(0, Math.min(1, currentStep / totalSteps));
+}
+
+function compareLivePlayers(room, a, b) {
+  const progressDiff = playerProgress(room, b) - playerProgress(room, a);
+  if (Math.abs(progressDiff) > 0.000001) return progressDiff;
+
+  const highestDiff = Number(b.state && b.state.highestTile || 0) - Number(a.state && a.state.highestTile || 0);
+  if (highestDiff) return highestDiff;
+
+  const boardDiff = Number(b.state && b.state.boardValue || 0) - Number(a.state && a.state.boardValue || 0);
+  if (boardDiff) return boardDiff;
+
+  return a.slot - b.slot;
+}
+
+function raceState(room) {
+  const active = sortedPlayers(room)
+    .filter((player) => player.status === "active" || player.status === "winner")
+    .sort((a, b) => compareLivePlayers(room, a, b));
+
+  const rankById = new Map();
+  active.forEach((player, index) => rankById.set(player.id, index + 1));
+
+  (room.eliminationOrder || []).forEach((playerId, index) => {
+    rankById.set(playerId, room.requiredPlayers - index);
+  });
+
+  return {
+    leaderPlayerId: active.length ? active[0].id : null,
+    players: sortedPlayers(room).map((player) => ({
+      playerId: player.id,
+      playerNumber: player.slot,
+      nickname: player.nickname,
+      status: player.status,
+      connected: player.connected,
+      highestTile: Number(player.state && player.state.highestTile || 0),
+      score: Number(player.state && player.state.score || 0),
+      progress: playerProgress(room, player),
+      rank: player.placement || rankById.get(player.id) || null,
+      targetTile: targetForPlayer(room, player.slot)
+    }))
+  };
+}
+
+function resetMatchPlayer(player) {
+  player.status = "active";
+  player.state = { grid: null, score: 0, highestTile: 0, boardValue: 0 };
+  player.eliminationSequence = null;
+  player.placement = null;
+}
+
+function finalizePlacements(room, winner) {
+  const occupied = new Set();
+
+  if (winner) {
+    winner.status = "winner";
+    winner.placement = 1;
+    occupied.add(1);
+  }
+
+  (room.eliminationOrder || []).forEach((playerId, index) => {
+    const player = room.players.find((entry) => entry.id === playerId);
+    if (!player) return;
+    const placement = room.requiredPlayers - index;
+    player.placement = placement;
+    occupied.add(placement);
+  });
+
+  const remaining = room.players
+    .filter((player) => player !== winner && !player.placement)
+    .sort((a, b) => compareLivePlayers(room, a, b));
+
+  let next = 2;
+  remaining.forEach((player) => {
+    while (occupied.has(next)) next += 1;
+    player.placement = next;
+    occupied.add(next);
+    next += 1;
+  });
+
+  return sortedPlayers(room)
+    .slice()
+    .sort((a, b) => Number(a.placement || 99) - Number(b.placement || 99))
+    .map((player) => ({
+      placement: player.placement,
+      playerId: player.id,
+      playerNumber: player.slot,
+      nickname: player.nickname,
+      score: Number(player.state && player.state.score || 0),
+      highestTile: Number(player.state && player.state.highestTile || 0),
+      status: player.status
+    }));
+}
+
+function finishScalableMatch(roomCode, room, winner, reason) {
+  if (room.status !== "playing" || room.winner !== null || !winner) return;
+
+  room.status = "finished";
+  room.winner = winner.slot;
+  room.winnerPlayerId = winner.id;
+  room.rematchVotes = [];
+  const placements = finalizePlacements(room, winner);
+  const payload = {
+    winner: winner.slot,
+    winnerPlayerId: winner.id,
+    reason,
+    mode: room.mode,
+    targetTile: room.targetTile || null,
+    targets: customTargetsObject(room),
+    placements,
+    raceState: raceState(room)
+  };
+
+  if (room.requiredPlayers === 2) {
+    const loser = placements.find((entry) => entry.placement === 2);
+    payload.loser = loser ? loser.playerNumber : null;
+    io.to(roomCode).emit("gameWinner", payload);
+  } else {
+    io.to(roomCode).emit("matchFinished", payload);
+  }
+
+  console.log("Room", roomCode, "finished. Winner: Player", winner.slot, "Reason:", reason);
+}
+
+function eliminatePlayer(roomCode, room, player, reason) {
+  if (!player || player.status !== "active" || room.mode === "freeplay") return false;
+
+  player.status = reason === "forfeit" || reason === "disconnect" ? "forfeited" : "eliminated";
+  if (!room.eliminationOrder.includes(player.id)) room.eliminationOrder.push(player.id);
+  player.eliminationSequence = room.eliminationOrder.length;
+
+  io.to(roomCode).emit("playerEliminated", {
+    playerId: player.id,
+    playerNumber: player.slot,
+    nickname: player.nickname,
+    reason,
+    raceState: raceState(room)
+  });
+
+  const active = room.players.filter((entry) => entry.status === "active");
+  if (active.length === 1) {
+    finishScalableMatch(roomCode, room, active[0], "last-standing");
+  }
+
+  return true;
 }
 
 function targetForPlayer(room, playerNumber) {
@@ -212,7 +439,9 @@ function roomPayload(roomCode, room, socketId) {
     players,
     canStart: startCheck.canStart,
     startStatus: startCheck.reason,
-    gameplaySupported: room.requiredPlayers === 2,
+    gameplaySupported: room.requiredPlayers >= 2 && room.requiredPlayers <= 4,
+    startAt: room.startAt || null,
+    raceState: room.status === "playing" || room.status === "finished" ? raceState(room) : null,
     chatMessages: room.chatMessages.slice(-MAX_CHAT_MESSAGES)
   };
 }
@@ -254,33 +483,51 @@ function removeSocketFromRoom(socket, notifyOpponent) {
     return;
   }
 
-  socket.leave(roomCode);
-
-  if (notifyOpponent && room.players.length > 1) {
-    socket.to(roomCode).emit("opponentLeftMatch");
+  if (room.status === "countdown") {
+    if (room.countdownTimer) clearTimeout(room.countdownTimer);
+    room.countdownTimer = null;
+    room.startAt = null;
+    room.status = "waiting";
+    socket.leave(roomCode);
+    room.players = room.players.filter((entry) => entry.id !== player.id);
+    transferHostIfNeeded(room);
+    room.players.forEach((entry) => {
+      entry.status = "waiting";
+      if (!entry.isHost) entry.ready = false;
+    });
+    if (!room.players.length) rooms.delete(roomCode);
+    else broadcastRoomState(roomCode, room);
+    return;
   }
 
-  rooms.delete(roomCode);
-  console.log("Room", roomCode, "deleted because a player left an active legacy match.");
+  socket.leave(roomCode);
+  player.connected = false;
+
+  if (room.status === "playing") {
+    if (room.mode === "freeplay") {
+      player.status = "left";
+      io.to(roomCode).emit("playerLeftMatch", {
+        playerId: player.id,
+        playerNumber: player.slot,
+        nickname: player.nickname,
+        raceState: raceState(room)
+      });
+    } else {
+      eliminatePlayer(roomCode, room, player, notifyOpponent ? "disconnect" : "forfeit");
+    }
+
+    if (!room.players.some((entry) => entry.connected)) rooms.delete(roomCode);
+    return;
+  }
+
+  if (room.status === "finished" && !room.players.some((entry) => entry.connected)) {
+    rooms.delete(roomCode);
+  }
 }
 
 function finishRoom(roomCode, room, winnerNumber, reason, loserNumber) {
-  if (room.status !== "playing" || room.winner !== null) return;
-
-  room.status = "finished";
-  room.winner = winnerNumber;
-  room.rematchVotes = [];
-
-  io.to(roomCode).emit("gameWinner", {
-    winner: winnerNumber,
-    loser: loserNumber || null,
-    reason,
-    mode: room.mode,
-    targetTile: room.targetTile || null,
-    targets: customTargetsObject(room)
-  });
-
-  console.log("Room", roomCode, "finished. Winner: Player", winnerNumber, "Reason:", reason);
+  const winner = room.players.find((player) => player.slot === Number(winnerNumber));
+  finishScalableMatch(roomCode, room, winner, reason);
 }
 
 io.on("connection", (socket) => {
@@ -300,6 +547,11 @@ io.on("connection", (socket) => {
       requiredPlayers,
       status: "waiting",
       winner: null,
+      winnerPlayerId: null,
+      eliminationOrder: [],
+      eventSequence: 0,
+      startAt: null,
+      countdownTimer: null,
       rematchVotes: [],
       mode,
       targetTile: mode === "tile-race"
@@ -412,23 +664,30 @@ io.on("connection", (socket) => {
       return;
     }
 
-    // Phase 4 delivers scalable room/setup state. The existing gameplay renderer
-    // is still a 1v1 renderer, so larger rooms deliberately stop here until Phase 5.
-    if (room.requiredPlayers > 2) {
-      socket.emit("startError", "3- and 4-player gameplay is not enabled in this build yet.");
-      return;
-    }
-
-    room.status = "playing";
+    room.status = "countdown";
     room.winner = null;
+    room.winnerPlayerId = null;
+    room.eliminationOrder = [];
     room.rematchVotes = [];
+    room.startAt = Date.now() + 3400;
 
     sortedPlayers(room).forEach((entry) => {
-      entry.status = "active";
+      resetMatchPlayer(entry);
       io.to(entry.socketId).emit("gameStart", roomPayload(roomCode, room, entry.socketId));
     });
 
-    console.log("Host started room", roomCode);
+    room.countdownTimer = setTimeout(() => {
+      if (room.status !== "countdown") return;
+      room.status = "playing";
+      room.countdownTimer = null;
+      io.to(roomCode).emit("matchStart", {
+        roomCode,
+        startAt: room.startAt,
+        raceState: raceState(room)
+      });
+    }, Math.max(0, room.startAt - Date.now() - 120));
+
+    console.log("Host started countdown for room", roomCode, "with", room.requiredPlayers, "players.");
   });
 
   socket.on("sendLobbyMessage", (payload) => {
@@ -505,30 +764,12 @@ io.on("connection", (socket) => {
     const found = findRoomForSocket(socket.id);
     if (!found) return;
 
-    const { roomCode, room, player } = found;
-
-    if (room.status === "waiting") {
-      removeWaitingPlayer(socket, roomCode, room, player);
+    if (found.room.status === "waiting") {
+      removeWaitingPlayer(socket, found.roomCode, found.room, found.player);
       return;
     }
 
-    if (
-      room.status === "playing" &&
-      room.winner === null &&
-      room.players.length === 2 &&
-      room.mode !== "freeplay"
-    ) {
-      const loserNumber = player.slot;
-      const other = room.players.find((entry) => entry.socketId !== socket.id);
-      const winnerNumber = other ? other.slot : null;
-      if (winnerNumber) finishRoom(roomCode, room, winnerNumber, "forfeit", loserNumber);
-      socket.leave(roomCode);
-      rooms.delete(roomCode);
-      console.log("Room", roomCode, "deleted after forfeit by Player", loserNumber);
-      return;
-    }
-
-    removeSocketFromRoom(socket, true);
+    removeSocketFromRoom(socket, false);
   });
 
   socket.on("playerState", (state) => {
@@ -536,53 +777,75 @@ io.on("connection", (socket) => {
     if (!found) return;
 
     const { roomCode, room, player } = found;
-    if (room.status !== "playing") return;
+    if (room.status !== "playing" || player.status !== "active") return;
+    if (room.startAt && Date.now() + 30 < room.startAt) return;
 
-    if (state && typeof state === "object") {
-      player.nickname = sanitizeNickname(state.nickname || player.nickname, `Player ${player.slot}`);
-      // Never accept an active-match theme mutation.
+    const sanitized = sanitizeGridSnapshot(state && state.grid);
+    if (!sanitized) return;
+
+    player.nickname = sanitizeNickname(state && state.nickname || player.nickname, `Player ${player.slot}`);
+    player.state = {
+      grid: sanitized.grid,
+      score: Math.max(0, Math.floor(Number(state && state.score || 0))),
+      highestTile: sanitized.highestTile,
+      boardValue: sanitized.boardValue
+    };
+
+    const outbound = {
+      playerNumber: player.slot,
+      playerId: player.id,
+      status: player.status,
+      state: {
+        grid: sanitized.grid,
+        score: player.state.score,
+        highestTile: player.state.highestTile,
+        over: !!(state && state.over),
+        won: !!(state && state.won),
+        mode: room.mode,
+        targetTile: room.targetTile || 0,
+        ownTarget: targetForPlayer(room, player.slot) || 0,
+        theme: player.theme,
+        nickname: player.nickname,
+        motion: state && state.motion || null
+      }
+    };
+
+    socket.to(roomCode).emit("playerStateUpdate", outbound);
+    if (room.requiredPlayers === 2) {
+      socket.to(roomCode).emit("opponentState", outbound);
     }
 
-    socket.to(roomCode).emit("opponentState", {
-      playerNumber: player.slot,
-      state
-    });
+    if (room.mode !== "freeplay") {
+      const target = targetForPlayer(room, player.slot);
+      if (target && sanitized.highestTile >= target) {
+        finishScalableMatch(roomCode, room, player, "target");
+        return;
+      }
+
+      if (!gridHasLegalMove(sanitized.grid)) {
+        eliminatePlayer(roomCode, room, player, "board-stuck");
+        return;
+      }
+
+      io.to(roomCode).emit("raceState", raceState(room));
+    }
   });
 
-  socket.on("reachedTarget", (data) => {
-    const found = findRoomForSocket(socket.id);
-    if (!found) return;
-
-    const { roomCode, room, player } = found;
-    if (
-      room.status !== "playing" ||
-      room.winner !== null ||
-      room.players.length !== 2 ||
-      (room.mode !== "tile-race" && room.mode !== "custom-race")
-    ) return;
-
-    const requiredTarget = targetForPlayer(room, player.slot);
-    const reportedTile = Number(data && data.tileValue);
-    if (!Number.isFinite(reportedTile) || !requiredTarget || reportedTile < requiredTarget) return;
-
-    const other = room.players.find((entry) => entry.socketId !== socket.id);
-    finishRoom(roomCode, room, player.slot, "target", other ? other.slot : null);
+  socket.on("reachedTarget", () => {
+    // Outcome is derived from the authoritative sanitized playerState snapshot.
   });
 
   socket.on("playerEliminated", () => {
     const found = findRoomForSocket(socket.id);
     if (!found) return;
-
     const { roomCode, room, player } = found;
-    if (
-      room.status !== "playing" ||
-      room.winner !== null ||
-      room.players.length !== 2 ||
-      room.mode === "freeplay"
-    ) return;
+    if (room.status !== "playing" || room.mode === "freeplay") return;
 
-    const other = room.players.find((entry) => entry.socketId !== socket.id);
-    if (other) finishRoom(roomCode, room, other.slot, "board-stuck", player.slot);
+    // The final state normally resolves this automatically. This event is a
+    // fallback for a locked board whose last state has already been accepted.
+    if (player.state && player.state.grid && !gridHasLegalMove(player.state.grid)) {
+      eliminatePlayer(roomCode, room, player, "board-stuck");
+    }
   });
 
   socket.on("requestRematch", () => {
@@ -605,10 +868,12 @@ io.on("connection", (socket) => {
 
     room.status = "playing";
     room.winner = null;
+    room.winnerPlayerId = null;
+    room.eliminationOrder = [];
     room.rematchVotes = [];
 
     sortedPlayers(room).forEach((player) => {
-      player.status = "active";
+      resetMatchPlayer(player);
       io.to(player.socketId).emit("rematchStart", roomPayload(roomCode, room, player.socketId));
     });
 
