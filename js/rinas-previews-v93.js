@@ -1,4 +1,4 @@
-/* Rina's 2048 — production numberless previews v92 */
+/* Rina's 2048 — production numberless previews v93 */
 (function () {
   "use strict";
 
@@ -203,6 +203,18 @@
       directions: ["down","left","up","right"],
       cadence: 1010,
       offset: 2
+    },
+    "multi-c": {
+      seed: [2,0,4,0,0,2,0,2,4,0,0,0,0,2,0,0],
+      directions: ["left","up","right","down"],
+      cadence: 970,
+      offset: 3
+    },
+    "multi-d": {
+      seed: [0,2,0,2,4,0,0,4,0,2,0,0,0,0,2,0],
+      directions: ["up","right","down","left"],
+      cadence: 1050,
+      offset: 4
     }
   };
 
