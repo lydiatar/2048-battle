@@ -4507,3 +4507,355 @@ body.solo-active #site-footer { display:none!important; }
     align-self:center!important;
   }
 }
+
+
+/* ============================================================
+   v96 â€” waiting-room viewport fit + footer anchoring
+   ============================================================ */
+
+/* Keep the attribution visually anchored to the browser bottom instead of
+   making it another document-flow row that causes otherwise unnecessary
+   page scrolling. Solo and active multiplayer already hide it. */
+#site-footer {
+  position:fixed!important;
+  left:0!important;
+  right:0!important;
+  bottom:0!important;
+  z-index:24!important;
+  padding:8px 20px 10px!important;
+  background:color-mix(in srgb,var(--paper) 94%,transparent)!important;
+  border-top:1px solid color-mix(in srgb,var(--line-soft) 68%,transparent)!important;
+  backdrop-filter:blur(8px);
+  -webkit-backdrop-filter:blur(8px);
+  font-size:.78rem!important;
+}
+
+/* Occupancy belongs with the roster, not floating beside the page title. */
+.waiting-roster-section {
+  min-width:0;
+}
+
+.waiting-roster-meta {
+  min-height:25px;
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:12px;
+  margin-bottom:4px;
+}
+
+.waiting-roster-meta > strong {
+  color:var(--muted);
+  font:700 .68rem/1 var(--font-display);
+  letter-spacing:.035em;
+  white-space:nowrap;
+}
+
+/* The lobby is a single-screen setup surface on desktop/tablet landscape.
+   The page itself should not need scrolling at the target laptop/desktop
+   viewports. Chat remains the only intentionally scrollable region. */
+@media (min-width:881px) {
+  .screen-multiplayer-waiting {
+    height:100vh!important;
+    height:100svh!important;
+    min-height:0!important;
+    overflow:hidden!important;
+    padding-bottom:34px!important;
+  }
+
+  .screen-multiplayer-waiting .app-screen-inner {
+    height:100%!important;
+    min-height:0!important;
+    display:flex!important;
+    flex-direction:column!important;
+  }
+
+  .screen-multiplayer-waiting .app-header {
+    flex:0 0 auto!important;
+    min-height:68px!important;
+    margin-bottom:8px!important;
+    padding:10px 0!important;
+  }
+
+  .screen-multiplayer-waiting #screen-content {
+    flex:1 1 auto!important;
+    min-height:0!important;
+    display:flex!important;
+    align-items:center!important;
+    justify-content:center!important;
+    padding:0 0 4px!important;
+  }
+
+  .screen-multiplayer-waiting .waiting-room-screen {
+    width:min(100%,920px)!important;
+    margin:0 auto!important;
+  }
+
+  .screen-multiplayer-waiting .waiting-room-sheet {
+    width:100%!important;
+    padding:18px 26px!important;
+  }
+
+  .screen-multiplayer-waiting .waiting-room-header {
+    max-width:none!important;
+    padding-bottom:12px!important;
+  }
+
+  .screen-multiplayer-waiting .waiting-room-heading-line {
+    min-height:18px!important;
+  }
+
+  .screen-multiplayer-waiting .waiting-room-header h2 {
+    margin-top:7px!important;
+    font-size:2.2rem!important;
+    line-height:.98!important;
+  }
+
+  .screen-multiplayer-waiting .waiting-room-header p {
+    margin-top:7px!important;
+    font-size:.88rem!important;
+    line-height:1.35!important;
+  }
+
+  .screen-multiplayer-waiting .waiting-room-body {
+    grid-template-columns:minmax(215px,.72fr) minmax(0,1.48fr)!important;
+    gap:26px!important;
+    padding:14px 0 10px!important;
+  }
+
+  .screen-multiplayer-waiting .waiting-room-main-column {
+    gap:11px!important;
+  }
+
+  .screen-multiplayer-waiting .waiting-code-row {
+    margin-top:6px!important;
+  }
+
+  .screen-multiplayer-waiting .waiting-code-row .match-room-code {
+    font-size:2.05rem!important;
+    letter-spacing:.11em!important;
+  }
+
+  .screen-multiplayer-waiting .match-copy-status {
+    margin-top:2px!important;
+    font-size:.72rem!important;
+    line-height:1.25!important;
+  }
+
+  .screen-multiplayer-waiting .waiting-mode-summary {
+    margin-top:13px!important;
+    padding-top:12px!important;
+  }
+
+  .screen-multiplayer-waiting .waiting-mode-summary > strong {
+    font-size:1.08rem!important;
+  }
+
+  .screen-multiplayer-waiting .waiting-target-copy {
+    margin-top:4px!important;
+    font-size:.74rem!important;
+  }
+
+  .screen-multiplayer-waiting .lobby-personal-target {
+    gap:7px!important;
+    margin-top:12px!important;
+    padding-top:11px!important;
+  }
+
+  .screen-multiplayer-waiting .lobby-target-picker .target-button {
+    min-height:34px!important;
+    padding:4px!important;
+    font-size:.72rem!important;
+  }
+
+  .screen-multiplayer-waiting .waiting-roster-meta {
+    min-height:22px!important;
+    margin-bottom:2px!important;
+  }
+
+  .screen-multiplayer-waiting .waiting-roster-row {
+    min-height:43px!important;
+  }
+
+  .screen-multiplayer-waiting .waiting-roster-head {
+    min-height:23px!important;
+  }
+
+  .screen-multiplayer-waiting .waiting-duel {
+    gap:9px!important;
+  }
+
+  .screen-multiplayer-waiting .waiting-player-card {
+    min-height:106px!important;
+    padding:14px!important;
+  }
+
+  .screen-multiplayer-waiting .waiting-player-card > strong {
+    margin-top:6px!important;
+    font-size:1.5rem!important;
+  }
+
+  .screen-multiplayer-waiting .waiting-player-card > small {
+    margin-top:8px!important;
+  }
+
+  .screen-multiplayer-waiting .waiting-vs {
+    width:36px!important;
+    height:36px!important;
+  }
+
+  .screen-multiplayer-waiting .lobby-chat {
+    padding-top:9px!important;
+  }
+
+  .screen-multiplayer-waiting .lobby-chat-heading {
+    margin-bottom:3px!important;
+  }
+
+  .screen-multiplayer-waiting .lobby-chat-history {
+    height:66px!important;
+    padding-top:1px!important;
+    padding-bottom:1px!important;
+  }
+
+  .screen-multiplayer-waiting .lobby-chat-message {
+    padding:3px 0!important;
+    font-size:.74rem!important;
+  }
+
+  .screen-multiplayer-waiting .lobby-chat-form {
+    margin-top:5px!important;
+  }
+
+  .screen-multiplayer-waiting .lobby-chat-form input,
+  .screen-multiplayer-waiting .lobby-chat-form .button {
+    min-height:40px!important;
+  }
+
+  .screen-multiplayer-waiting .lobby-chat-status {
+    min-height:0!important;
+    margin-top:2px!important;
+  }
+
+  .screen-multiplayer-waiting .waiting-room-footer {
+    padding-top:10px!important;
+  }
+
+  .screen-multiplayer-waiting .lobby-host-action,
+  .screen-multiplayer-waiting .lobby-guest-action {
+    gap:10px!important;
+  }
+
+  .screen-multiplayer-waiting .lobby-action-status {
+    font-size:.74rem!important;
+  }
+
+  .screen-multiplayer-waiting .lobby-start-button,
+  .screen-multiplayer-waiting .lobby-ready-button {
+    min-height:42px!important;
+  }
+}
+
+/* At particularly short desktop/laptop browser heights, use an even tighter
+   rhythm rather than falling back to page scrolling. */
+@media (min-width:881px) and (max-height:720px) {
+  .screen-multiplayer-waiting .app-header {
+    min-height:62px!important;
+    padding:7px 0!important;
+  }
+
+  .screen-multiplayer-waiting .waiting-room-sheet {
+    padding:14px 22px!important;
+  }
+
+  .screen-multiplayer-waiting .waiting-room-header {
+    padding-bottom:9px!important;
+  }
+
+  .screen-multiplayer-waiting .waiting-room-header h2 {
+    font-size:1.95rem!important;
+  }
+
+  .screen-multiplayer-waiting .waiting-room-header p {
+    margin-top:5px!important;
+  }
+
+  .screen-multiplayer-waiting .waiting-room-body {
+    gap:22px!important;
+    padding:10px 0 8px!important;
+  }
+
+  .screen-multiplayer-waiting .waiting-roster-row {
+    min-height:39px!important;
+  }
+
+  .screen-multiplayer-waiting .lobby-chat-history {
+    height:50px!important;
+  }
+
+  .screen-multiplayer-waiting .waiting-room-footer {
+    padding-top:8px!important;
+  }
+}
+
+/* Portrait tablet / narrow layouts may genuinely need document scrolling.
+   Keep the footer in normal flow there so it never covers stacked content. */
+@media (max-width:880px) {
+  #site-footer {
+    position:static!important;
+    padding:18px 20px 24px!important;
+    border-top:0!important;
+    backdrop-filter:none;
+    -webkit-backdrop-filter:none;
+  }
+}
+
+
+/* ============================================================
+   v97 â€” 3/4-player preview opponent-board alignment
+   ============================================================ */
+
+/*
+  In group previews, the opponent rail should align to the playable board,
+  not to the YOU identity label above it. This makes the boards read as one
+  coherent gameplay composition.
+*/
+.pvp-preview-arena[data-player-count="3"],
+.pvp-preview-arena[data-player-count="4"] {
+  align-items:start!important;
+}
+
+.pvp-preview-arena[data-player-count="3"] .pvp-preview-opponent-rail,
+.pvp-preview-arena[data-player-count="4"] .pvp-preview-opponent-rail {
+  height:176px!important;
+  margin-top:36px!important; /* matches YOU label + label/board gap */
+  justify-content:space-between!important;
+  gap:0!important;
+  box-sizing:border-box;
+}
+
+/* Two opponents can stay comfortably legible while matching the top and
+   bottom edges of the primary board. */
+.pvp-preview-arena[data-player-count="3"] .pvp-motion-board-mini {
+  width:72px!important;
+  height:72px!important;
+}
+
+/* Three opponent boards fit inside the same primary-board vertical span
+   without extending above or below it. */
+.pvp-preview-arena[data-player-count="4"] .pvp-motion-board-mini {
+  width:54px!important;
+  height:54px!important;
+}
+
+@media (max-width:980px) {
+  .pvp-preview-arena[data-player-count="3"] .pvp-preview-opponent-rail,
+  .pvp-preview-arena[data-player-count="4"] .pvp-preview-opponent-rail {
+    height:168px!important;
+  }
+
+  .pvp-preview-arena[data-player-count="4"] .pvp-motion-board-mini {
+    width:51px!important;
+    height:51px!important;
+  }
+}
