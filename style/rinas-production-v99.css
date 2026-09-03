@@ -5102,3 +5102,279 @@ body.solo-active #site-footer { display:none!important; }
     transition:none!important;
   }
 }
+
+
+/* ============================================================
+   v99 â€” Phase 5 multiplayer stability + fit pass
+   ============================================================ */
+
+/* Direct room-code entry belongs on the Multiplayer landing screen so a
+   joiner never has to choose the host's mode or player count. */
+.multiplayer-direct-join {
+  margin:16px 0 14px;
+  padding:12px 0 14px;
+  border-top:1px solid var(--line-soft);
+  border-bottom:1px solid var(--line-soft);
+}
+.multiplayer-direct-join-row {
+  display:grid;
+  grid-template-columns:minmax(0,1fr) auto;
+  gap:8px;
+  margin-top:7px;
+}
+.multiplayer-direct-join-row .match-room-input {
+  min-height:44px;
+  margin:0!important;
+  text-align:left;
+  letter-spacing:.09em;
+}
+.multiplayer-direct-join-row .button {
+  min-width:76px;
+  min-height:44px;
+}
+.multiplayer-direct-join-status {
+  min-height:16px;
+  margin:5px 0 0;
+  color:var(--muted);
+  font-size:.72rem;
+}
+.multiplayer-create-separator {
+  display:flex;
+  align-items:center;
+  gap:9px;
+  margin:2px 0 5px;
+  color:var(--muted);
+  font:700 .67rem/1 var(--font-display);
+  letter-spacing:.07em;
+  text-transform:uppercase;
+}
+.multiplayer-create-separator::after {
+  content:"";
+  height:1px;
+  flex:1;
+  background:var(--line-soft);
+}
+
+/* A multiplayer match is a single-screen play surface on supported desktop
+   and tablet-landscape sizes. Scale the board before introducing page scroll. */
+@media (min-width:881px) {
+  .prototype-battle.battle-shell {
+    overflow:hidden!important;
+    padding-bottom:0!important;
+  }
+  .prototype-battle .match-bar {
+    min-height:72px!important;
+    padding:9px 0!important;
+  }
+  .prototype-battle .match-main {
+    height:calc(100vh - 72px)!important;
+    min-height:0!important;
+    box-sizing:border-box;
+    justify-content:flex-start;
+    padding:10px 16px 8px!important;
+    overflow:hidden!important;
+  }
+  .prototype-battle .match-rule {
+    margin:0 0 10px!important;
+    font-size:.82rem!important;
+  }
+  .group-battle {
+    --group-main-board:430px;
+    --battle-board-size:430px;
+    --local-zoom:.86;
+  }
+  .group-battle .group-match-layout {
+    flex:0 0 auto;
+  }
+  .group-battle .group-own-panel,
+  .group-battle .own-board-slot {
+    width:var(--group-main-board)!important;
+  }
+  .group-battle .own-board-slot {
+    height:var(--group-main-board)!important;
+  }
+  .group-battle .player-heading {
+    min-height:44px!important;
+    margin-bottom:6px!important;
+  }
+  .group-battle .stats-line {
+    min-height:40px!important;
+    margin-bottom:7px!important;
+    padding-block:5px!important;
+  }
+  .group-battle .input-hint {
+    margin-top:5px!important;
+    font-size:.76rem!important;
+  }
+  .group-battle .group-opponent-rail {
+    padding-top:51px!important;
+    gap:7px!important;
+  }
+  .group-battle .group-opponent-station {
+    padding:6px 0 8px!important;
+  }
+  .group-battle .group-race-strip,
+  .prototype-battle .race-strip {
+    margin-top:10px!important;
+  }
+  .group-battle .race-strip-header {
+    min-height:26px;
+  }
+  .group-battle .race-track {
+    margin:27px 14px 25px!important;
+  }
+  .group-battle .battle-attribution {
+    margin-top:0!important;
+    font-size:.68rem!important;
+  }
+
+  /* Keep 2-player matches in one viewport too. */
+  .prototype-battle:not(.group-battle) .player-heading {
+    min-height:46px!important;
+    margin-bottom:7px!important;
+  }
+  .prototype-battle:not(.group-battle) .stats-line {
+    min-height:42px!important;
+    margin-bottom:8px!important;
+  }
+  .prototype-battle:not(.group-battle) .input-hint {
+    margin-top:6px!important;
+  }
+  .prototype-battle:not(.group-battle) .race-track {
+    margin-top:27px!important;
+    margin-bottom:24px!important;
+  }
+}
+
+@media (min-width:881px) and (max-height:920px) {
+  .group-battle {
+    --group-main-board:380px;
+    --battle-board-size:380px;
+    --local-zoom:.76;
+  }
+  .group-battle .group-match-layout {
+    grid-template-columns:380px 210px!important;
+    gap:30px!important;
+  }
+  .group-battle .group-opponent-grid {
+    width:78px!important;
+    height:78px!important;
+  }
+  .group-battle .group-opponent-station {
+    grid-template-columns:78px minmax(0,1fr)!important;
+  }
+  .duel {
+    --battle-board-size:370px!important;
+    --local-zoom:.74!important;
+    width:min(100%,820px)!important;
+    gap:38px!important;
+  }
+  .player-station { width:370px!important; }
+}
+
+@media (min-width:881px) and (max-height:820px) {
+  .prototype-battle .match-bar {
+    min-height:64px!important;
+    padding:6px 0!important;
+  }
+  .prototype-battle .match-main {
+    height:calc(100vh - 64px)!important;
+    padding-top:7px!important;
+  }
+  .prototype-battle .match-rule { margin-bottom:7px!important; }
+  .group-battle {
+    --group-main-board:335px;
+    --battle-board-size:335px;
+    --local-zoom:.67;
+  }
+  .group-battle .group-match-layout {
+    grid-template-columns:335px 195px!important;
+    gap:26px!important;
+  }
+  .group-battle .group-opponent-rail {
+    padding-top:43px!important;
+    gap:4px!important;
+  }
+  .group-battle .group-opponent-grid {
+    width:67px!important;
+    height:67px!important;
+  }
+  .group-battle .group-opponent-station {
+    grid-template-columns:67px minmax(0,1fr)!important;
+    padding:4px 0 5px!important;
+  }
+  .group-battle .group-opponent-heading { margin-bottom:4px!important; }
+  .group-battle .group-opponent-heading strong { font-size:.86rem!important; }
+  .group-battle .group-opponent-station footer>strong { font-size:1rem!important; }
+  .group-battle .race-track { margin-block:23px 20px!important; }
+  .duel {
+    --battle-board-size:325px!important;
+    --local-zoom:.65!important;
+    width:min(100%,720px)!important;
+    gap:34px!important;
+  }
+  .player-station { width:325px!important; }
+}
+
+@media (min-width:881px) and (max-height:720px) {
+  .group-battle {
+    --group-main-board:295px;
+    --battle-board-size:295px;
+    --local-zoom:.59;
+  }
+  .group-battle .group-match-layout {
+    grid-template-columns:295px 185px!important;
+    gap:22px!important;
+  }
+  .group-battle .group-opponent-grid {
+    width:58px!important;
+    height:58px!important;
+  }
+  .group-battle .group-opponent-station {
+    grid-template-columns:58px minmax(0,1fr)!important;
+  }
+  .group-battle .player-heading { min-height:38px!important; }
+  .group-battle .stats-line { min-height:34px!important; }
+  .group-battle .race-strip-header>div:first-child { gap:2px!important; }
+  .group-battle .race-track { margin-block:20px 17px!important; }
+  .group-battle .battle-attribution { display:none!important; }
+  .duel {
+    --battle-board-size:290px!important;
+    --local-zoom:.58!important;
+    width:min(100%,650px)!important;
+    gap:28px!important;
+  }
+  .player-station { width:290px!important; }
+}
+
+/* Four collision lanes keep clustered race markers readable without moving
+   their actual x progress. */
+.group-race-runner[data-lane="0"] { transform:translate(-50%,calc(-50% - 2px))!important; }
+.group-race-runner[data-lane="1"] { transform:translate(-50%,calc(-50% + 2px))!important; }
+.group-race-runner[data-lane="2"] { transform:translate(-50%,calc(-50% - 6px))!important; }
+.group-race-runner[data-lane="3"] { transform:translate(-50%,calc(-50% + 6px))!important; }
+.group-race-runner[data-lane="0"]>span { bottom:14px!important; top:auto!important; }
+.group-race-runner[data-lane="1"]>span { top:14px!important; bottom:auto!important; }
+.group-race-runner[data-lane="2"]>span { bottom:27px!important; top:auto!important; }
+.group-race-runner[data-lane="3"]>span { top:27px!important; bottom:auto!important; }
+.group-race-runner.near-start>span {
+  left:0!important;
+  transform:translateX(-4px)!important;
+}
+.group-race-runner.near-end>span {
+  left:auto!important;
+  right:0!important;
+  transform:translateX(4px)!important;
+}
+.group-race-runner>span {
+  padding:2px 4px;
+  border-radius:5px;
+  background:color-mix(in srgb,var(--paper) 90%,transparent);
+  white-space:nowrap;
+}
+.group-race-runner>span b { max-width:76px!important; font-size:.7rem!important; }
+.group-race-runner>span small { font-size:.61rem!important; }
+
+@media (max-width:1040px) and (min-width:641px) {
+  .multiplayer-direct-join { max-width:500px; margin-inline:auto; }
+}
