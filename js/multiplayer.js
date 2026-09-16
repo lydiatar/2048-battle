@@ -123,8 +123,14 @@
   var groupOpponentViews = Object.create(null);
   var latestPlayerStates = Object.create(null);
   var latestGroupRaceState = null;
+  var latestGroupMatchRevision = 0;
+  var groupSnapshotTimer = null;
   var groupRaceSpineElement = null;
   var localSpectatorNotice = null;
+  var sharedMatchEventQueue = [];
+  var sharedMatchEventShowing = false;
+  var lastSharedMatchEventSequence = 0;
+  var sharedMatchEventTimer = null;
 
   if (TARGETS.indexOf(selectedTarget) === -1) {
     selectedTarget = 2048;
@@ -313,6 +319,10 @@
   }
 
   function resetGroupState() {
+    if (groupSnapshotTimer) {
+      window.clearInterval(groupSnapshotTimer);
+      groupSnapshotTimer = null;
+    }
     Object.keys(groupOpponentViews).forEach(function (key) {
       var view = groupOpponentViews[key];
       if (view && view.timer) window.clearTimeout(view.timer);
@@ -320,8 +330,26 @@
     groupOpponentViews = Object.create(null);
     latestPlayerStates = Object.create(null);
     latestGroupRaceState = null;
+    latestGroupMatchRevision = 0;
     groupRaceSpineElement = null;
     localSpectatorNotice = null;
+    sharedMatchEventQueue = [];
+    sharedMatchEventShowing = false;
+    lastSharedMatchEventSequence = 0;
+    if (sharedMatchEventTimer) {
+      window.clearTimeout(sharedMatchEventTimer);
+      sharedMatchEventTimer = null;
+    }
+  }
+
+  function startGroupSnapshotSync() {
+    if (!groupMatchEnabled()) return;
+    if (groupSnapshotTimer) window.clearInterval(groupSnapshotTimer);
+    socket.emit("requestMatchSnapshot");
+    groupSnapshotTimer = window.setInterval(function () {
+      if (!window.multiplayerMatchActive || !groupMatchEnabled()) return;
+      socket.emit("requestMatchSnapshot");
+    }, 1200);
   }
 
   function effectiveMultiplayerPlayerCount(data) {
@@ -2629,14 +2657,18 @@
 
     var runners = profiles.map(function (profile, index) {
       var isYou = Number(profile.playerNumber) === Number(window.multiplayerPlayerNumber);
-      return '<span class="race-runner group-race-runner ' + (isYou ? 'race-runner-you' : 'race-runner-opponent') + '" id="group-race-' + profile.playerNumber + '" data-lane="' + (index % 2) + '" style="left:0%">' +
-        '<span><b>' + escapeHtml(isYou ? 'YOU' : profile.nickname) + '</b><small>2</small></span><i></i></span>';
+      var label = isYou ? "YOU" : ("P" + profile.playerNumber);
+      return '<span class="race-runner group-race-runner ' + (isYou ? 'race-runner-you' : 'race-runner-opponent') + '" id="group-race-' + profile.playerNumber + '" data-lane="' + index + '" style="left:2.5%">' +
+        '<i></i><span class="sr-only">' + escapeHtml(label + " progress") + '</span></span>';
     }).join("");
 
     return '<section class="race-strip group-race-strip" id="group-race-spine" data-max-target="' + maxTarget + '">' +
       '<header class="race-strip-header"><div><span class="eyebrow">Live race</span><strong id="race-leader-summary">The race is even</strong></div><div class="race-target-copy">' +
       (mode === "custom-race" ? 'Own targets' : 'Target <strong>' + formatTile(window.multiplayerTargetTile || 2048) + '</strong>') +
-      '</div></header><div class="race-track"><span class="race-track-fill" id="group-race-fill"></span>' + runners + '</div></section>';
+      '</div></header>' +
+      '<div class="race-track group-race-track"><span class="race-track-fill" id="group-race-fill"></span>' + runners + '</div>' +
+      '<div class="group-race-legend" id="group-race-legend" aria-label="Current race order"></div>' +
+      '</section>';
   }
 
   function createGroupBattleView() {
@@ -2707,6 +2739,7 @@
         queue: [],
         animating: false,
         lastState: null,
+        latestRevision: 0,
         timer: null
       };
     });
@@ -2740,8 +2773,9 @@
 
     if (latestGroupRaceState) updateGroupRaceState(latestGroupRaceState);
     Object.keys(latestPlayerStates).forEach(function (key) {
-      renderGroupOpponentState(Number(key), latestPlayerStates[key]);
+      renderGroupOpponentState(Number(key), latestPlayerStates[key], true);
     });
+    startGroupSnapshotSync();
   }
 
   function groupCellAt(view, x, y) {
@@ -2792,6 +2826,7 @@
     if (view.status) view.status.textContent = profile && (profile.status === "eliminated" || profile.status === "forfeited") ? "Eliminated" : "Playing";
     paintGroupGrid(view, state, motion || null);
     view.lastState = state;
+    view.latestRevision = Math.max(Number(view.latestRevision || 0), Number(state.stateRevision || 0));
   }
 
   function groupMotionUsable(state) {
@@ -2875,23 +2910,79 @@
     });
   }
 
-  function renderGroupOpponentState(playerNumber, state) {
+  function renderGroupOpponentState(playerNumber, state, forceCanonical) {
     var view = groupOpponentViews[Number(playerNumber)];
     if (!view || !state || !state.grid) return;
+
+    var revision = Number(state.stateRevision || 0);
+    if (revision && revision < Number(view.latestRevision || 0)) return;
+
+    if (forceCanonical) {
+      if (view.timer) {
+        window.clearTimeout(view.timer);
+        view.timer = null;
+      }
+      view.queue = [];
+      view.animating = false;
+      clearGroupMotion(view);
+      commitGroupOpponentState(view, state, null);
+      return;
+    }
+
     if (!view.lastState && !view.animating) {
       commitGroupOpponentState(view, state, null);
       return;
     }
-    view.queue.push(state);
-    if (view.queue.length > 4) view.queue = [view.queue[0], view.queue[view.queue.length - 1]];
+
+    view.queue = [state];
     processGroupQueue(view);
   }
 
-  function updateGroupRaceState(state) {
-    latestGroupRaceState = state || latestGroupRaceState;
-    if (!latestGroupRaceState) return;
+  function applyGroupMatchSnapshot(snapshot) {
+    if (!snapshot || !groupMatchEnabled()) return;
 
-    var racePlayers = (latestGroupRaceState.players || []).slice();
+    var revision = Number(snapshot.revision || 0);
+    if (revision && revision < latestGroupMatchRevision) return;
+    latestGroupMatchRevision = Math.max(latestGroupMatchRevision, revision);
+
+    (snapshot.players || []).forEach(function (player) {
+      var profile = getProfile(player.playerNumber);
+      if (profile) {
+        profile.status = player.status || profile.status;
+        profile.nickname = sanitizeNickname(player.nickname) || profile.nickname;
+        profile.theme = THEMES.indexOf(player.theme) !== -1 ? player.theme : profile.theme;
+        profile.targetTile = player.targetTile || profile.targetTile;
+      }
+
+      if (!player.state || !player.state.grid) return;
+
+      var state = {
+        grid: player.state.grid,
+        score: Number(player.state.score || 0),
+        highestTile: Number(player.state.highestTile || 0),
+        stateRevision: Number(player.stateRevision || 0),
+        matchRevision: revision
+      };
+
+      latestPlayerStates[Number(player.playerNumber)] = state;
+
+      if (Number(player.playerNumber) !== Number(window.multiplayerPlayerNumber)) {
+        renderGroupOpponentState(Number(player.playerNumber), state, true);
+      }
+    });
+
+    if (snapshot.raceState) updateGroupRaceState(snapshot.raceState);
+  }
+
+  function updateGroupRaceState(state) {
+    if (!state) return;
+    var revision = Number(state.revision || 0);
+    if (revision && revision < latestGroupMatchRevision) return;
+
+    latestGroupMatchRevision = Math.max(latestGroupMatchRevision, revision);
+    latestGroupRaceState = state;
+
+    var racePlayers = (state.players || []).slice();
     var positioned = racePlayers.map(function (player) {
       return {
         player: player,
@@ -2902,34 +2993,14 @@
       return Number(a.player.playerNumber) - Number(b.player.playerNumber);
     });
 
-    // Assign extra label lanes only when runners are visually clustered.
-    // Marker x-position remains the real tile progress; lanes only prevent
-    // labels/dots from drawing over each other.
-    var clusterStart = 0;
-    while (clusterStart < positioned.length) {
-      var clusterEnd = clusterStart + 1;
-      while (
-        clusterEnd < positioned.length &&
-        positioned[clusterEnd].percent - positioned[clusterEnd - 1].percent < 8
-      ) {
-        clusterEnd += 1;
-      }
-      for (var laneIndex = clusterStart; laneIndex < clusterEnd; laneIndex += 1) {
-        positioned[laneIndex].lane = (laneIndex - clusterStart) % 4;
-      }
-      clusterStart = clusterEnd;
-    }
-
-    positioned.forEach(function (entry) {
+    positioned.forEach(function (entry, index) {
+      entry.lane = index % 4;
       var player = entry.player;
       var marker = document.getElementById("group-race-" + player.playerNumber);
+
       if (marker) {
         marker.style.left = (Math.round(entry.percent * 10) / 10) + "%";
-        marker.setAttribute("data-lane", String(entry.lane || 0));
-        marker.classList.toggle("near-start", entry.percent < 10);
-        marker.classList.toggle("near-end", entry.percent > 90);
-        var small = marker.querySelector("small");
-        if (small) small.textContent = formatTile(player.highestTile || 2);
+        marker.setAttribute("data-lane", String(entry.lane));
         marker.classList.toggle("is-eliminated", player.status === "eliminated" || player.status === "forfeited");
       }
 
@@ -2939,15 +3010,23 @@
         var view = groupOpponentViews[Number(player.playerNumber)];
         if (view && view.rank) view.rank.textContent = player.rank ? ordinal(player.rank) : "—";
         if (view && view.panel) view.panel.classList.toggle("is-eliminated", player.status === "eliminated" || player.status === "forfeited");
-        if (view && view.status && (player.status === "eliminated" || player.status === "forfeited")) view.status.textContent = "Eliminated";
+        if (view && view.status) {
+          view.status.textContent = player.status === "eliminated" || player.status === "forfeited" ? "Eliminated" : "Playing";
+        }
+        if (view && view.highest) view.highest.textContent = formatTile(player.highestTile || 0);
       }
     });
 
-    var summary = document.getElementById("race-leader-summary");
     var leader = racePlayers.find(function (player) {
-      return player.playerId === latestGroupRaceState.leaderPlayerId;
+      return player.playerId === state.leaderPlayerId;
     });
-    if (summary) summary.textContent = leader ? ((Number(leader.playerNumber) === Number(window.multiplayerPlayerNumber) ? "You" : leader.nickname) + " lead" + (Number(leader.playerNumber) === Number(window.multiplayerPlayerNumber) ? "" : "s")) : "The race is even";
+    var summary = document.getElementById("race-leader-summary");
+    if (summary) {
+      summary.textContent = leader
+        ? ((Number(leader.playerNumber) === Number(window.multiplayerPlayerNumber) ? "You" : leader.nickname) +
+          (Number(leader.playerNumber) === Number(window.multiplayerPlayerNumber) ? " lead" : " leads"))
+        : "The race is even";
+    }
 
     var fill = document.getElementById("group-race-fill");
     if (fill) {
@@ -2955,6 +3034,27 @@
         return Math.max(value, Number(player.progress || 0));
       }, 0);
       fill.style.width = Math.round(max * 1000) / 10 + "%";
+    }
+
+    var legend = document.getElementById("group-race-legend");
+    if (legend) {
+      var ranked = racePlayers.slice().sort(function (a, b) {
+        var ar = Number(a.rank || 99);
+        var br = Number(b.rank || 99);
+        if (ar !== br) return ar - br;
+        return Number(a.playerNumber) - Number(b.playerNumber);
+      });
+
+      legend.innerHTML = ranked.map(function (player) {
+        var isYou = Number(player.playerNumber) === Number(window.multiplayerPlayerNumber);
+        var label = isYou ? "YOU" : ("P" + player.playerNumber);
+        var statusClass = player.status === "eliminated" || player.status === "forfeited" ? " is-out" : "";
+        return '<span class="group-race-legend-item' + statusClass + '">' +
+          '<b>' + (player.rank ? ordinal(player.rank) : "—") + '</b>' +
+          '<strong>' + escapeHtml(label) + '</strong>' +
+          '<small>' + formatTile(player.highestTile || 2) + '</small>' +
+        '</span>';
+      }).join("");
     }
   }
 
@@ -2977,7 +3077,7 @@
     if (localSpectatorNotice) localSpectatorNotice.hidden = false;
     var hints = document.querySelectorAll(".group-battle .active-game-control-hint,.group-battle .freeplay-actions");
     Array.prototype.forEach.call(hints, function (node) { node.setAttribute("aria-hidden", "true"); node.style.visibility = "hidden"; });
-    if (reason) showBattleToast("You’re out — watch the race finish.");
+    // Shared server matchEvent owns the elimination announcement.
   }
 
   function showGroupMatchResult(data) {
@@ -3208,7 +3308,7 @@
     showMultiplayerMenu();
   }
 
-  function showBattleToast(message) {
+  function showBattleToast(message, duration) {
     var existing = document.getElementById("battle-toast");
     if (existing) existing.remove();
 
@@ -3219,7 +3319,120 @@
 
     setTimeout(function () {
       if (toast.parentNode) toast.remove();
-    }, 2200);
+    }, Number(duration || 2200));
+  }
+
+  function sharedMatchEventMessage(event) {
+    if (!event) return "";
+    var ownNumber = Number(window.multiplayerPlayerNumber);
+    var isYou = Number(event.playerNumber) === ownNumber;
+    var name = isYou ? "You" : (event.nickname || ("P" + event.playerNumber));
+
+    if (event.type === "lead-change") {
+      return isYou ? "You take the lead." : name + " takes the lead.";
+    }
+
+    if (event.type === "one-merge-away") {
+      return isYou ? "You’re one merge away." : name + " is one merge away.";
+    }
+
+    if (event.type === "player-eliminated") {
+      return isYou ? "You’re eliminated — watch the race finish." : name + " is eliminated.";
+    }
+
+    if (event.type === "final-two") {
+      var players = Array.isArray(event.players) ? event.players : [];
+      if (players.length === 2) {
+        var first = Number(players[0].playerNumber) === ownNumber ? "You" : players[0].nickname;
+        var second = Number(players[1].playerNumber) === ownNumber ? "you" : players[1].nickname;
+        return "Final two — " + first + " vs " + second + ".";
+      }
+      return "Final two.";
+    }
+
+    if (event.type === "target-reached") {
+      return isYou
+        ? "You reached " + formatTile(event.targetTile) + "."
+        : name + " reached " + formatTile(event.targetTile) + ".";
+    }
+
+    if (event.type === "winner-confirmed") {
+      return isYou ? "You win the race." : name + " wins the race.";
+    }
+
+    return "";
+  }
+
+  function playSharedMatchEventSound(event) {
+    if (!event) return;
+    var ownNumber = Number(window.multiplayerPlayerNumber);
+    var isYou = Number(event.playerNumber) === ownNumber;
+
+    if (event.type === "lead-change") {
+      playSound(isYou ? "lead" : "lead-lost");
+    } else if (event.type === "one-merge-away") {
+      playSound(isYou ? "milestone" : "danger");
+    } else if (event.type === "target-reached") {
+      playSound("milestone");
+    } else if (event.type === "player-eliminated" && !isYou) {
+      playSound("ui");
+    }
+  }
+
+  function processSharedMatchEventQueue() {
+    if (sharedMatchEventShowing || !sharedMatchEventQueue.length) return;
+
+    var event = sharedMatchEventQueue.shift();
+    var message = sharedMatchEventMessage(event);
+    if (!message) {
+      processSharedMatchEventQueue();
+      return;
+    }
+
+    sharedMatchEventShowing = true;
+    playSharedMatchEventSound(event);
+
+    var existing = document.getElementById("battle-toast");
+    if (existing) existing.remove();
+
+    var toast = document.createElement("div");
+    toast.id = "battle-toast";
+    toast.className = "shared-match-event-toast event-" + String(event.type || "status");
+    toast.textContent = message;
+    document.body.appendChild(toast);
+
+    var duration = 1450;
+    if (event.type === "target-reached") duration = 500;
+    if (event.type === "winner-confirmed") duration = 500;
+    if (event.type === "player-eliminated" && Number(event.remainingPlayers) === 1) duration = 550;
+
+    sharedMatchEventTimer = window.setTimeout(function () {
+      if (toast.parentNode) toast.remove();
+      sharedMatchEventTimer = null;
+      sharedMatchEventShowing = false;
+      processSharedMatchEventQueue();
+    }, duration);
+  }
+
+  function queueSharedMatchEvent(event) {
+    if (!event || window.multiplayerModeName === "freeplay") return;
+
+    var sequence = Number(event.sequence || 0);
+    if (sequence && sequence <= lastSharedMatchEventSequence) return;
+    if (sequence) lastSharedMatchEventSequence = sequence;
+
+    if (event.type === "target-reached" || event.type === "winner-confirmed") {
+      sharedMatchEventQueue = sharedMatchEventQueue.filter(function (queued) {
+        return queued.type !== "lead-change" && queued.type !== "one-merge-away";
+      });
+    } else if (event.type === "lead-change") {
+      sharedMatchEventQueue = sharedMatchEventQueue.filter(function (queued) {
+        return queued.type !== "lead-change";
+      });
+    }
+
+    sharedMatchEventQueue.push(event);
+    processSharedMatchEventQueue();
   }
 
   function applyRankBadge(badge, text, isFirst) {
@@ -3272,9 +3485,6 @@
     if (!latestOpponentState) {
       applyRankBadge(ownRankBadge, "TIED", false);
       applyRankBadge(opponentRankBadge, "TIED", false);
-      if (ownOneAwayNow && !lastOwnOneAway) {
-        showBattleToast(getOwnNickname() + " is one merge away.");
-      }
       lastOwnOneAway = ownOneAwayNow;
       lastOpponentOneAway = false;
       updateCompetitiveMusicIntensity();
@@ -3297,18 +3507,6 @@
     } else {
       applyRankBadge(ownRankBadge, "TIED", false);
       applyRankBadge(opponentRankBadge, "TIED", false);
-    }
-
-    if (lastLeaderNumber !== null && leaderNumber !== lastLeaderNumber && leaderNumber !== 0) {
-      var leaderName = leaderNumber === ownNumber ? getOwnNickname() : getOpponentNickname();
-      showBattleToast(leaderName + " takes the lead.");
-      playSound(leaderNumber === ownNumber ? "lead" : "lead-lost");
-    }
-
-    if (ownOneAwayNow && !lastOwnOneAway) {
-      showBattleToast(getOwnNickname() + " is one merge away.");
-    } else if (opponentOneAwayNow && !lastOpponentOneAway) {
-      showBattleToast(getOpponentNickname() + " is one merge away.");
     }
 
     lastOwnOneAway = ownOneAwayNow;
@@ -4108,12 +4306,28 @@
 
   socket.on("playerStateUpdate", function (data) {
     if (!data || Number(data.playerNumber) === Number(window.multiplayerPlayerNumber)) return;
-    latestPlayerStates[Number(data.playerNumber)] = data.state;
-    if (groupMatchEnabled()) renderGroupOpponentState(Number(data.playerNumber), data.state);
+    var state = data.state || {};
+    state.stateRevision = Number(data.stateRevision || state.stateRevision || 0);
+    state.matchRevision = Number(data.revision || state.matchRevision || 0);
+
+    var existing = latestPlayerStates[Number(data.playerNumber)];
+    if (existing && Number(existing.stateRevision || 0) > Number(state.stateRevision || 0)) return;
+
+    latestPlayerStates[Number(data.playerNumber)] = state;
+    if (groupMatchEnabled()) renderGroupOpponentState(Number(data.playerNumber), state, false);
+  });
+
+  socket.on("matchSnapshot", function (data) {
+    if (groupMatchEnabled()) applyGroupMatchSnapshot(data);
   });
 
   socket.on("raceState", function (data) {
     if (groupMatchEnabled()) updateGroupRaceState(data);
+  });
+
+  socket.on("matchEvent", function (data) {
+    if (!window.multiplayerMatchActive && window.currentGameMode !== "multiplayer-countdown") return;
+    queueSharedMatchEvent(data);
   });
 
   socket.on("playerEliminated", function (data) {
@@ -4127,7 +4341,6 @@
       var view = groupOpponentViews[Number(data.playerNumber)];
       if (view && view.panel) view.panel.classList.add("is-eliminated");
       if (view && view.status) view.status.textContent = "Eliminated";
-      showBattleToast((data.nickname || ("Player " + data.playerNumber)) + " is eliminated.");
     }
 
     if (data.raceState && groupMatchEnabled()) updateGroupRaceState(data.raceState);
