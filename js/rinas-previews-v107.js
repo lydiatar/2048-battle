@@ -1,4 +1,4 @@
-/* Rina's 2048 — production numberless previews v105 */
+/* Rina's 2048 — production numberless previews v107 */
 (function () {
   "use strict";
 
