@@ -123,6 +123,7 @@ function makePlayer(socketId, slot, raw, isHost) {
       highestTile: 0,
       boardValue: 0
     },
+    stateRevision: 0,
     eliminationSequence: null,
     placement: null
   };
@@ -233,6 +234,116 @@ function compareLivePlayers(room, a, b) {
   return a.slot - b.slot;
 }
 
+
+function primaryLeaderPlayerId(room) {
+  const active = sortedPlayers(room)
+    .filter((player) => player.status === "active" || player.status === "winner");
+
+  if (!active.length) return null;
+
+  let best = -1;
+  let leaders = [];
+
+  active.forEach((player) => {
+    const progress = playerProgress(room, player);
+    if (progress > best + 0.000001) {
+      best = progress;
+      leaders = [player];
+    } else if (Math.abs(progress - best) <= 0.000001) {
+      leaders.push(player);
+    }
+  });
+
+  return leaders.length === 1 ? leaders[0].id : null;
+}
+
+function countTilesWithValue(grid, value) {
+  if (!grid || !Array.isArray(grid.cells)) return 0;
+  let count = 0;
+
+  for (let x = 0; x < 4; x++) {
+    if (!Array.isArray(grid.cells[x])) continue;
+    for (let y = 0; y < 4; y++) {
+      const tile = grid.cells[x][y];
+      if (tile && Number(tile.value) === Number(value)) count += 1;
+    }
+  }
+
+  return count;
+}
+
+function playerIsOneMergeAway(room, player) {
+  if (!player || player.status !== "active") return false;
+  const target = Number(targetForPlayer(room, player.slot) || 0);
+  if (!target || target < 4) return false;
+  const half = target / 2;
+  return countTilesWithValue(player.state && player.state.grid, half) >= 2;
+}
+
+function ensureCompetitiveEventState(room) {
+  if (!room.competitiveEvents) {
+    room.competitiveEvents = {
+      leaderPlayerId: null,
+      leaderInitialized: false,
+      oneAwayPlayerIds: [],
+      finalTwoEmitted: false,
+      winnerConfirmed: false
+    };
+  }
+  return room.competitiveEvents;
+}
+
+function emitMatchEvent(roomCode, room, type, payload = {}) {
+  room.eventSequence = Number(room.eventSequence || 0) + 1;
+  io.to(roomCode).emit("matchEvent", {
+    sequence: room.eventSequence,
+    revision: Number(room.matchRevision || 0),
+    type,
+    ...payload
+  });
+}
+
+function evaluateCompetitiveEvents(roomCode, room) {
+  if (!room || room.status !== "playing" || room.mode === "freeplay") return;
+
+  const tracker = ensureCompetitiveEventState(room);
+  const leaderPlayerId = primaryLeaderPlayerId(room);
+
+  if (!tracker.leaderInitialized) {
+    tracker.leaderInitialized = true;
+    tracker.leaderPlayerId = leaderPlayerId;
+  } else if (leaderPlayerId !== tracker.leaderPlayerId) {
+    const previousLeaderPlayerId = tracker.leaderPlayerId;
+    tracker.leaderPlayerId = leaderPlayerId;
+
+    if (leaderPlayerId) {
+      const leader = room.players.find((player) => player.id === leaderPlayerId);
+      if (leader) {
+        emitMatchEvent(roomCode, room, "lead-change", {
+          playerId: leader.id,
+          playerNumber: leader.slot,
+          nickname: leader.nickname,
+          previousLeaderPlayerId
+        });
+      }
+    }
+  }
+
+  const oneAwayIds = new Set(tracker.oneAwayPlayerIds || []);
+  sortedPlayers(room).forEach((player) => {
+    if (!oneAwayIds.has(player.id) && playerIsOneMergeAway(room, player)) {
+      oneAwayIds.add(player.id);
+      emitMatchEvent(roomCode, room, "one-merge-away", {
+        playerId: player.id,
+        playerNumber: player.slot,
+        nickname: player.nickname,
+        targetTile: targetForPlayer(room, player.slot)
+      });
+    }
+  });
+  tracker.oneAwayPlayerIds = Array.from(oneAwayIds);
+}
+
 function raceState(room) {
   const active = sortedPlayers(room)
     .filter((player) => player.status === "active" || player.status === "winner")
@@ -246,7 +357,8 @@ function raceState(room) {
   });
 
   return {
-    leaderPlayerId: active.length ? active[0].id : null,
+    revision: Number(room.matchRevision || 0),
+    leaderPlayerId: primaryLeaderPlayerId(room),
     players: sortedPlayers(room).map((player) => ({
       playerId: player.id,
       playerNumber: player.slot,
@@ -262,9 +374,38 @@ function raceState(room) {
   };
 }
 
+
+function matchSnapshot(room) {
+  return {
+    revision: Number(room.matchRevision || 0),
+    status: room.status,
+    raceState: raceState(room),
+    players: sortedPlayers(room).map((player) => ({
+      playerId: player.id,
+      playerNumber: player.slot,
+      nickname: player.nickname,
+      theme: player.theme,
+      status: player.status,
+      connected: player.connected,
+      targetTile: targetForPlayer(room, player.slot),
+      stateRevision: Number(player.stateRevision || 0),
+      state: player.state && player.state.grid ? {
+        grid: player.state.grid,
+        score: Number(player.state.score || 0),
+        highestTile: Number(player.state.highestTile || 0)
+      } : null
+    }))
+  };
+}
+
+function broadcastMatchSnapshot(roomCode, room) {
+  io.to(roomCode).emit("matchSnapshot", matchSnapshot(room));
+}
+
 function resetMatchPlayer(player) {
   player.status = "active";
   player.state = { grid: null, score: 0, highestTile: 0, boardValue: 0 };
+  player.stateRevision = 0;
   player.eliminationSequence = null;
   player.placement = null;
 }
@@ -319,6 +460,19 @@ function finishScalableMatch(roomCode, room, winner, reason) {
   room.winner = winner.slot;
   room.winnerPlayerId = winner.id;
   room.rematchVotes = [];
+
+  const tracker = ensureCompetitiveEventState(room);
+  if (!tracker.winnerConfirmed) {
+    tracker.winnerConfirmed = true;
+    emitMatchEvent(roomCode, room, "winner-confirmed", {
+      playerId: winner.id,
+      playerNumber: winner.slot,
+      nickname: winner.nickname,
+      reason,
+      targetTile: targetForPlayer(room, winner.slot)
+    });
+  }
+
   const placements = finalizePlacements(room, winner);
   const payload = {
     winner: winner.slot,
@@ -331,13 +485,18 @@ function finishScalableMatch(roomCode, room, winner, reason) {
     raceState: raceState(room)
   };
 
-  if (room.requiredPlayers === 2) {
-    const loser = placements.find((entry) => entry.placement === 2);
-    payload.loser = loser ? loser.playerNumber : null;
-    io.to(roomCode).emit("gameWinner", payload);
-  } else {
-    io.to(roomCode).emit("matchFinished", payload);
-  }
+  const resultDelayMs = 1150;
+
+  setTimeout(() => {
+    if (!rooms.has(roomCode)) return;
+    if (room.requiredPlayers === 2) {
+      const loser = placements.find((entry) => entry.placement === 2);
+      payload.loser = loser ? loser.playerNumber : null;
+      io.to(roomCode).emit("gameWinner", payload);
+    } else {
+      io.to(roomCode).emit("matchFinished", payload);
+    }
+  }, resultDelayMs);
 
   console.log("Room", roomCode, "finished. Winner: Player", winner.slot, "Reason:", reason);
 }
@@ -349,7 +508,11 @@ function eliminatePlayer(roomCode, room, player, reason) {
   if (!room.eliminationOrder.includes(player.id)) room.eliminationOrder.push(player.id);
   player.eliminationSequence = room.eliminationOrder.length;
 
+  room.matchRevision = Number(room.matchRevision || 0) + 1;
+  const active = room.players.filter((entry) => entry.status === "active");
+
   io.to(roomCode).emit("playerEliminated", {
+    revision: room.matchRevision,
     playerId: player.id,
     playerNumber: player.slot,
     nickname: player.nickname,
@@ -357,7 +520,40 @@ function eliminatePlayer(roomCode, room, player, reason) {
     raceState: raceState(room)
   });
 
-  const active = room.players.filter((entry) => entry.status === "active");
+  emitMatchEvent(roomCode, room, "player-eliminated", {
+    playerId: player.id,
+    playerNumber: player.slot,
+    nickname: player.nickname,
+    reason,
+    remainingPlayers: active.length
+  });
+
+  broadcastMatchSnapshot(roomCode, room);
+
+  const tracker = ensureCompetitiveEventState(room);
+
+  if (active.length > 1) {
+    evaluateCompetitiveEvents(roomCode, room);
+  }
+
+  if (
+    room.requiredPlayers > 2 &&
+    active.length === 2 &&
+    !tracker.finalTwoEmitted
+  ) {
+    tracker.finalTwoEmitted = true;
+    emitMatchEvent(roomCode, room, "final-two", {
+      players: active
+        .slice()
+        .sort((a, b) => a.slot - b.slot)
+        .map((entry) => ({
+          playerId: entry.id,
+          playerNumber: entry.slot,
+          nickname: entry.nickname
+        }))
+    });
+  }
+
   if (active.length === 1) {
     finishScalableMatch(roomCode, room, active[0], "last-standing");
   }
@@ -550,6 +746,8 @@ io.on("connection", (socket) => {
       winnerPlayerId: null,
       eliminationOrder: [],
       eventSequence: 0,
+      matchRevision: 0,
+      competitiveEvents: null,
       startAt: null,
       countdownTimer: null,
       rematchVotes: [],
@@ -668,6 +866,9 @@ io.on("connection", (socket) => {
     room.winner = null;
     room.winnerPlayerId = null;
     room.eliminationOrder = [];
+    room.matchRevision = 0;
+    room.competitiveEvents = null;
+    room.eventSequence = 0;
     room.rematchVotes = [];
     room.startAt = Date.now() + 3400;
 
@@ -790,8 +991,12 @@ io.on("connection", (socket) => {
       highestTile: sanitized.highestTile,
       boardValue: sanitized.boardValue
     };
+    player.stateRevision = Number(player.stateRevision || 0) + 1;
+    room.matchRevision = Number(room.matchRevision || 0) + 1;
 
     const outbound = {
+      revision: room.matchRevision,
+      stateRevision: player.stateRevision,
       playerNumber: player.slot,
       playerId: player.id,
       status: player.status,
@@ -806,6 +1011,8 @@ io.on("connection", (socket) => {
         ownTarget: targetForPlayer(room, player.slot) || 0,
         theme: player.theme,
         nickname: player.nickname,
+        stateRevision: player.stateRevision,
+        matchRevision: room.matchRevision,
         motion: state && state.motion || null
       }
     };
@@ -815,12 +1022,22 @@ io.on("connection", (socket) => {
       socket.to(roomCode).emit("opponentState", outbound);
     }
 
+    broadcastMatchSnapshot(roomCode, room);
+
     if (room.mode !== "freeplay") {
       const target = targetForPlayer(room, player.slot);
       if (target && sanitized.highestTile >= target) {
+        emitMatchEvent(roomCode, room, "target-reached", {
+          playerId: player.id,
+          playerNumber: player.slot,
+          nickname: player.nickname,
+          targetTile: target
+        });
         finishScalableMatch(roomCode, room, player, "target");
         return;
       }
+
+      evaluateCompetitiveEvents(roomCode, room);
 
       if (!gridHasLegalMove(sanitized.grid)) {
         eliminatePlayer(roomCode, room, player, "board-stuck");
@@ -831,18 +1048,40 @@ io.on("connection", (socket) => {
     }
   });
 
+  socket.on("requestMatchSnapshot", () => {
+    const found = findRoomForSocket(socket.id);
+    if (!found) return;
+    const { room, player } = found;
+    if (!player || (room.status !== "playing" && room.status !== "finished")) return;
+    socket.emit("matchSnapshot", matchSnapshot(room));
+  });
+
   socket.on("reachedTarget", () => {
     // Outcome is derived from the authoritative sanitized playerState snapshot.
   });
 
-  socket.on("playerEliminated", () => {
+  socket.on("playerEliminated", (payload) => {
     const found = findRoomForSocket(socket.id);
     if (!found) return;
     const { roomCode, room, player } = found;
-    if (room.status !== "playing" || room.mode === "freeplay") return;
+    if (room.status !== "playing" || room.mode === "freeplay" || player.status !== "active") return;
 
-    // The final state normally resolves this automatically. This event is a
-    // fallback for a locked board whose last state has already been accepted.
+    // Accept a final grid snapshot with the elimination request so the server
+    // does not depend on packet ordering between the final playerState and the
+    // elimination event. The server still verifies that the board is truly locked.
+    const sanitized = sanitizeGridSnapshot(payload && payload.grid);
+    if (sanitized) {
+      player.state = {
+        grid: sanitized.grid,
+        score: Math.max(0, Math.floor(Number(payload && payload.score || player.state.score || 0))),
+        highestTile: sanitized.highestTile,
+        boardValue: sanitized.boardValue
+      };
+      player.stateRevision = Number(player.stateRevision || 0) + 1;
+      room.matchRevision = Number(room.matchRevision || 0) + 1;
+      broadcastMatchSnapshot(roomCode, room);
+    }
+
     if (player.state && player.state.grid && !gridHasLegalMove(player.state.grid)) {
       eliminatePlayer(roomCode, room, player, "board-stuck");
     }
