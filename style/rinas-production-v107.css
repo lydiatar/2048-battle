@@ -6370,3 +6370,244 @@ body.solo-active #site-footer { display:none!important; }
     padding-top:12px!important;
   }
 }
+
+
+/* ============================================================
+   v106 â€” group gameplay viewport fit + stable race rail
+   ============================================================ */
+
+@media (min-width:881px) {
+  .group-battle .match-main {
+    display:grid!important;
+    grid-template-rows:auto auto auto auto!important;
+    align-content:start!important;
+    justify-items:center!important;
+    height:calc(100vh - 64px)!important;
+    padding:7px 16px 6px!important;
+    overflow:hidden!important;
+  }
+
+  .group-battle .match-rule {
+    width:100%;
+    margin:0 0 7px!important;
+  }
+
+  .group-battle .group-match-layout {
+    width:min(100%,760px)!important;
+    margin:0 auto!important;
+    align-items:start!important;
+  }
+
+  .group-battle .group-own-panel {
+    display:grid!important;
+    grid-template-rows:auto auto var(--group-main-board) auto!important;
+    align-content:start!important;
+    height:auto!important;
+  }
+
+  .group-battle .own-board-slot {
+    width:var(--group-main-board)!important;
+    height:var(--group-main-board)!important;
+    min-height:0!important;
+  }
+
+  .group-battle .active-game-control-hint {
+    position:static!important;
+    min-height:34px!important;
+    margin:6px 0 0!important;
+    align-self:start!important;
+  }
+
+  .group-battle .group-race-strip {
+    width:min(100%,760px)!important;
+    min-height:78px!important;
+    margin:7px auto 0!important;
+    padding-top:0!important;
+    flex:none!important;
+  }
+
+  .group-battle .race-strip-header {
+    min-height:23px!important;
+    margin-bottom:2px!important;
+  }
+
+  .group-battle .group-race-track {
+    height:24px!important;
+    margin:6px 12px 0!important;
+  }
+
+  .group-battle .race-track-fill {
+    top:11px!important;
+  }
+
+  .group-battle .group-race-runner {
+    top:12px!important;
+  }
+
+  .group-battle .battle-attribution {
+    margin:3px 0 0!important;
+    min-height:14px;
+  }
+}
+
+.group-race-runner > span:not(.sr-only) {
+  display:none!important;
+}
+
+.group-race-runner[data-lane="0"] { transform:translate(-50%,-8px)!important; }
+.group-race-runner[data-lane="1"] { transform:translate(-50%,-3px)!important; }
+.group-race-runner[data-lane="2"] { transform:translate(-50%,3px)!important; }
+.group-race-runner[data-lane="3"] { transform:translate(-50%,8px)!important; }
+
+.group-race-legend {
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  gap:18px;
+  min-height:24px;
+  margin:3px 0 0;
+  color:var(--muted);
+  font-size:.68rem;
+  white-space:nowrap;
+}
+
+.group-race-legend-item {
+  display:inline-flex;
+  align-items:baseline;
+  gap:5px;
+}
+
+.group-race-legend-item > b {
+  color:var(--muted);
+  font:800 .62rem/1 var(--font-display);
+}
+
+.group-race-legend-item > strong {
+  color:var(--ink);
+  font:800 .7rem/1 var(--font-display);
+}
+
+.group-race-legend-item > small {
+  color:var(--muted);
+  font-size:.66rem;
+}
+
+.group-race-legend-item.is-out {
+  opacity:.42;
+  text-decoration:line-through;
+}
+
+@media (min-width:881px) and (max-height:840px) {
+  .prototype-battle .match-bar {
+    min-height:60px!important;
+    padding:5px 0!important;
+  }
+
+  .group-battle .match-main {
+    height:calc(100vh - 60px)!important;
+    padding-top:5px!important;
+  }
+
+  .group-battle {
+    --group-main-board:315px!important;
+    --battle-board-size:315px!important;
+    --local-zoom:.63!important;
+  }
+
+  .group-battle .group-match-layout {
+    grid-template-columns:315px 190px!important;
+    gap:24px!important;
+    width:min(100%,620px)!important;
+  }
+
+  .group-battle .player-heading {
+    min-height:38px!important;
+    margin-bottom:4px!important;
+  }
+
+  .group-battle .stats-line {
+    min-height:34px!important;
+    margin-bottom:5px!important;
+    padding-block:4px!important;
+  }
+
+  .group-battle .group-opponent-rail {
+    padding-top:40px!important;
+    gap:3px!important;
+  }
+
+  .group-battle .group-opponent-grid {
+    width:62px!important;
+    height:62px!important;
+  }
+
+  .group-battle .group-opponent-station {
+    grid-template-columns:62px minmax(0,1fr)!important;
+    padding:3px 0 5px!important;
+  }
+
+  .group-battle .group-opponent-heading {
+    margin-bottom:3px!important;
+  }
+
+  .group-battle .group-race-strip {
+    width:min(100%,700px)!important;
+    min-height:72px!important;
+    margin-top:5px!important;
+  }
+
+  .group-battle .battle-attribution {
+    display:none!important;
+  }
+}
+
+@media (min-width:881px) and (max-height:730px) {
+  .group-battle {
+    --group-main-board:280px!important;
+    --battle-board-size:280px!important;
+    --local-zoom:.56!important;
+  }
+
+  .group-battle .group-match-layout {
+    grid-template-columns:280px 178px!important;
+    gap:20px!important;
+  }
+
+  .group-battle .group-opponent-grid {
+    width:54px!important;
+    height:54px!important;
+  }
+
+  .group-battle .group-opponent-station {
+    grid-template-columns:54px minmax(0,1fr)!important;
+  }
+
+  .group-battle .group-race-strip {
+    min-height:66px!important;
+  }
+}
+
+
+/* ============================================================
+   v107 â€” synchronized multiplayer event announcements
+   ============================================================ */
+
+#battle-toast.shared-match-event-toast {
+  min-width:220px;
+  max-width:min(440px,calc(100% - 32px));
+  padding:10px 15px;
+  animation:none!important;
+  opacity:1;
+  transform:translateX(-50%);
+}
+
+#battle-toast.event-player-eliminated,
+#battle-toast.event-final-two {
+  border-color:color-mix(in srgb,var(--muted) 42%,var(--line));
+}
+
+#battle-toast.event-target-reached,
+#battle-toast.event-winner-confirmed {
+  border-color:color-mix(in srgb,var(--accent) 64%,var(--line));
+  font-weight:800;
+}
